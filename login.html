@@ -1,0 +1,529 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TraderHikes — Sign In</title>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+
+  :root {
+    --bg:      #070b17;
+    --card:    #0e1528;
+    --card2:   #111a2e;
+    --bdr:     rgba(255,255,255,.08);
+    --bdr2:    rgba(255,255,255,.13);
+    --blue:    #5c6ffb;
+    --blue-lt: #8fa3ff;
+    --green:   #2ed8a0;
+    --red:     #ff5d7a;
+    --white:   #f4f8ff;
+    --text:    #cdd6f0;
+    --muted:   #6478a0;
+    --f: 'Plus Jakarta Sans', sans-serif;
+    --fm: 'DM Mono', monospace;
+  }
+
+  html, body {
+    height: 100%;
+    background: var(--bg);
+    font-family: var(--f);
+    color: var(--text);
+  }
+
+  /* Ambient background glow */
+  body {
+    background-image:
+      radial-gradient(ellipse 80% 60% at 50% 0%, rgba(92,111,251,.13) 0%, transparent 65%),
+      radial-gradient(ellipse 40% 30% at 85% 20%, rgba(46,216,160,.06) 0%, transparent 55%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    padding: 24px;
+  }
+
+  /* ── CARD ── */
+  .login-card {
+    width: 100%;
+    max-width: 420px;
+    background: var(--card);
+    border: 1px solid var(--bdr);
+    border-radius: 18px;
+    overflow: hidden;
+    box-shadow: 0 24px 64px rgba(0,0,0,.45), 0 0 0 1px rgba(255,255,255,.04);
+  }
+
+  /* ── HEADER ── */
+  .card-header {
+    padding: 32px 32px 24px;
+    border-bottom: 1px solid var(--bdr);
+    background: linear-gradient(135deg, var(--card2) 0%, var(--card) 100%);
+    text-align: center;
+  }
+  .logo-wrap {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 20px;
+  }
+  .logo-icon {
+    width: 40px; height: 40px;
+    border-radius: 12px;
+    background: linear-gradient(135deg, #5c6ffb, #7c4dff);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 20px; font-weight: 800; color: #fff;
+    box-shadow: 0 4px 18px rgba(92,111,251,.45);
+  }
+  .logo-text {
+    font-size: 22px; font-weight: 800;
+    color: var(--white); letter-spacing: -.5px;
+  }
+  .logo-text span { color: #8fa3ff; }
+  .card-title {
+    font-size: 20px; font-weight: 800;
+    color: var(--white); letter-spacing: -.3px;
+    margin-bottom: 6px;
+  }
+  .card-sub {
+    font-size: 13px; color: var(--muted);
+  }
+
+  /* ── FORM BODY ── */
+  .card-body { padding: 28px 32px 32px; }
+
+  .form-group { margin-bottom: 18px; }
+  .form-label {
+    display: block;
+    font-size: 12px; font-weight: 600;
+    color: var(--muted); text-transform: uppercase;
+    letter-spacing: .6px; margin-bottom: 8px;
+  }
+  .form-input {
+    width: 100%;
+    background: rgba(255,255,255,.04);
+    border: 1px solid var(--bdr2);
+    border-radius: 10px;
+    padding: 13px 16px;
+    font-size: 14px; font-family: var(--f);
+    color: var(--white);
+    outline: none;
+    transition: border-color .2s, box-shadow .2s;
+  }
+  .form-input::placeholder { color: var(--muted); }
+  .form-input:focus {
+    border-color: var(--blue);
+    box-shadow: 0 0 0 3px rgba(92,111,251,.18);
+  }
+
+  /* Password field with show/hide */
+  .input-wrap { position: relative; }
+  .input-wrap .form-input { padding-right: 48px; }
+  .pw-toggle {
+    position: absolute; right: 14px; top: 50%;
+    transform: translateY(-50%);
+    background: none; border: none;
+    color: var(--muted); cursor: pointer;
+    font-size: 16px; line-height: 1;
+    transition: color .15s;
+    display: flex; align-items: center;
+  }
+  .pw-toggle:hover { color: var(--text); }
+
+  /* Remember me row */
+  .form-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 22px;
+  }
+  .checkbox-wrap {
+    display: flex; align-items: center; gap: 8px;
+    cursor: pointer; user-select: none;
+  }
+  .checkbox-wrap input[type="checkbox"] {
+    width: 16px; height: 16px;
+    border-radius: 4px;
+    accent-color: var(--blue);
+    cursor: pointer;
+  }
+  .checkbox-label { font-size: 13px; color: var(--text); }
+  .forgot-link {
+    font-size: 13px; color: var(--blue-lt);
+    text-decoration: none;
+    transition: color .15s;
+    background: none; border: none; cursor: pointer;
+  }
+  .forgot-link:hover { color: var(--white); }
+
+  /* Submit button */
+  .btn-submit {
+    width: 100%;
+    background: linear-gradient(135deg, #5c6ffb, #7c4dff);
+    border: none; border-radius: 10px;
+    padding: 14px;
+    font-size: 15px; font-weight: 700;
+    color: #fff; cursor: pointer;
+    font-family: var(--f);
+    letter-spacing: .2px;
+    box-shadow: 0 4px 18px rgba(92,111,251,.4);
+    transition: opacity .15s, transform .12s;
+    position: relative;
+    overflow: hidden;
+  }
+  .btn-submit:hover { opacity: .92; transform: translateY(-1px); }
+  .btn-submit:active { transform: translateY(0); }
+  .btn-submit:disabled { opacity: .5; cursor: not-allowed; transform: none; }
+
+  /* Loading spinner inside button */
+  .btn-submit .spinner {
+    display: none;
+    width: 18px; height: 18px;
+    border: 2px solid rgba(255,255,255,.3);
+    border-top-color: #fff;
+    border-radius: 50%;
+    animation: spin .7s linear infinite;
+    margin: 0 auto;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .btn-submit.loading .btn-text { display: none; }
+  .btn-submit.loading .spinner { display: block; }
+
+  /* Alert messages */
+  .alert {
+    display: none;
+    padding: 12px 16px;
+    border-radius: 8px;
+    font-size: 13px;
+    margin-bottom: 18px;
+    line-height: 1.5;
+  }
+  .alert.show { display: block; }
+  .alert-error {
+    background: rgba(255,93,122,.1);
+    border: 1px solid rgba(255,93,122,.3);
+    color: #ff8099;
+  }
+  .alert-success {
+    background: rgba(46,216,160,.1);
+    border: 1px solid rgba(46,216,160,.3);
+    color: #5ee8be;
+  }
+
+  /* Divider */
+  .divider {
+    display: flex; align-items: center; gap: 12px;
+    margin: 22px 0;
+  }
+  .divider::before, .divider::after {
+    content: ''; flex: 1; height: 1px;
+    background: var(--bdr);
+  }
+  .divider-text { font-size: 11px; color: var(--muted); white-space: nowrap; }
+
+  /* Forgot password panel (hidden initially) */
+  .reset-panel { display: none; }
+  .reset-panel.show { display: block; }
+  .main-panel { display: block; }
+  .main-panel.hide { display: none; }
+
+  /* Footer */
+  .card-footer {
+    padding: 16px 32px 20px;
+    border-top: 1px solid var(--bdr);
+    text-align: center;
+    font-size: 12px; color: var(--muted);
+  }
+  .card-footer strong { color: var(--text); }
+
+  /* Animated fade-in */
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(16px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  .login-card { animation: fadeUp .45s ease both; }
+</style>
+</head>
+<body>
+
+<div class="login-card">
+
+  <!-- Header -->
+  <div class="card-header">
+    <div class="logo-wrap">
+      <div class="logo-icon">₹</div>
+      <div class="logo-text">Trader<span>Hikes</span></div>
+    </div>
+    <div class="card-title">Member Dashboard</div>
+    <div class="card-sub">Sign in to access live trades &amp; market analysis</div>
+  </div>
+
+  <!-- Body -->
+  <div class="card-body">
+
+    <!-- Alert box -->
+    <div class="alert alert-error" id="alert-error"></div>
+    <div class="alert alert-success" id="alert-success"></div>
+
+    <!-- ── MAIN LOGIN FORM ── -->
+    <div class="main-panel" id="main-panel">
+      <form id="login-form" novalidate>
+
+        <div class="form-group">
+          <label class="form-label" for="email">Email address</label>
+          <input
+            class="form-input" type="email" id="email"
+            placeholder="you@example.com"
+            autocomplete="email" required
+          >
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="password">Password</label>
+          <div class="input-wrap">
+            <input
+              class="form-input" type="password" id="password"
+              placeholder="Enter your password"
+              autocomplete="current-password" required
+            >
+            <button type="button" class="pw-toggle" id="pw-toggle" aria-label="Toggle password visibility">
+              👁
+            </button>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <label class="checkbox-wrap">
+            <input type="checkbox" id="remember-me" checked>
+            <span class="checkbox-label">Keep me signed in</span>
+          </label>
+          <button type="button" class="forgot-link" id="forgot-btn">Forgot password?</button>
+        </div>
+
+        <button type="submit" class="btn-submit" id="submit-btn">
+          <span class="btn-text">Sign In</span>
+          <div class="spinner"></div>
+        </button>
+
+      </form>
+    </div>
+
+    <!-- ── FORGOT PASSWORD FORM ── -->
+    <div class="reset-panel" id="reset-panel">
+      <p style="font-size:13px;color:var(--muted);margin-bottom:20px;line-height:1.6">
+        Enter your email and we'll send you a link to reset your password.
+      </p>
+      <form id="reset-form" novalidate>
+        <div class="form-group">
+          <label class="form-label" for="reset-email">Email address</label>
+          <input
+            class="form-input" type="email" id="reset-email"
+            placeholder="you@example.com"
+            autocomplete="email" required
+          >
+        </div>
+        <button type="submit" class="btn-submit" id="reset-submit-btn">
+          <span class="btn-text">Send Reset Link</span>
+          <div class="spinner"></div>
+        </button>
+        <div style="text-align:center;margin-top:16px">
+          <button type="button" class="forgot-link" id="back-btn">← Back to sign in</button>
+        </div>
+      </form>
+    </div>
+
+  </div>
+
+  <!-- Footer -->
+  <div class="card-footer">
+    <strong>TraderHikes</strong> — Premium Trading Education &nbsp;|&nbsp;
+    Access for paid course members only
+  </div>
+
+</div>
+
+<script>
+// ── SUPABASE CLIENT ──────────────────────────────────────
+const SUPABASE_URL = 'https://kqndpeflwuztzhixibih.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_TKxZEcz6BqGzko2I3Erk7w_zkl2Az76';
+
+const { createClient } = supabase;
+const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+// ── WHERE TO GO AFTER LOGIN ──────────────────────────────
+// Change this to your actual dashboard URL when you deploy
+const DASHBOARD_URL = './dashboard.html';
+
+// ── CHECK IF ALREADY LOGGED IN ──────────────────────────
+(async () => {
+  const { data: { session } } = await sb.auth.getSession();
+  if (session) {
+    // Already logged in — check if student has active access
+    const ok = await checkAccess(session.user.id);
+    if (ok) window.location.href = DASHBOARD_URL;
+  }
+})();
+
+// ── CHECK ACCESS (is this student active?) ───────────────
+async function checkAccess(userId) {
+  const { data, error } = await sb
+    .from('students')
+    .select('plan, access_until')
+    .eq('id', userId)
+    .single();
+
+  if (error || !data) return false;
+  if (data.plan !== 'active') return false;
+  if (data.access_until && new Date(data.access_until) < new Date()) return false;
+  return true;
+}
+
+// ── UI HELPERS ───────────────────────────────────────────
+function showError(msg) {
+  const el = document.getElementById('alert-error');
+  el.textContent = msg;
+  el.classList.add('show');
+  document.getElementById('alert-success').classList.remove('show');
+}
+function showSuccess(msg) {
+  const el = document.getElementById('alert-success');
+  el.textContent = msg;
+  el.classList.add('show');
+  document.getElementById('alert-error').classList.remove('show');
+}
+function clearAlerts() {
+  document.getElementById('alert-error').classList.remove('show');
+  document.getElementById('alert-success').classList.remove('show');
+}
+function setLoading(btnId, loading) {
+  const btn = document.getElementById(btnId);
+  btn.disabled = loading;
+  btn.classList.toggle('loading', loading);
+}
+
+// ── PASSWORD SHOW/HIDE ───────────────────────────────────
+document.getElementById('pw-toggle').addEventListener('click', () => {
+  const pw = document.getElementById('password');
+  const btn = document.getElementById('pw-toggle');
+  if (pw.type === 'password') {
+    pw.type = 'text';
+    btn.textContent = '🙈';
+  } else {
+    pw.type = 'password';
+    btn.textContent = '👁';
+  }
+});
+
+// ── FORGOT / BACK TOGGLE ─────────────────────────────────
+document.getElementById('forgot-btn').addEventListener('click', () => {
+  clearAlerts();
+  document.getElementById('main-panel').classList.add('hide');
+  document.getElementById('reset-panel').classList.add('show');
+});
+document.getElementById('back-btn').addEventListener('click', () => {
+  clearAlerts();
+  document.getElementById('reset-panel').classList.remove('show');
+  document.getElementById('main-panel').classList.remove('hide');
+});
+
+// ── LOGIN FORM ───────────────────────────────────────────
+document.getElementById('login-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  clearAlerts();
+
+  const email    = document.getElementById('email').value.trim();
+  const password = document.getElementById('password').value;
+
+  if (!email || !password) {
+    showError('Please enter your email and password.');
+    return;
+  }
+
+  setLoading('submit-btn', true);
+
+  try {
+    // Sign in with Supabase
+    const { data, error } = await sb.auth.signInWithPassword({ email, password });
+
+    if (error) {
+      // Supabase error messages are technical — translate them
+      if (error.message.includes('Invalid login credentials')) {
+        showError('Incorrect email or password. Please try again.');
+      } else if (error.message.includes('Email not confirmed')) {
+        showError('Please verify your email address first. Check your inbox.');
+      } else {
+        showError(error.message);
+      }
+      setLoading('submit-btn', false);
+      return;
+    }
+
+    // Check if this student has active access
+    const hasAccess = await checkAccess(data.user.id);
+
+    if (!hasAccess) {
+      // Signed in but not an active student
+      await sb.auth.signOut();
+      showError(
+        'Your account is not active. Please purchase the course at traderhikes.com to gain access.'
+      );
+      setLoading('submit-btn', false);
+      return;
+    }
+
+    // All good — redirect to dashboard
+    showSuccess('Signed in! Loading your dashboard...');
+    setTimeout(() => {
+      window.location.href = DASHBOARD_URL;
+    }, 800);
+
+  } catch (err) {
+    showError('Something went wrong. Please try again.');
+    setLoading('submit-btn', false);
+  }
+});
+
+// ── FORGOT PASSWORD ──────────────────────────────────────
+document.getElementById('reset-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  clearAlerts();
+
+  const email = document.getElementById('reset-email').value.trim();
+  if (!email) {
+    showError('Please enter your email address.');
+    return;
+  }
+
+  setLoading('reset-submit-btn', true);
+
+  const { error } = await sb.auth.resetPasswordForEmail(email, {
+    redirectTo: window.location.origin + '/dashboard/reset-password.html'
+  });
+
+  setLoading('reset-submit-btn', false);
+
+  if (error) {
+    showError('Could not send reset email. Please try again.');
+  } else {
+    showSuccess(
+      'Reset link sent! Check your email inbox (and spam folder). ' +
+      'The link expires in 1 hour.'
+    );
+    document.getElementById('reset-form').reset();
+  }
+});
+
+// ── HANDLE ENTER KEY ─────────────────────────────────────
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') {
+    const main = document.getElementById('main-panel');
+    if (!main.classList.contains('hide')) {
+      document.getElementById('login-form').requestSubmit();
+    }
+  }
+});
+</script>
+</body>
+</html>
