@@ -354,7 +354,7 @@ const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 // ── WHERE TO GO AFTER LOGIN ──────────────────────────────
 // Change this to your actual dashboard URL when you deploy
-const DASHBOARD_URL = './dashboard.html';
+const DASHBOARD_URL = 'https://traderhikes.github.io/Dashboard/dashboard.html';
 
 // ── CHECK IF ALREADY LOGGED IN ──────────────────────────
 (async () => {
@@ -499,7 +499,7 @@ document.getElementById('reset-form').addEventListener('submit', async (e) => {
   setLoading('reset-submit-btn', true);
 
   const { error } = await sb.auth.resetPasswordForEmail(email, {
-    redirectTo: window.location.origin + '/dashboard/reset-password.html'
+    redirectTo: 'https://traderhikes.github.io/Dashboard/login.html'
   });
 
   setLoading('reset-submit-btn', false);
