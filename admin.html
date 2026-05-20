@@ -18,142 +18,246 @@
     --white:#f4f8ff; --text:#cdd6f0; --text2:#dce5f8; --muted:#6478a0;
     --f:'Plus Jakarta Sans',sans-serif; --fm:'DM Mono',monospace;
   }
-  html,body{min-height:100vh;background:var(--bg);font-family:var(--f);font-size:13px;color:var(--text2)}
-  body{background-image:radial-gradient(ellipse 80% 50% at 50% -5%,rgba(92,111,251,.11) 0%,transparent 70%)}
+  html,body { min-height:100vh; background:var(--bg); font-family:var(--f); font-size:13px; color:var(--text2); }
+  body { background-image:radial-gradient(ellipse 80% 50% at 50% -5%,rgba(92,111,251,.11) 0%,transparent 70%); }
 
-  /* Gate overlay */
-  #gate{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;z-index:999;padding:20px}
-  #gate.hidden{display:none}
-  .gate-card{background:var(--card);border:1px solid var(--bdr);border-radius:16px;padding:36px;width:100%;max-width:360px;text-align:center}
-  .gate-title{font-size:18px;font-weight:800;color:var(--white);margin-bottom:6px}
-  .gate-sub{font-size:13px;color:var(--muted);margin-bottom:24px}
-  .gate-input{width:100%;background:rgba(255,255,255,.04);border:1px solid var(--bdr2);border-radius:10px;padding:13px 16px;font-size:14px;font-family:var(--f);color:var(--white);outline:none;text-align:center;letter-spacing:2px;margin-bottom:16px}
-  .gate-input:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(92,111,251,.18)}
-  .gate-err{font-size:12px;color:var(--red);margin-bottom:12px;display:none}
-  .gate-err.show{display:block}
+  /* ── GATE OVERLAY ── */
+  #gate {
+    position:fixed; inset:0;
+    background:var(--bg);
+    background-image:radial-gradient(ellipse 80% 60% at 50% 0%,rgba(92,111,251,.13) 0%,transparent 65%);
+    display:flex; align-items:center; justify-content:center;
+    z-index:999; padding:20px;
+  }
+  #gate.hidden { display:none; }
+  .gate-card {
+    background:var(--card); border:1px solid var(--bdr);
+    border-radius:18px; padding:40px 36px;
+    width:100%; max-width:380px; text-align:center;
+    box-shadow:0 24px 64px rgba(0,0,0,.45);
+    animation:fadeUp .4s ease both;
+  }
+  @keyframes fadeUp { from{opacity:0;transform:translateY(14px)} to{opacity:1;transform:translateY(0)} }
+  .gate-icon { font-size:32px; margin-bottom:16px; }
+  .gate-title { font-size:20px; font-weight:800; color:var(--white); margin-bottom:6px; }
+  .gate-sub { font-size:13px; color:var(--muted); margin-bottom:28px; line-height:1.6; }
+  .gate-err {
+    font-size:12px; color:var(--red);
+    background:var(--red-dim); border:1px solid var(--red-bd);
+    border-radius:8px; padding:10px 14px;
+    margin-bottom:16px; display:none;
+  }
+  .gate-err.show { display:block; }
 
-  /* Layout */
-  .app{max-width:1100px;margin:0 auto;padding:24px 20px}
-  .app-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;padding-bottom:16px;border-bottom:1px solid var(--bdr)}
-  .app-logo{font-size:18px;font-weight:800;color:var(--white)}
-  .app-logo span{color:var(--blue-lt)}
-  .admin-badge{background:var(--red-dim);border:1px solid var(--red-bd);color:var(--red);border-radius:100px;padding:4px 12px;font-size:11px;font-weight:700;letter-spacing:.5px}
+  /* Google button */
+  .btn-google {
+    width:100%; display:flex; align-items:center; justify-content:center; gap:12px;
+    background:#fff; border:1px solid rgba(255,255,255,.15);
+    border-radius:10px; padding:14px 20px;
+    font-size:15px; font-weight:600; color:#1a1a2e;
+    cursor:pointer; font-family:var(--f);
+    box-shadow:0 2px 12px rgba(0,0,0,.25);
+    transition:all .15s;
+  }
+  .btn-google:hover { background:#f5f5f5; transform:translateY(-1px); box-shadow:0 4px 20px rgba(0,0,0,.3); }
+  .btn-google:disabled { opacity:.6; cursor:not-allowed; transform:none; }
+  .btn-google .g-spinner {
+    display:none; width:18px; height:18px;
+    border:2px solid rgba(26,26,46,.2); border-top-color:#4285f4;
+    border-radius:50%; animation:spin .7s linear infinite;
+  }
+  @keyframes spin { to{transform:rotate(360deg)} }
+  .btn-google.loading .g-text,.btn-google.loading svg { display:none; }
+  .btn-google.loading .g-spinner { display:block; }
 
-  /* Tabs */
-  .tabs{display:flex;gap:2px;border-bottom:1px solid var(--bdr);margin-bottom:24px}
-  .tab-btn{padding:11px 18px;font-size:13px;font-weight:600;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px;transition:all .15s;background:none;border-top:none;border-left:none;border-right:none;font-family:var(--f)}
-  .tab-btn:hover{color:var(--text2)}
-  .tab-btn.active{color:var(--white);border-bottom-color:var(--blue)}
-  .tab-pane{display:none}.tab-pane.active{display:block}
+  /* Checking spinner */
+  .gate-checking { color:var(--muted); font-size:13px; }
+  .gate-checking .spin-ring {
+    display:inline-block; width:22px; height:22px;
+    border:2px solid rgba(255,255,255,.1); border-top-color:var(--blue);
+    border-radius:50%; animation:spin .7s linear infinite;
+    margin-bottom:10px;
+  }
 
-  /* Cards */
-  .card{background:var(--card);border:1px solid var(--bdr);border-radius:12px;overflow:hidden;margin-bottom:16px}
-  .card-hdr{padding:14px 20px;border-bottom:1px solid var(--bdr);background:linear-gradient(135deg,var(--card2),var(--card));display:flex;align-items:center;justify-content:space-between}
-  .card-title{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text2)}
-  .card-body{padding:20px}
+  /* ── APP LAYOUT ── */
+  .app { max-width:1100px; margin:0 auto; padding:24px 20px; }
+  .app-hdr {
+    display:flex; align-items:center; justify-content:space-between;
+    margin-bottom:24px; padding-bottom:16px; border-bottom:1px solid var(--bdr);
+  }
+  .app-logo { font-size:18px; font-weight:800; color:var(--white); }
+  .app-logo span { color:var(--blue-lt); }
+  .admin-badge {
+    background:var(--red-dim); border:1px solid var(--red-bd);
+    color:var(--red); border-radius:100px;
+    padding:4px 12px; font-size:11px; font-weight:700; letter-spacing:.5px;
+  }
 
-  /* Form grid */
-  .form-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
-  .form-grid.two{grid-template-columns:repeat(2,1fr)}
-  .form-grid.four{grid-template-columns:repeat(4,1fr)}
-  .span2{grid-column:span 2}
-  .span3{grid-column:span 3}
-  .form-group{display:flex;flex-direction:column;gap:6px}
-  .form-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--muted)}
-  .form-input,.form-select,.form-textarea{
-    background:rgba(255,255,255,.04);
-    border:1px solid var(--bdr2);
-    border-radius:8px;
-    padding:10px 12px;
-    font-size:13px;font-family:var(--fm);
-    color:var(--white);outline:none;
+  /* ── TABS ── */
+  .tabs { display:flex; gap:2px; border-bottom:1px solid var(--bdr); margin-bottom:24px; overflow-x:auto; }
+  .tab-btn {
+    padding:11px 18px; font-size:13px; font-weight:600;
+    color:var(--muted); cursor:pointer;
+    border-bottom:2px solid transparent; margin-bottom:-1px;
+    transition:all .15s; background:none;
+    border-top:none; border-left:none; border-right:none;
+    font-family:var(--f); white-space:nowrap;
+  }
+  .tab-btn:hover { color:var(--text2); }
+  .tab-btn.active { color:var(--white); border-bottom-color:var(--blue); }
+  .tab-pane { display:none; }
+  .tab-pane.active { display:block; }
+
+  /* ── CARDS ── */
+  .card { background:var(--card); border:1px solid var(--bdr); border-radius:12px; overflow:hidden; margin-bottom:16px; }
+  .card-hdr {
+    padding:14px 20px; border-bottom:1px solid var(--bdr);
+    background:linear-gradient(135deg,var(--card2),var(--card));
+    display:flex; align-items:center; justify-content:space-between;
+  }
+  .card-title { font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:.5px; color:var(--text2); }
+  .card-body { padding:20px; }
+
+  /* ── FORMS ── */
+  .form-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:14px; }
+  .form-grid.two { grid-template-columns:repeat(2,1fr); }
+  .form-grid.four { grid-template-columns:repeat(4,1fr); }
+  .span2 { grid-column:span 2; }
+  .span3 { grid-column:span 3; }
+  .form-group { display:flex; flex-direction:column; gap:6px; }
+  .form-label { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.6px; color:var(--muted); }
+  .form-input,.form-select,.form-textarea {
+    background:rgba(255,255,255,.04); border:1px solid var(--bdr2);
+    border-radius:8px; padding:10px 12px;
+    font-size:13px; font-family:var(--fm); color:var(--white); outline:none;
     transition:border-color .15s,box-shadow .15s;
   }
-  .form-input:focus,.form-select:focus,.form-textarea:focus{
-    border-color:var(--blue);
-    box-shadow:0 0 0 3px rgba(92,111,251,.15);
+  .form-input:focus,.form-select:focus,.form-textarea:focus {
+    border-color:var(--blue); box-shadow:0 0 0 3px rgba(92,111,251,.15);
   }
-  .form-input::placeholder{color:var(--muted)}
-  .form-select option{background:var(--card)}
-  .form-textarea{resize:vertical;min-height:72px;font-family:var(--f);font-size:13px}
-  .form-hint{font-size:10px;color:var(--muted);margin-top:2px}
+  .form-input::placeholder { color:var(--muted); }
+  .form-select option { background:var(--card); }
+  .form-textarea { resize:vertical; min-height:72px; font-family:var(--f); font-size:13px; }
+  .form-hint { font-size:10px; color:var(--muted); margin-top:2px; }
 
-  /* Buttons */
-  .btn{padding:10px 20px;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;font-family:var(--f);border:none;transition:all .15s}
-  .btn-primary{background:linear-gradient(135deg,#5c6ffb,#7c4dff);color:#fff;box-shadow:0 4px 14px rgba(92,111,251,.35)}
-  .btn-primary:hover{opacity:.9}
-  .btn-primary:disabled{opacity:.5;cursor:not-allowed}
-  .btn-danger{background:var(--red-dim);color:var(--red);border:1px solid var(--red-bd)}
-  .btn-danger:hover{background:rgba(255,93,122,.2)}
-  .btn-success{background:var(--green-dim);color:var(--green);border:1px solid var(--green-bd)}
-  .btn-success:hover{background:rgba(46,216,160,.2)}
-  .btn-ghost{background:transparent;color:var(--muted);border:1px solid var(--bdr2)}
-  .btn-ghost:hover{color:var(--text2);border-color:var(--bdr2)}
-  .btn-sm{padding:6px 12px;font-size:11px}
+  /* ── BUTTONS ── */
+  .btn { padding:10px 20px; border-radius:8px; font-size:13px; font-weight:700; cursor:pointer; font-family:var(--f); border:none; transition:all .15s; }
+  .btn-primary { background:linear-gradient(135deg,#5c6ffb,#7c4dff); color:#fff; box-shadow:0 4px 14px rgba(92,111,251,.35); }
+  .btn-primary:hover { opacity:.9; }
+  .btn-primary:disabled { opacity:.5; cursor:not-allowed; }
+  .btn-danger { background:var(--red-dim); color:var(--red); border:1px solid var(--red-bd); }
+  .btn-danger:hover { background:rgba(255,93,122,.2); }
+  .btn-success { background:var(--green-dim); color:var(--green); border:1px solid var(--green-bd); }
+  .btn-success:hover { background:rgba(46,216,160,.2); }
+  .btn-ghost { background:transparent; color:var(--muted); border:1px solid var(--bdr2); }
+  .btn-ghost:hover { color:var(--text2); }
+  .btn-sm { padding:6px 12px; font-size:11px; }
 
-  /* Table */
-  .data-table{width:100%;border-collapse:collapse}
-  .data-table th{padding:9px 12px;text-align:left;font-size:9px;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);font-weight:700;background:var(--card2);border-bottom:1px solid var(--bdr)}
-  .data-table td{padding:9px 12px;border-bottom:1px solid var(--bdr);font-size:12px;vertical-align:middle}
-  .data-table tr:last-child td{border-bottom:none}
-  .data-table tr:hover td{background:rgba(255,255,255,.02)}
-  .data-table td.mono{font-family:var(--fm)}
+  /* ── TABLE ── */
+  .data-table { width:100%; border-collapse:collapse; }
+  .data-table th { padding:9px 12px; text-align:left; font-size:9px; text-transform:uppercase; letter-spacing:.8px; color:var(--muted); font-weight:700; background:var(--card2); border-bottom:1px solid var(--bdr); }
+  .data-table td { padding:9px 12px; border-bottom:1px solid var(--bdr); font-size:12px; vertical-align:middle; }
+  .data-table tr:last-child td { border-bottom:none; }
+  .data-table tr:hover td { background:rgba(255,255,255,.02); }
+  .data-table td.mono { font-family:var(--fm); }
 
-  /* Badges */
-  .badge{display:inline-block;padding:2px 8px;border-radius:100px;font-size:10px;font-weight:700;letter-spacing:.2px}
-  .badge-long{background:var(--green-dim);color:var(--green);border:1px solid var(--green-bd)}
-  .badge-watch{background:var(--amber-dim);color:var(--amber);border:1px solid var(--amber-bd)}
-  .badge-trail{background:rgba(46,200,220,.1);color:#2eaabf;border:1px solid rgba(46,200,220,.25)}
-  .badge-win{background:var(--green-dim);color:var(--green);border:1px solid var(--green-bd)}
-  .badge-loss{background:var(--red-dim);color:var(--red);border:1px solid var(--red-bd)}
+  /* ── BADGES ── */
+  .badge { display:inline-block; padding:2px 8px; border-radius:100px; font-size:10px; font-weight:700; }
+  .badge-long  { background:var(--green-dim); color:var(--green); border:1px solid var(--green-bd); }
+  .badge-watch { background:var(--amber-dim); color:var(--amber); border:1px solid var(--amber-bd); }
+  .badge-trail { background:rgba(46,200,220,.1); color:#2eaabf; border:1px solid rgba(46,200,220,.25); }
 
-  /* Student section */
-  .student-row{display:flex;align-items:center;gap:12px;padding:12px 16px;border-bottom:1px solid var(--bdr);transition:background .12s}
-  .student-row:last-child{border-bottom:none}
-  .student-row:hover{background:rgba(255,255,255,.02)}
-  .student-email{font-size:13px;font-weight:600;color:var(--white);flex:1}
-  .student-name{font-size:11px;color:var(--muted)}
+  /* ── STUDENTS ── */
+  .student-row { display:flex; align-items:center; gap:12px; padding:12px 16px; border-bottom:1px solid var(--bdr); transition:background .12s; }
+  .student-row:last-child { border-bottom:none; }
+  .student-row:hover { background:rgba(255,255,255,.02); }
 
-  /* Toast */
-  #toast{position:fixed;bottom:28px;right:28px;background:var(--card);border:1px solid var(--bdr);border-radius:10px;padding:14px 20px;font-size:13px;color:var(--white);box-shadow:0 8px 32px rgba(0,0,0,.4);transform:translateY(80px);opacity:0;transition:all .3s ease;z-index:9999;max-width:340px}
-  #toast.show{transform:translateY(0);opacity:1}
-  #toast.success{border-color:var(--green-bd);color:var(--green)}
-  #toast.error{border-color:var(--red-bd);color:var(--red)}
+  /* ── TOAST ── */
+  #toast {
+    position:fixed; bottom:28px; right:28px;
+    background:var(--card); border:1px solid var(--bdr);
+    border-radius:10px; padding:14px 20px;
+    font-size:13px; color:var(--white);
+    box-shadow:0 8px 32px rgba(0,0,0,.4);
+    transform:translateY(80px); opacity:0;
+    transition:all .3s ease; z-index:9999; max-width:340px;
+  }
+  #toast.show { transform:translateY(0); opacity:1; }
+  #toast.success { border-color:var(--green-bd); color:var(--green); }
+  #toast.error   { border-color:var(--red-bd);   color:var(--red); }
 
-  /* Alert inline */
-  .alert{padding:10px 14px;border-radius:8px;font-size:12px;margin-bottom:14px;display:none}
-  .alert.show{display:block}
-  .alert-success{background:var(--green-dim);border:1px solid var(--green-bd);color:#5ee8be}
-  .alert-error{background:var(--red-dim);border:1px solid var(--red-bd);color:#ff8099}
+  /* ── ALERTS ── */
+  .alert { padding:10px 14px; border-radius:8px; font-size:12px; margin-bottom:14px; display:none; }
+  .alert.show { display:block; }
+  .alert-success { background:var(--green-dim); border:1px solid var(--green-bd); color:#5ee8be; }
+  .alert-error   { background:var(--red-dim);   border:1px solid var(--red-bd);   color:#ff8099; }
 
-  @media(max-width:700px){
-    .form-grid,.form-grid.four{grid-template-columns:1fr}
-    .span2,.span3{grid-column:span 1}
+  @media(max-width:700px) {
+    .form-grid,.form-grid.four { grid-template-columns:1fr; }
+    .span2,.span3 { grid-column:span 1; }
   }
 </style>
 </head>
 <body>
 
-<!-- ── GATE: admin password ── -->
+<!-- ══════════════════════════════════
+     GATE — Google Auth (no password)
+══════════════════════════════════ -->
 <div id="gate">
   <div class="gate-card">
-    <div style="font-size:28px;margin-bottom:12px">🔐</div>
-    <div class="gate-title">Admin Access Only</div>
-    <div class="gate-sub">Enter your admin password to continue</div>
-    <div class="gate-err" id="gate-err">Wrong password. Try again.</div>
-    <input type="password" class="gate-input" id="gate-input" placeholder="••••••••" autocomplete="off">
-    <button class="btn btn-primary" style="width:100%" onclick="checkGate()">Enter</button>
+
+    <!-- Checking state (shown while verifying session) -->
+    <div id="gate-checking" class="gate-checking">
+      <div class="spin-ring"></div>
+      <div style="color:var(--muted);font-size:13px">Verifying credentials...</div>
+    </div>
+
+    <!-- Login state (shown if not authenticated) -->
+    <div id="gate-login" style="display:none">
+      <div class="gate-icon">🔐</div>
+      <div class="gate-title">Admin Access Only</div>
+      <div class="gate-sub">
+        Sign in with your admin Google account.<br>
+        Only <strong style="color:var(--text2)">traderhikes@gmail.com</strong> can access this panel.
+      </div>
+      <div class="gate-err" id="gate-err"></div>
+      <button class="btn-google" id="gate-google-btn" onclick="adminGoogleLogin()">
+        <svg width="20" height="20" viewBox="0 0 48 48">
+          <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
+          <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
+          <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
+          <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.31-8.16 2.31-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
+          <path fill="none" d="M0 0h48v48H0z"/>
+        </svg>
+        <span class="g-text">Sign in with Google</span>
+        <div class="g-spinner"></div>
+      </button>
+    </div>
+
+    <!-- Access denied state -->
+    <div id="gate-denied" style="display:none">
+      <div class="gate-icon">🚫</div>
+      <div class="gate-title">Access Denied</div>
+      <div class="gate-sub" id="gate-denied-msg"></div>
+      <button class="btn btn-ghost" style="width:100%" onclick="adminSignOut()">
+        Sign out &amp; try again
+      </button>
+    </div>
+
   </div>
 </div>
 
-<!-- ── MAIN APP ── -->
-<div class="app">
+<!-- ══════════════════════════════════
+     MAIN APP (hidden until auth passes)
+══════════════════════════════════ -->
+<div class="app" id="app-content" style="display:none">
   <div class="app-hdr">
     <div class="app-logo">TraderHikes <span>Admin</span></div>
     <div style="display:flex;align-items:center;gap:12px">
       <span class="admin-badge">ADMIN PANEL</span>
-      <button class="btn btn-ghost btn-sm" onclick="window.location.href='./dashboard.html'">View Dashboard</button>
-      <button class="btn btn-ghost btn-sm" onclick="signOut()">Sign Out</button>
+      <span id="admin-email-display" style="font-size:11px;color:var(--muted);font-family:var(--fm)"></span>
+      <button class="btn btn-ghost btn-sm" onclick="window.location.href='https://dashboard.traderhikes.com/dashboard.html'">View Dashboard</button>
+      <button class="btn btn-ghost btn-sm" onclick="adminSignOut()">Sign Out</button>
     </div>
   </div>
 
@@ -166,18 +270,13 @@
     <button class="tab-btn" onclick="openTab('tab-snapshot',this)">Portfolio Snapshot</button>
   </div>
 
-  <!-- ════════════════════════════════
-       TAB 1 — ADD / VIEW OPEN TRADES
-  ════════════════════════════════ -->
+  <!-- ════ TAB 1: ADD / VIEW OPEN TRADES ════ -->
   <div class="tab-pane active" id="tab-open">
-
     <div class="card">
-      <div class="card-hdr">
-        <span class="card-title">Add New Open Trade</span>
-      </div>
+      <div class="card-hdr"><span class="card-title">Add New Open Trade</span></div>
       <div class="card-body">
         <div class="alert alert-success" id="open-success"></div>
-        <div class="alert alert-error" id="open-error"></div>
+        <div class="alert alert-error"   id="open-error"></div>
         <form id="form-open-trade">
           <div class="form-grid four" style="margin-bottom:14px">
             <div class="form-group">
@@ -193,7 +292,6 @@
               <input class="form-input" type="text" name="sector" placeholder="Electronics Mfg">
             </div>
           </div>
-
           <div class="form-grid" style="margin-bottom:14px">
             <div class="form-group">
               <label class="form-label">Entry Date *</label>
@@ -208,7 +306,6 @@
               <input class="form-input" type="number" name="quantity" placeholder="20" required>
             </div>
           </div>
-
           <div class="form-grid" style="margin-bottom:14px">
             <div class="form-group">
               <label class="form-label">Stop Loss ₹ *</label>
@@ -228,7 +325,6 @@
               </select>
             </div>
           </div>
-
           <div class="form-grid two" style="margin-bottom:14px">
             <div class="form-group">
               <label class="form-label">Chart Pattern</label>
@@ -239,7 +335,6 @@
               <textarea class="form-textarea" name="trade_notes" placeholder="Stage 2 breakout. Strong RS. Tight weekly range..."></textarea>
             </div>
           </div>
-
           <div style="display:flex;justify-content:flex-end;gap:10px">
             <button type="reset" class="btn btn-ghost">Clear</button>
             <button type="submit" class="btn btn-primary" id="open-trade-btn">Add Trade</button>
@@ -247,22 +342,18 @@
         </form>
       </div>
     </div>
-
-    <!-- Live open trades table -->
     <div class="card">
       <div class="card-hdr">
         <span class="card-title">Current Open Trades</span>
-        <button class="btn btn-ghost btn-sm" onclick="loadOpenTrades()">Refresh</button>
+        <button class="btn btn-ghost btn-sm" onclick="loadOpenTrades()">↻ Refresh</button>
       </div>
       <div style="overflow-x:auto">
         <table class="data-table">
-          <thead>
-            <tr>
-              <th>Symbol</th><th>Company</th><th>Entry Date</th>
-              <th>Entry ₹</th><th>Qty</th><th>SL ₹</th><th>CMP ₹</th>
-              <th>P&L ₹</th><th>Status</th><th>Actions</th>
-            </tr>
-          </thead>
+          <thead><tr>
+            <th>Symbol</th><th>Company</th><th>Entry Date</th>
+            <th>Entry ₹</th><th>Qty</th><th>SL ₹</th><th>CMP ₹</th>
+            <th>P&L ₹</th><th>Status</th><th>Actions</th>
+          </tr></thead>
           <tbody id="open-trades-tbody">
             <tr><td colspan="10" style="text-align:center;color:var(--muted);padding:20px">Loading...</td></tr>
           </tbody>
@@ -271,27 +362,22 @@
     </div>
   </div>
 
-  <!-- ════════════════════════════════
-       TAB 2 — CLOSE A TRADE
-  ════════════════════════════════ -->
+  <!-- ════ TAB 2: CLOSE A TRADE ════ -->
   <div class="tab-pane" id="tab-close">
     <div class="card">
       <div class="card-hdr"><span class="card-title">Close / Book Profits on a Trade</span></div>
       <div class="card-body">
         <div class="alert alert-success" id="close-success"></div>
-        <div class="alert alert-error" id="close-error"></div>
+        <div class="alert alert-error"   id="close-error"></div>
         <form id="form-close-trade">
-
           <div class="form-group" style="margin-bottom:16px">
             <label class="form-label">Select Trade to Close *</label>
             <select class="form-select" name="open_trade_id" id="close-trade-select" required>
               <option value="">— select an open trade —</option>
             </select>
           </div>
-
-          <!-- Partial exit section -->
           <div class="card" style="margin-bottom:16px;background:var(--card2)">
-            <div class="card-hdr"><span class="card-title">Partial Exit (optional — if you booked partial profits)</span></div>
+            <div class="card-hdr"><span class="card-title">Partial Exit (optional)</span></div>
             <div class="card-body">
               <div class="form-grid four">
                 <div class="form-group">
@@ -314,8 +400,6 @@
               </div>
             </div>
           </div>
-
-          <!-- Final exit -->
           <div class="form-grid four" style="margin-bottom:14px">
             <div class="form-group">
               <label class="form-label">Final Exit Date *</label>
@@ -323,7 +407,7 @@
             </div>
             <div class="form-group">
               <label class="form-label">Avg Exit Price ₹ *</label>
-              <input class="form-input" type="number" name="avg_exit_price" step="0.05" placeholder="13480" required>
+              <input class="form-input" type="number" name="avg_exit_price" step="0.05" required>
             </div>
             <div class="form-group">
               <label class="form-label">Exit Reason</label>
@@ -337,35 +421,34 @@
             </div>
             <div class="form-group">
               <label class="form-label">Teaching Notes</label>
-              <input class="form-input" type="text" name="trade_notes" placeholder="Booked at resistance. Held 40%...">
+              <input class="form-input" type="text" name="trade_notes" placeholder="Booked at resistance...">
             </div>
           </div>
-
           <div style="display:flex;justify-content:flex-end;gap:10px">
             <button type="reset" class="btn btn-ghost">Clear</button>
-            <button type="submit" class="btn btn-success" id="close-trade-btn">Close Trade & Move to History</button>
+            <button type="submit" class="btn btn-success" id="close-trade-btn">Close Trade &amp; Move to History</button>
           </div>
         </form>
       </div>
     </div>
   </div>
 
-  <!-- ════════════════════════════════
-       TAB 3 — STUDENTS
-  ════════════════════════════════ -->
+  <!-- ════ TAB 3: STUDENTS ════ -->
   <div class="tab-pane" id="tab-students">
-
-    <!-- Invite a new student -->
     <div class="card">
-      <div class="card-hdr"><span class="card-title">Invite a New Student</span></div>
+      <div class="card-hdr"><span class="card-title">Add New Student Access</span></div>
       <div class="card-body">
+        <p style="font-size:12px;color:var(--muted);margin-bottom:16px;line-height:1.6">
+          Add the student's Gmail address. They can immediately sign in with Google at
+          <strong style="color:var(--text2)">dashboard.traderhikes.com/login.html</strong>
+        </p>
         <div class="alert alert-success" id="invite-success"></div>
-        <div class="alert alert-error" id="invite-error"></div>
+        <div class="alert alert-error"   id="invite-error"></div>
         <form id="form-invite">
           <div class="form-grid" style="margin-bottom:14px">
             <div class="form-group">
-              <label class="form-label">Student Email *</label>
-              <input class="form-input" type="email" name="email" placeholder="student@example.com" required>
+              <label class="form-label">Student Gmail Address *</label>
+              <input class="form-input" type="email" name="email" placeholder="student@gmail.com" required>
             </div>
             <div class="form-group">
               <label class="form-label">Full Name</label>
@@ -374,7 +457,6 @@
             <div class="form-group">
               <label class="form-label">Access Until (blank = lifetime)</label>
               <input class="form-input" type="date" name="access_until">
-              <span class="form-hint">Leave blank for lifetime access</span>
             </div>
           </div>
           <div class="form-group" style="margin-bottom:14px">
@@ -382,17 +464,15 @@
             <input class="form-input" type="text" name="notes" placeholder="Batch 3 student. Paid ₹4999.">
           </div>
           <div style="display:flex;justify-content:flex-end">
-            <button type="submit" class="btn btn-primary" id="invite-btn">Send Invite Email</button>
+            <button type="submit" class="btn btn-primary" id="invite-btn">Grant Access</button>
           </div>
         </form>
       </div>
     </div>
-
-    <!-- Student list -->
     <div class="card">
       <div class="card-hdr">
-        <span class="card-title">Active Students</span>
-        <button class="btn btn-ghost btn-sm" onclick="loadStudents()">Refresh</button>
+        <span class="card-title">Approved Students</span>
+        <button class="btn btn-ghost btn-sm" onclick="loadStudents()">↻ Refresh</button>
       </div>
       <div id="students-list">
         <div style="padding:20px;text-align:center;color:var(--muted)">Loading...</div>
@@ -400,19 +480,16 @@
     </div>
   </div>
 
-  <!-- ════════════════════════════════
-       TAB 4 — MARKET BREADTH UPDATE
-  ════════════════════════════════ -->
+  <!-- ════ TAB 4: MARKET BREADTH ════ -->
   <div class="tab-pane" id="tab-breadth">
     <div class="card">
       <div class="card-hdr"><span class="card-title">Update Today's Market Breadth</span></div>
       <div class="card-body">
         <p style="font-size:12px;color:var(--muted);margin-bottom:20px">
-          Update these numbers daily (or let the Python script handle it automatically later).
-          Source: NSE India website or your broker's data.
+          Source: NSE India website or your broker terminal. Update daily after market close.
         </p>
         <div class="alert alert-success" id="breadth-success"></div>
-        <div class="alert alert-error" id="breadth-error"></div>
+        <div class="alert alert-error"   id="breadth-error"></div>
         <form id="form-breadth">
           <div class="form-grid" style="margin-bottom:14px">
             <div class="form-group">
@@ -457,30 +534,28 @@
             </div>
             <div class="form-group">
               <label class="form-label">FII Net Flow (₹ Cr)</label>
-              <input class="form-input" type="number" name="fii_flow_cr" step="1" placeholder="2840">
+              <input class="form-input" type="number" name="fii_flow_cr" placeholder="2840">
               <span class="form-hint">Positive = buying, negative = selling</span>
             </div>
           </div>
           <div style="display:flex;justify-content:flex-end">
-            <button type="submit" class="btn btn-primary">Update Today's Breadth</button>
+            <button type="submit" class="btn btn-primary">Update Breadth</button>
           </div>
         </form>
       </div>
     </div>
   </div>
 
-  <!-- ════════════════════════════════
-       TAB 5 — PORTFOLIO SNAPSHOT
-  ════════════════════════════════ -->
+  <!-- ════ TAB 5: PORTFOLIO SNAPSHOT ════ -->
   <div class="tab-pane" id="tab-snapshot">
     <div class="card">
       <div class="card-hdr"><span class="card-title">Add Today's Portfolio Snapshot</span></div>
       <div class="card-body">
         <p style="font-size:12px;color:var(--muted);margin-bottom:20px">
-          Add one row per day. This builds your equity curve chart that students see.
+          Add one row per day. This builds the equity curve chart students see on the dashboard.
         </p>
         <div class="alert alert-success" id="snap-success"></div>
-        <div class="alert alert-error" id="snap-error"></div>
+        <div class="alert alert-error"   id="snap-error"></div>
         <form id="form-snapshot">
           <div class="form-grid four" style="margin-bottom:14px">
             <div class="form-group">
@@ -502,7 +577,7 @@
           </div>
           <div class="form-grid" style="margin-bottom:14px">
             <div class="form-group">
-              <label class="form-label">Portfolio Value ₹ (incl. unrealised)</label>
+              <label class="form-label">Portfolio Value ₹ (incl. unrealised P&L)</label>
               <input class="form-input" type="number" name="portfolio_value" placeholder="2836140">
             </div>
             <div class="form-group">
@@ -510,13 +585,12 @@
               <input class="form-input" type="number" name="nifty500_level" step="0.05" placeholder="22840">
             </div>
             <div class="form-group">
-              <label class="form-label">Cumulative Return %</label>
+              <label class="form-label">Cumulative Return % (since start)</label>
               <input class="form-input" type="number" name="cumulative_return_pct" step="0.01" placeholder="13.45">
-              <span class="form-hint">Since your first snapshot date</span>
             </div>
           </div>
           <div style="display:flex;justify-content:flex-end">
-            <button type="submit" class="btn btn-primary">Save Today's Snapshot</button>
+            <button type="submit" class="btn btn-primary">Save Snapshot</button>
           </div>
         </form>
       </div>
@@ -525,54 +599,104 @@
 
 </div><!-- /app -->
 
-<!-- Toast notification -->
 <div id="toast"></div>
 
 <script>
-// ── CONFIG ──────────────────────────────────────────────
-const SUPABASE_URL     = 'https://kqndpeflwuztzhixibih.supabase.co';
-const SUPABASE_ANON    = 'sb_publishable_TKxZEcz6BqGzko2I3Erk7w_zkl2Az76';
-
-// Set your admin password here — this is LOCAL only, never sent anywhere
-// Change this to something only you know
-const ADMIN_PASSWORD = 'Abhishek112233';
+// ════════════════════════════════════════════
+// CONFIG — no passwords, no secrets here
+// ════════════════════════════════════════════
+const SUPABASE_URL  = 'https://kqndpeflwuztzhixibih.supabase.co';
+const SUPABASE_KEY  = 'sb_publishable_TKxZEcz6BqGzko2I3Erk7w_zkl2Az76';
+const ADMIN_EMAIL   = 'traderhikes@gmail.com';  // only this email gets in
+const ADMIN_URL     = 'https://dashboard.traderhikes.com/admin.html';
+const DASH_URL      = 'https://dashboard.traderhikes.com/dashboard.html';
 
 const { createClient } = supabase;
-const sb = createClient(SUPABASE_URL, SUPABASE_ANON);
+const sb = createClient(SUPABASE_URL, SUPABASE_KEY);
 
-// ── GATE ────────────────────────────────────────────────
-function checkGate() {
-  const val = document.getElementById('gate-input').value;
-  if (val === ADMIN_PASSWORD) {
-    document.getElementById('gate').classList.add('hidden');
-    initApp();
-  } else {
+// ════════════════════════════════════════════
+// AUTH GATE — runs immediately on page load
+// ════════════════════════════════════════════
+async function checkAdminAuth() {
+  const { data: { session } } = await sb.auth.getSession();
+
+  if (!session) {
+    // Not logged in — show Google sign-in
+    showGateState('login');
+    return;
+  }
+
+  const userEmail = session.user.email.toLowerCase().trim();
+
+  if (userEmail !== ADMIN_EMAIL.toLowerCase()) {
+    // Wrong account — sign them out and show denial
+    await sb.auth.signOut();
+    document.getElementById('gate-denied-msg').innerHTML =
+      'You signed in as <strong>' + session.user.email + '</strong>.<br>' +
+      'Only <strong>' + ADMIN_EMAIL + '</strong> can access this panel.';
+    showGateState('denied');
+    return;
+  }
+
+  // Correct admin account — show the app
+  document.getElementById('gate').classList.add('hidden');
+  document.getElementById('app-content').style.display = 'block';
+  document.getElementById('admin-email-display').textContent = session.user.email;
+  initApp();
+}
+
+function showGateState(state) {
+  document.getElementById('gate-checking').style.display = state === 'checking' ? 'block' : 'none';
+  document.getElementById('gate-login').style.display    = state === 'login'    ? 'block' : 'none';
+  document.getElementById('gate-denied').style.display   = state === 'denied'   ? 'block' : 'none';
+}
+
+async function adminGoogleLogin() {
+  const btn = document.getElementById('gate-google-btn');
+  btn.disabled = true;
+  btn.classList.add('loading');
+
+  const { error } = await sb.auth.signInWithOAuth({
+    provider: 'google',
+    options: {
+      redirectTo: ADMIN_URL,
+      queryParams: { prompt: 'select_account' }
+    }
+  });
+
+  if (error) {
+    btn.disabled = false;
+    btn.classList.remove('loading');
     const err = document.getElementById('gate-err');
+    err.textContent = 'Sign-in failed: ' + error.message;
     err.classList.add('show');
-    document.getElementById('gate-input').value = '';
-    document.getElementById('gate-input').focus();
   }
 }
-document.getElementById('gate-input').addEventListener('keydown', e => {
-  if (e.key === 'Enter') checkGate();
-});
 
-// ── TOAST ────────────────────────────────────────────────
-function toast(msg, type='success') {
-  const t = document.getElementById('toast');
-  t.textContent = (type==='success' ? '✓ ' : '✗ ') + msg;
-  t.className = 'show ' + type;
-  setTimeout(() => t.className = '', 3500);
+async function adminSignOut() {
+  await sb.auth.signOut();
+  window.location.href = ADMIN_URL;
 }
 
-function showAlert(id, msg, type='success') {
-  const el = document.getElementById(id);
-  el.textContent = msg;
-  el.className = 'alert show alert-' + type;
-  setTimeout(() => el.classList.remove('show'), 5000);
+// Run auth check immediately
+checkAdminAuth();
+
+// ════════════════════════════════════════════
+// APP INIT
+// ════════════════════════════════════════════
+async function initApp() {
+  const today = new Date().toISOString().split('T')[0];
+  document.querySelectorAll('input[type="date"]').forEach(el => {
+    if (!el.value) el.value = today;
+  });
+  await loadOpenTrades();
+  await loadOpenTradesForSelect();
+  await loadStudents();
 }
 
-// ── TABS ─────────────────────────────────────────────────
+// ════════════════════════════════════════════
+// UI HELPERS
+// ════════════════════════════════════════════
 function openTab(id, btn) {
   document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
@@ -580,50 +704,45 @@ function openTab(id, btn) {
   btn.classList.add('active');
 }
 
-// ── SIGN OUT ─────────────────────────────────────────────
-async function signOut() {
-  await sb.auth.signOut();
-  window.location.href = './login.html';
+function toast(msg, type = 'success') {
+  const t = document.getElementById('toast');
+  t.textContent = (type === 'success' ? '✓ ' : '✗ ') + msg;
+  t.className = 'show ' + type;
+  setTimeout(() => t.className = '', 3500);
 }
 
-// ── INIT ─────────────────────────────────────────────────
-async function initApp() {
-  // Set today's date as default for date inputs
-  const today = new Date().toISOString().split('T')[0];
-  document.querySelectorAll('input[type="date"]').forEach(el => {
-    if (!el.value) el.value = today;
-  });
-
-  await loadOpenTrades();
-  await loadStudents();
-  await loadOpenTradesForSelect();
+function showAlert(id, msg, type = 'success') {
+  const el = document.getElementById(id);
+  el.textContent = msg;
+  el.className = 'alert show alert-' + type;
+  setTimeout(() => el.classList.remove('show'), 6000);
 }
 
-// ── LOAD OPEN TRADES TABLE ───────────────────────────────
+// ════════════════════════════════════════════
+// OPEN TRADES
+// ════════════════════════════════════════════
 async function loadOpenTrades() {
   const tbody = document.getElementById('open-trades-tbody');
   tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;color:var(--muted);padding:20px">Loading...</td></tr>';
 
   const { data, error } = await sb
-    .from('open_trades')
-    .select('*')
-    .order('entry_date', { ascending: false });
+    .from('open_trades').select('*').order('entry_date', { ascending: false });
 
   if (error) {
     tbody.innerHTML = `<tr><td colspan="10" style="color:var(--red);padding:16px">${error.message}</td></tr>`;
     return;
   }
   if (!data || data.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;color:var(--muted);padding:20px">No open trades yet. Add your first trade above.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;color:var(--muted);padding:20px">No open trades yet.</td></tr>';
     return;
   }
 
   tbody.innerHTML = data.map(t => {
     const pnl = t.cmp ? ((t.cmp - t.entry_price) * t.quantity) : null;
     const pnlStr = pnl !== null
-      ? `<span style="color:${pnl>=0?'var(--green)':'var(--red)'};">${pnl>=0?'+':''}₹${Math.abs(pnl).toLocaleString('en-IN', {maximumFractionDigits:0})}</span>`
+      ? `<span style="color:${pnl >= 0 ? 'var(--green)' : 'var(--red)'}">${pnl >= 0 ? '+' : ''}₹${Math.abs(pnl).toLocaleString('en-IN', {maximumFractionDigits:0})}</span>`
       : '<span style="color:var(--muted)">—</span>';
-    const statusBadge = {long:'badge-long', trail_sl:'badge-trail', watch:'badge-watch'}[t.status] || 'badge-watch';
+    const badgeMap = { long:'badge-long', trail_sl:'badge-trail', watch:'badge-watch' };
     return `<tr>
       <td class="mono" style="font-weight:700;color:var(--white)">${t.symbol}</td>
       <td style="color:var(--text2)">${t.company_name}</td>
@@ -631,28 +750,26 @@ async function loadOpenTrades() {
       <td class="mono">₹${Number(t.entry_price).toLocaleString('en-IN')}</td>
       <td class="mono">${t.quantity}</td>
       <td class="mono" style="color:var(--red)">₹${Number(t.sl_price).toLocaleString('en-IN')}</td>
-      <td class="mono">${t.cmp ? '₹'+Number(t.cmp).toLocaleString('en-IN') : '<span style="color:var(--muted)">—</span>'}</td>
+      <td class="mono">${t.cmp ? '₹' + Number(t.cmp).toLocaleString('en-IN') : '<span style="color:var(--muted)">—</span>'}</td>
       <td>${pnlStr}</td>
-      <td><span class="badge ${statusBadge}">${t.status.replace('_',' ')}</span></td>
-      <td>
-        <button class="btn btn-danger btn-sm" onclick="deleteTrade('${t.id}','${t.symbol}')">Delete</button>
-      </td>
+      <td><span class="badge ${badgeMap[t.status] || 'badge-watch'}">${t.status.replace('_', ' ')}</span></td>
+      <td><button class="btn btn-danger btn-sm" onclick="deleteTrade('${t.id}','${t.symbol}')">Delete</button></td>
     </tr>`;
   }).join('');
 }
 
-// ── LOAD OPEN TRADES FOR CLOSE SELECT ───────────────────
 async function loadOpenTradesForSelect() {
   const select = document.getElementById('close-trade-select');
-  const { data } = await sb.from('open_trades').select('id,symbol,company_name,quantity,entry_price').order('entry_date',{ascending:false});
+  const { data } = await sb
+    .from('open_trades').select('id,symbol,company_name,quantity,entry_price')
+    .order('entry_date', { ascending: false });
   if (!data) return;
   select.innerHTML = '<option value="">— select an open trade —</option>' +
-    data.map(t => `<option value="${t.id}" data-symbol="${t.symbol}" data-qty="${t.quantity}" data-entry="${t.entry_price}">
-      ${t.symbol} — ${t.company_name} (${t.quantity} @ ₹${t.entry_price})
-    </option>`).join('');
+    data.map(t =>
+      `<option value="${t.id}">${t.symbol} — ${t.company_name} (${t.quantity} @ ₹${t.entry_price})</option>`
+    ).join('');
 }
 
-// ── ADD OPEN TRADE ───────────────────────────────────────
 document.getElementById('form-open-trade').addEventListener('submit', async e => {
   e.preventDefault();
   const btn = document.getElementById('open-trade-btn');
@@ -660,17 +777,17 @@ document.getElementById('form-open-trade').addEventListener('submit', async e =>
 
   const fd = new FormData(e.target);
   const payload = {
-    symbol:       fd.get('symbol').toUpperCase().trim(),
-    company_name: fd.get('company_name').trim(),
-    sector:       fd.get('sector').trim() || null,
-    entry_date:   fd.get('entry_date'),
-    entry_price:  parseFloat(fd.get('entry_price')),
-    quantity:     parseInt(fd.get('quantity')),
-    sl_price:     parseFloat(fd.get('sl_price')),
-    cmp:          fd.get('cmp') ? parseFloat(fd.get('cmp')) : null,
-    status:       fd.get('status'),
+    symbol:        fd.get('symbol').toUpperCase().trim(),
+    company_name:  fd.get('company_name').trim(),
+    sector:        fd.get('sector').trim() || null,
+    entry_date:    fd.get('entry_date'),
+    entry_price:   parseFloat(fd.get('entry_price')),
+    quantity:      parseInt(fd.get('quantity')),
+    sl_price:      parseFloat(fd.get('sl_price')),
+    cmp:           fd.get('cmp') ? parseFloat(fd.get('cmp')) : null,
+    status:        fd.get('status'),
     chart_pattern: fd.get('chart_pattern').trim() || null,
-    trade_notes:  fd.get('trade_notes').trim() || null,
+    trade_notes:   fd.get('trade_notes').trim() || null,
   };
 
   const { error } = await sb.from('open_trades').insert(payload);
@@ -681,14 +798,14 @@ document.getElementById('form-open-trade').addEventListener('submit', async e =>
   } else {
     showAlert('open-success', `✓ ${payload.symbol} added successfully!`, 'success');
     e.target.reset();
+    document.querySelector('[name="entry_date"]').value = new Date().toISOString().split('T')[0];
     await loadOpenTrades();
     await loadOpenTradesForSelect();
   }
 });
 
-// ── DELETE OPEN TRADE ────────────────────────────────────
 async function deleteTrade(id, symbol) {
-  if (!confirm(`Delete ${symbol} from open trades? This cannot be undone.`)) return;
+  if (!confirm(`Delete ${symbol}? This cannot be undone.`)) return;
   const { error } = await sb.from('open_trades').delete().eq('id', id);
   if (error) { toast('Error: ' + error.message, 'error'); return; }
   toast(`${symbol} deleted.`, 'success');
@@ -696,14 +813,16 @@ async function deleteTrade(id, symbol) {
   await loadOpenTradesForSelect();
 }
 
-// ── CLOSE A TRADE ────────────────────────────────────────
+// ════════════════════════════════════════════
+// CLOSE A TRADE
+// ════════════════════════════════════════════
 document.getElementById('form-close-trade').addEventListener('submit', async e => {
   e.preventDefault();
   const btn = document.getElementById('close-trade-btn');
   btn.disabled = true; btn.textContent = 'Processing...';
 
   const fd = new FormData(e.target);
-  const openId   = fd.get('open_trade_id');
+  const openId = fd.get('open_trade_id');
 
   if (!openId) {
     showAlert('close-error', 'Please select a trade to close.', 'error');
@@ -711,7 +830,6 @@ document.getElementById('form-close-trade').addEventListener('submit', async e =
     return;
   }
 
-  // Fetch the open trade details
   const { data: openTrade, error: fetchErr } = await sb
     .from('open_trades').select('*').eq('id', openId).single();
 
@@ -721,27 +839,25 @@ document.getElementById('form-close-trade').addEventListener('submit', async e =
     return;
   }
 
-  const avgExit = parseFloat(fd.get('avg_exit_price'));
-  const exitDate = fd.get('exit_date');
-  const entryDate = new Date(openTrade.entry_date);
-  const exitDateObj = new Date(exitDate);
-  const holdingDays = Math.round((exitDateObj - entryDate) / (1000*60*60*24));
-  const realisedPnl = (avgExit - openTrade.avg_entry_price || openTrade.entry_price) * openTrade.quantity;
-  const returnPct = ((avgExit - openTrade.entry_price) / openTrade.entry_price) * 100;
+  const avgExit    = parseFloat(fd.get('avg_exit_price'));
+  const exitDate   = fd.get('exit_date');
+  const holdingDays = Math.round((new Date(exitDate) - new Date(openTrade.entry_date)) / 86400000);
+  const realisedPnl = (avgExit - openTrade.entry_price) * openTrade.quantity;
+  const returnPct   = ((avgExit - openTrade.entry_price) / openTrade.entry_price) * 100;
 
   const closedPayload = {
     symbol:            openTrade.symbol,
     company_name:      openTrade.company_name,
     sector:            openTrade.sector,
-    exchange:          openTrade.exchange,
+    exchange:          openTrade.exchange || 'NSE',
     entry_date:        openTrade.entry_date,
     avg_entry_price:   openTrade.entry_price,
     quantity:          openTrade.quantity,
     sl_price:          openTrade.sl_price,
-    partial_exit_date:  fd.get('partial_exit_date') || null,
+    partial_exit_date:  fd.get('partial_exit_date')  || null,
     partial_exit_price: fd.get('partial_exit_price') ? parseFloat(fd.get('partial_exit_price')) : null,
-    partial_exit_qty:   fd.get('partial_exit_qty') ? parseInt(fd.get('partial_exit_qty')) : null,
-    partial_exit_pct:   fd.get('partial_exit_pct') ? parseFloat(fd.get('partial_exit_pct')) : null,
+    partial_exit_qty:   fd.get('partial_exit_qty')   ? parseInt(fd.get('partial_exit_qty'))     : null,
+    partial_exit_pct:   fd.get('partial_exit_pct')   ? parseFloat(fd.get('partial_exit_pct'))   : null,
     exit_date:         exitDate,
     avg_exit_price:    avgExit,
     realised_pnl:      Math.round(realisedPnl * 100) / 100,
@@ -751,21 +867,20 @@ document.getElementById('form-close-trade').addEventListener('submit', async e =
     trade_notes:       fd.get('trade_notes').trim() || openTrade.trade_notes,
   };
 
-  // Insert into closed_trades
   const { error: insertErr } = await sb.from('closed_trades').insert(closedPayload);
   if (insertErr) {
-    showAlert('close-error', 'Error saving to history: ' + insertErr.message, 'error');
+    showAlert('close-error', 'Error: ' + insertErr.message, 'error');
     btn.disabled = false; btn.textContent = 'Close Trade & Move to History';
     return;
   }
 
-  // Delete from open_trades
   await sb.from('open_trades').delete().eq('id', openId);
-
   btn.disabled = false; btn.textContent = 'Close Trade & Move to History';
-  const pnlStr = (realisedPnl >= 0 ? '+' : '') + '₹' + Math.abs(realisedPnl).toLocaleString('en-IN', {maximumFractionDigits:0});
+
+  const pnlStr = (realisedPnl >= 0 ? '+' : '') + '₹' +
+    Math.abs(realisedPnl).toLocaleString('en-IN', {maximumFractionDigits:0});
   showAlert('close-success',
-    `✓ ${openTrade.symbol} closed. Realised P&L: ${pnlStr} (${returnPct.toFixed(1)}%). Moved to trade history.`,
+    `✓ ${openTrade.symbol} closed. Realised P&L: ${pnlStr} (${returnPct.toFixed(1)}%). Moved to history.`,
     'success'
   );
   e.target.reset();
@@ -773,130 +888,122 @@ document.getElementById('form-close-trade').addEventListener('submit', async e =
   await loadOpenTradesForSelect();
 });
 
-// ── LOAD STUDENTS ────────────────────────────────────────
+// ════════════════════════════════════════════
+// STUDENTS — now uses approved_students table
+// ════════════════════════════════════════════
 async function loadStudents() {
   const container = document.getElementById('students-list');
-  const { data, error } = await sb.from('students').select('*').order('enrolled_at', {ascending:false});
+  const { data, error } = await sb
+    .from('approved_students').select('*').order('enrolled_at', { ascending: false });
 
-  if (error) { container.innerHTML = `<div style="padding:16px;color:var(--red)">${error.message}</div>`; return; }
+  if (error) {
+    container.innerHTML = `<div style="padding:16px;color:var(--red)">${error.message}</div>`;
+    return;
+  }
   if (!data || data.length === 0) {
-    container.innerHTML = '<div style="padding:20px;text-align:center;color:var(--muted)">No students yet. Invite your first student above.</div>';
+    container.innerHTML = '<div style="padding:20px;text-align:center;color:var(--muted)">No students yet. Add your first student above.</div>';
     return;
   }
 
   container.innerHTML = data.map(s => {
-    const planColor = s.plan==='active' ? 'var(--green)' : 'var(--red)';
-    const planBg   = s.plan==='active' ? 'var(--green-dim)' : 'var(--red-dim)';
-    const planBd   = s.plan==='active' ? 'var(--green-bd)' : 'var(--red-bd)';
-    const until = s.access_until ? new Date(s.access_until).toLocaleDateString('en-IN') : 'Lifetime';
+    const isActive  = s.plan === 'active';
+    const planColor = isActive ? 'var(--green)' : 'var(--red)';
+    const planBg    = isActive ? 'var(--green-dim)' : 'var(--red-dim)';
+    const planBd    = isActive ? 'var(--green-bd)'  : 'var(--red-bd)';
+    const until     = s.access_until
+      ? new Date(s.access_until).toLocaleDateString('en-IN') : 'Lifetime';
     return `<div class="student-row">
-      <div>
-        <div class="student-email">${s.full_name || '—'}</div>
-        <div class="student-name">${s.email}</div>
+      <div style="flex:1">
+        <div style="font-size:13px;font-weight:600;color:var(--white)">${s.full_name || '—'}</div>
+        <div style="font-size:11px;color:var(--muted);font-family:var(--fm)">${s.email}</div>
       </div>
       <div style="font-size:11px;color:var(--muted)">Until: ${until}</div>
-      <span style="background:${planBg};border:1px solid ${planBd};color:${planColor};padding:2px 8px;border-radius:100px;font-size:10px;font-weight:700">${s.plan.toUpperCase()}</span>
-      <button class="btn btn-danger btn-sm" onclick="revokeAccess('${s.id}','${s.email}')">Revoke</button>
+      <span style="background:${planBg};border:1px solid ${planBd};color:${planColor};
+        padding:2px 8px;border-radius:100px;font-size:10px;font-weight:700">
+        ${s.plan.toUpperCase()}
+      </span>
+      <button class="btn btn-danger btn-sm" onclick="revokeAccess('${s.email}')">Revoke</button>
     </div>`;
   }).join('');
 }
 
-// ── INVITE STUDENT ───────────────────────────────────────
 document.getElementById('form-invite').addEventListener('submit', async e => {
   e.preventDefault();
   const btn = document.getElementById('invite-btn');
-  btn.disabled = true; btn.textContent = 'Sending...';
+  btn.disabled = true; btn.textContent = 'Adding...';
 
-  const fd = new FormData(e.target);
-  const email     = fd.get('email').trim().toLowerCase();
-  const full_name = fd.get('full_name').trim() || null;
+  const fd         = new FormData(e.target);
+  const email      = fd.get('email').trim().toLowerCase();
+  const full_name  = fd.get('full_name').trim() || null;
   const accessUntil = fd.get('access_until') || null;
-  const notes = fd.get('notes').trim() || null;
+  const notes      = fd.get('notes').trim() || null;
 
-  // Use Supabase admin to invite by email
-  // This sends them a magic link / invite email automatically
-  const { data, error } = await sb.auth.admin
-    ? sb.auth.admin.inviteUserByEmail(email)
-    : { error: { message: 'Admin API not available from browser. See instructions below.' } };
-
-  // Note: inviteUserByEmail requires service_role key which shouldn't be in browser.
-  // Alternative: use signUp which sends a confirmation email.
-  const { error: signUpErr } = await sb.auth.signUp({
+  const { error } = await sb.from('approved_students').upsert({
     email,
-    password: generateTempPassword(), // they'll reset this
-    options: {
-      data: { full_name },
-      emailRedirectTo: window.location.origin + '/dashboard/login.html'
-    }
-  });
+    full_name,
+    plan: 'active',
+    access_until: accessUntil || null,
+    notes,
+  }, { onConflict: 'email' });
 
-  if (signUpErr && !signUpErr.message.includes('already registered')) {
-    showAlert('invite-error', '✗ ' + signUpErr.message, 'error');
-    btn.disabled = false; btn.textContent = 'Send Invite Email';
-    return;
+  btn.disabled = false; btn.textContent = 'Grant Access';
+
+  if (error) {
+    showAlert('invite-error', '✗ ' + error.message, 'error');
+  } else {
+    showAlert('invite-success',
+      `✓ Access granted for ${email}. They can now sign in at dashboard.traderhikes.com/login.html using their Google account.`,
+      'success'
+    );
+    e.target.reset();
+    await loadStudents();
   }
-
-  // Now upsert into our students table
-  // (the user row in auth.users gets created by signUp above;
-  //  we'll insert the students row when they first log in — see dashboard.html)
-  btn.disabled = false; btn.textContent = 'Send Invite Email';
-  showAlert('invite-success',
-    `✓ Invite sent to ${email}. They'll receive an email with a link to set their password and access the dashboard.`,
-    'success'
-  );
-  e.target.reset();
-  setTimeout(loadStudents, 1000);
 });
 
-function generateTempPassword() {
-  return 'TH' + Math.random().toString(36).slice(2,10).toUpperCase() + '!';
-}
-
-// ── REVOKE ACCESS ────────────────────────────────────────
-async function revokeAccess(id, email) {
+async function revokeAccess(email) {
   if (!confirm(`Revoke dashboard access for ${email}?`)) return;
-  const { error } = await sb.from('students').update({ plan: 'inactive' }).eq('id', id);
+  const { error } = await sb
+    .from('approved_students').update({ plan: 'inactive' }).eq('email', email);
   if (error) { toast('Error: ' + error.message, 'error'); return; }
   toast(`Access revoked for ${email}.`, 'success');
-  loadStudents();
+  await loadStudents();
 }
 
-// ── UPDATE MARKET BREADTH ────────────────────────────────
+// ════════════════════════════════════════════
+// MARKET BREADTH
+// ════════════════════════════════════════════
 document.getElementById('form-breadth').addEventListener('submit', async e => {
   e.preventDefault();
   const fd = new FormData(e.target);
-  const today = new Date().toISOString().split('T')[0];
-  const payload = {};
+  const payload = { snapshot_date: new Date().toISOString().split('T')[0] };
   ['pct_above_21ema','pct_above_50ema','pct_above_200ema',
    'advancing','declining','new_52w_highs','new_52w_lows',
    'nifty50_close','india_vix','fii_flow_cr'].forEach(k => {
-    const v = fd.get(k);
-    if (v) payload[k] = parseFloat(v);
+    const v = fd.get(k); if (v) payload[k] = parseFloat(v);
   });
-  payload.snapshot_date = today;
-
-  // Upsert: update if today's row exists, insert if not
-  const { error } = await sb.from('market_breadth').upsert(payload, { onConflict: 'snapshot_date' });
+  const { error } = await sb
+    .from('market_breadth').upsert(payload, { onConflict: 'snapshot_date' });
   if (error) { showAlert('breadth-error', '✗ ' + error.message, 'error'); return; }
   showAlert('breadth-success', '✓ Market breadth updated for today.', 'success');
 });
 
-// ── PORTFOLIO SNAPSHOT ───────────────────────────────────
+// ════════════════════════════════════════════
+// PORTFOLIO SNAPSHOT
+// ════════════════════════════════════════════
 document.getElementById('form-snapshot').addEventListener('submit', async e => {
   e.preventDefault();
   const fd = new FormData(e.target);
-  const payload = {};
-  ['total_capital','deployed','cash_available','portfolio_value','nifty500_level','cumulative_return_pct'].forEach(k => {
-    const v = fd.get(k);
-    if (v) payload[k] = parseFloat(v);
+  const payload = { snapshot_date: fd.get('snapshot_date') };
+  ['total_capital','deployed','cash_available',
+   'portfolio_value','nifty500_level','cumulative_return_pct'].forEach(k => {
+    const v = fd.get(k); if (v) payload[k] = parseFloat(v);
   });
-  payload.snapshot_date = fd.get('snapshot_date');
-
-  const { error } = await sb.from('portfolio_snapshots').upsert(payload, { onConflict: 'snapshot_date' });
+  const { error } = await sb
+    .from('portfolio_snapshots').upsert(payload, { onConflict: 'snapshot_date' });
   if (error) { showAlert('snap-error', '✗ ' + error.message, 'error'); return; }
   showAlert('snap-success', '✓ Portfolio snapshot saved for ' + payload.snapshot_date, 'success');
   e.target.reset();
-  document.querySelector('input[name="snapshot_date"]').value = new Date().toISOString().split('T')[0];
+  document.querySelector('[name="snapshot_date"]').value = new Date().toISOString().split('T')[0];
 });
 </script>
 </body>
