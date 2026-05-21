@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>PaisaPro — Trading Dashboard</title>
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 :root {
   /* ── BACKGROUNDS (kept dark, slightly warmer) ── */
@@ -467,18 +468,24 @@ canvas.tc{display:block;width:100%;height:100%}
   <div class="hdr-meta">
     <div class="regime-pill"><div class="rp-dot"></div>Bull Phase · 74/100</div>
     <div class="hdr-sep"></div>
-    <div class="hdr-stat"><div class="hdr-stat-l">Total Capital</div><div class="hdr-stat-v">₹25.0L</div></div>
+    <div class="hdr-stat"><div class="hdr-stat-l">Total Capital</div><div class="hdr-stat-v" id="hdr-capital">—</div></div>
     <div class="hdr-sep"></div>
-    <div class="hdr-stat"><div class="hdr-stat-l">Deployed</div><div class="hdr-stat-v">₹18.4L</div></div>
+    <div class="hdr-stat"><div class="hdr-stat-l">Deployed</div><div class="hdr-stat-v" id="hdr-deployed">—</div></div>
     <div class="hdr-sep"></div>
-    <div class="hdr-stat"><div class="hdr-stat-l">Open P&L</div><div class="hdr-stat-v" style="color:var(--green)">+₹1,96,140</div></div>
+    <div class="hdr-stat"><div class="hdr-stat-l">Open P&L</div><div class="hdr-stat-v" id="hdr-pnl" style="color:var(--green)">—</div></div>
     <div class="hdr-sep"></div>
-    <div class="hdr-stat"><div class="hdr-stat-l">Win Rate</div><div class="hdr-stat-v" style="color:var(--blue-lt)">68%</div></div>
+    <div class="hdr-stat"><div class="hdr-stat-l">Signed in as</div><div class="hdr-stat-v" id="hdr-user" style="font-size:11px">—</div></div>
   </div>
   <div class="hdr-r">
     <div class="live-pill"><div class="ldot"></div>LIVE NSE</div>
     <div class="htime" id="clk">10:34:52 IST</div>
-    <button class="btn-set">⚙ Settings</button>
+    <!-- Admin panel link — only shown to admin email -->
+    <button class="btn-set" id="btn-admin" style="display:none"
+      onclick="window.location.href='https://dashboard.traderhikes.com/admin.html'">
+      ⚙ Admin
+    </button>
+    <!-- Sign out — shown to all users -->
+    <button class="btn-set" id="btn-signout" onclick="signOut()">Sign Out</button>
   </div>
 </header>
 
@@ -876,6 +883,62 @@ canvas.tc{display:block;width:100%;height:100%}
 </div><!-- /wrap -->
 
 <script>
+/* ── SUPABASE CLIENT ── */
+const SUPABASE_URL = 'https://kqndpeflwuztzhixibih.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_TKxZEcz6BqGzko2I3Erk7w_zkl2Az76';
+const ADMIN_EMAIL  = 'traderhikes@gmail.com';
+const LOGIN_URL    = 'https://dashboard.traderhikes.com/login.html';
+const ADMIN_URL    = 'https://dashboard.traderhikes.com/admin.html';
+
+const { createClient } = supabase;
+const sb = createClient(SUPABASE_URL, SUPABASE_KEY);
+
+/* ── AUTH GUARD ── runs before anything else */
+(async () => {
+  const { data: { session } } = await sb.auth.getSession();
+  if (!session) {
+    // Not logged in → redirect to login page
+    window.location.href = LOGIN_URL;
+    return;
+  }
+
+  // Check approved_students table
+  const email = session.user.email.toLowerCase();
+  const { data: student } = await sb
+    .from('approved_students')
+    .select('plan, access_until')
+    .eq('email', email)
+    .single();
+
+  if (!student || student.plan !== 'active') {
+    await sb.auth.signOut();
+    window.location.href = LOGIN_URL;
+    return;
+  }
+  if (student.access_until && new Date(student.access_until) < new Date()) {
+    await sb.auth.signOut();
+    window.location.href = LOGIN_URL;
+    return;
+  }
+
+  // Show user info in header
+  const displayName = session.user.user_metadata?.full_name
+    || session.user.user_metadata?.name
+    || email.split('@')[0];
+  document.getElementById('hdr-user').textContent = displayName;
+
+  // Show admin button only for admin email
+  if (email === ADMIN_EMAIL.toLowerCase()) {
+    document.getElementById('btn-admin').style.display = 'block';
+  }
+})();
+
+/* ── SIGN OUT ── */
+async function signOut() {
+  await sb.auth.signOut();
+  window.location.href = LOGIN_URL;
+}
+
 /* ── CLOCK ── */
 const clkEl=document.getElementById('clk');
 function tick(){const d=new Date(new Date().toLocaleString('en-US',{timeZone:'Asia/Kolkata'}));clkEl.textContent=`${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}:${String(d.getSeconds()).padStart(2,'0')} IST`;}
@@ -1212,11 +1275,198 @@ function drawClosed(cv,bars,entry,exitP,sl,eb,p1b,p1p,xb){
   ctx.fillStyle=CT.muted;ctx.font='7px DM Mono,monospace';ctx.textAlign='center';[0,eb,p1b,xb].filter(x=>x!=null).forEach(i=>ctx.fillText(`D${i+1}`,xc(i),H-2));
 }
 
-/* ─ RENDER OPEN ─ */
-function renderOpen(){const c=document.getElementById('ot-container');c.innerHTML='';openT.forEach(t=>{const pp=t.pnl>=0;const el=document.createElement('div');el.className='trade-card';el.innerHTML=`<div class="chart-col"><canvas class="tc" id="oc_${t.name.replace(/[\s.]/g,'_')}" width="400" height="160"></canvas></div><div class="info-col"><div class="trade-top"><div><div class="tnm">${t.name}</div><div class="tsc">${t.sector}</div></div><span class="badge ${t.bc}">${t.badge}</span></div><div class="mgrid"><div class="mg"><div class="mgl">Entry ₹</div><div class="mgv">${t.entry.toLocaleString('en-IN')}</div></div><div class="mg"><div class="mgl">CMP ₹</div><div class="mgv ${pp?'g':'r'}">${t.cmp.toLocaleString('en-IN')}</div></div><div class="mg"><div class="mgl">Stop Loss ₹</div><div class="mgv r">${t.sl.toLocaleString('en-IN')}</div></div><div class="mg"><div class="mgl">Qty</div><div class="mgv">${t.qty}</div></div><div class="mg"><div class="mgl">Notional P&L</div><div class="mgv ${pp?'g':'r'}">${pp?'+':''}₹${Math.abs(t.pnl).toLocaleString('en-IN')}</div></div><div class="mg"><div class="mgl">Return %</div><div class="mgv ${pp?'g':'r'}">${pp?'+':''}${t.pct}%</div></div><div class="mg"><div class="mgl">Open Risk ₹</div><div class="mgv r">₹${t.risk.toLocaleString('en-IN')}</div></div><div class="mg"><div class="mgl">Risk %</div><div class="mgv a">${t.rp}%</div></div></div><div class="rrow"><span class="rlbl">Open Risk</span><div class="rt"><div class="rf" style="width:${Math.min(t.rp*12,100)}%;background:${t.rp>6?'var(--red)':t.rp>4?'var(--amber)':'var(--green)'}"></div></div><span style="font-size:11px;font-weight:700;font-family:var(--fm);color:${t.rp>6?'var(--red)':t.rp>4?'var(--amber)':'var(--green)'}">${t.rp}%</span></div></div>`;c.appendChild(el);requestAnimationFrame(()=>{const cv=document.getElementById('oc_'+t.name.replace(/[\s.]/g,'_'));if(cv){cv.width=cv.offsetWidth||400;cv.height=cv.offsetHeight||160;drawOpen(cv,t.bars,t.eb,t.entry,t.sl,t.cmp);}});});}
+/* ─ RENDER OPEN (LIVE FROM SUPABASE) ─ */
+async function renderOpen(){
+  const c=document.getElementById('ot-container');
+  c.innerHTML='<div style="padding:40px;text-align:center;color:var(--muted)">Loading trades...</div>';
 
-/* ─ RENDER CLOSED ─ */
-function renderClosed(){const c=document.getElementById('ct-container');c.innerHTML='';closedT.forEach(t=>{const pp=t.pnl>=0;const el=document.createElement('div');el.className='trade-card';el.innerHTML=`<div class="chart-col"><canvas class="tc" id="cc_${t.name.replace(/[\s.]/g,'_')}" width="400" height="160"></canvas></div><div class="info-col"><div class="trade-top"><div><div class="tnm">${t.name}</div><div class="tsc">${t.sector}</div></div><span class="badge ${pp?'bwin':'bloss'}">${pp?'Winner':'Stopped'}</span></div><div class="mgrid"><div class="mg"><div class="mgl">Avg Entry ₹</div><div class="mgv">${t.entry.toLocaleString('en-IN')}</div></div><div class="mg"><div class="mgl">Wt. Avg Exit ₹</div><div class="mgv ${pp?'g':'r'}">${t.exit.toLocaleString('en-IN')}</div></div><div class="mg"><div class="mgl">Realised P&L</div><div class="mgv ${pp?'g':'r'}">${pp?'+':''}₹${Math.abs(t.pnl).toLocaleString('en-IN')}</div></div><div class="mg"><div class="mgl">Return %</div><div class="mgv ${pp?'g':'r'}">${pp?'+':''}${t.pct}%</div></div></div><div class="atags"><div class="atag at-e">▲ Entry ₹${t.entry.toLocaleString('en-IN')} · Day ${t.eb+1}</div>${t.p1b!=null?`<div class="atag at-p">◆ Partial ₹${t.p1p?.toLocaleString('en-IN')} · ${t.p1pct} sold · Day ${t.p1b+1}</div>`:''}<div class="atag at-x">▼ Exit ₹${t.exit.toLocaleString('en-IN')} · Day ${t.xb+1}</div><div class="atag at-d">⏱ ${t.held}D held</div></div></div>`;c.appendChild(el);requestAnimationFrame(()=>{const cv=document.getElementById('cc_'+t.name.replace(/[\s.]/g,'_'));if(cv){cv.width=cv.offsetWidth||400;cv.height=cv.offsetHeight||160;drawClosed(cv,t.bars,t.entry,t.exit,t.sl,t.eb,t.p1b,t.p1p,t.xb);}});});}
+  const { data: trades, error } = await sb
+    .from('open_trades')
+    .select('*')
+    .order('entry_date', { ascending: false });
+
+  if (error || !trades || trades.length === 0) {
+    c.innerHTML='<div style="padding:40px;text-align:center;color:var(--muted)">No open trades yet.</div>';
+    // Update summary strip
+    document.getElementById('hdr-deployed').textContent = '₹0';
+    document.getElementById('hdr-pnl').textContent = '—';
+    return;
+  }
+
+  // Calculate summary numbers
+  let totalDeployed=0, totalPnl=0;
+  trades.forEach(t=>{
+    const invested = t.entry_price * t.quantity;
+    totalDeployed += invested;
+    if(t.cmp) totalPnl += (t.cmp - t.entry_price) * t.quantity;
+  });
+
+  // Update header stats
+  document.getElementById('hdr-deployed').textContent =
+    '₹' + (totalDeployed/100000).toFixed(1) + 'L';
+  const pnlEl = document.getElementById('hdr-pnl');
+  pnlEl.textContent = (totalPnl>=0?'+':'') + '₹' +
+    Math.abs(totalPnl).toLocaleString('en-IN',{maximumFractionDigits:0});
+  pnlEl.style.color = totalPnl>=0 ? 'var(--green)' : 'var(--red)';
+
+  // Update open trades summary strip
+  const wins = trades.filter(t=>t.cmp && t.cmp>t.entry_price);
+  const losses = trades.filter(t=>t.cmp && t.cmp<t.entry_price);
+  const gainSum = wins.reduce((s,t)=>(s+(t.cmp-t.entry_price)*t.quantity),0);
+  const lossSum = losses.reduce((s,t)=>(s+(t.cmp-t.entry_price)*t.quantity),0);
+  const totalRisk = trades.reduce((s,t)=>(s+(t.entry_price-t.sl_price)*t.quantity),0);
+
+  // Update the sstrip in open pane
+  const ss = document.querySelectorAll('#pane-open .sc');
+  if(ss[0]) ss[0].querySelector('.scv').textContent = '₹'+(totalDeployed/100000).toFixed(1)+'L';
+  if(ss[1]) { ss[1].querySelector('.scv').textContent = '+₹'+gainSum.toLocaleString('en-IN',{maximumFractionDigits:0}); ss[1].querySelector('.scs').textContent = wins.length+' winners'; }
+  if(ss[2]) { ss[2].querySelector('.scv').textContent = '−₹'+Math.abs(lossSum).toLocaleString('en-IN',{maximumFractionDigits:0}); ss[2].querySelector('.scs').textContent = losses.length+' laggards'; }
+  if(ss[3]) { ss[3].querySelector('.scv').textContent = (totalPnl>=0?'+':'')+'₹'+Math.abs(totalPnl).toLocaleString('en-IN',{maximumFractionDigits:0}); }
+  if(ss[4]) ss[4].querySelector('.scv').textContent = '₹'+totalRisk.toLocaleString('en-IN',{maximumFractionDigits:0});
+
+  c.innerHTML='';
+  trades.forEach(t=>{
+    const pp = t.cmp ? t.cmp > t.entry_price : false;
+    const pnl = t.cmp ? (t.cmp - t.entry_price) * t.quantity : null;
+    const pct = t.cmp ? ((t.cmp - t.entry_price) / t.entry_price * 100) : null;
+    const risk = (t.entry_price - t.sl_price) * t.quantity;
+    const riskPct = ((t.entry_price - t.sl_price) / t.entry_price * 100);
+    const badgeMap = { long:'bl', trail_sl:'bt', watch:'bw' };
+    const bc = badgeMap[t.status] || 'bw';
+    const badgeLabel = t.status.replace('_',' ').replace(/\b\w/g,c=>c.toUpperCase());
+
+    // Generate simulated bars based on entry price (until live API connected)
+    const trend = t.cmp && t.cmp > t.entry_price ? 0.004 : -0.002;
+    const bars = gen(t.entry_price * 0.97, 60, trend, 0.018);
+    // Set final bar close to CMP
+    if(t.cmp && bars.length > 0) bars[bars.length-1].c = t.cmp;
+
+    const el=document.createElement('div');
+    el.className='trade-card';
+    el.innerHTML=`
+      <div class="chart-col"><canvas class="tc" id="oc_${t.id}" width="400" height="160"></canvas></div>
+      <div class="info-col">
+        <div class="trade-top">
+          <div>
+            <div class="tnm">${t.company_name}</div>
+            <div class="tsc">NSE:${t.symbol} · ${t.sector||''}</div>
+            ${t.trade_notes ? `<div style="font-size:11px;color:var(--muted);margin-top:4px;font-style:italic">"${t.trade_notes}"</div>` : ''}
+          </div>
+          <span class="badge ${bc}">${badgeLabel}</span>
+        </div>
+        <div class="mgrid">
+          <div class="mg"><div class="mgl">Entry ₹</div><div class="mgv">${Number(t.entry_price).toLocaleString('en-IN')}</div></div>
+          <div class="mg"><div class="mgl">CMP ₹</div><div class="mgv ${t.cmp?(pp?'g':'r'):''}">${t.cmp?Number(t.cmp).toLocaleString('en-IN'):'—'}</div></div>
+          <div class="mg"><div class="mgl">Stop Loss ₹</div><div class="mgv r">${Number(t.sl_price).toLocaleString('en-IN')}</div></div>
+          <div class="mg"><div class="mgl">Qty</div><div class="mgv">${t.quantity}</div></div>
+          <div class="mg"><div class="mgl">Notional P&L</div><div class="mgv ${pnl!==null?(pnl>=0?'g':'r'):''}">${pnl!==null?((pnl>=0?'+':'')+'₹'+Math.abs(pnl).toLocaleString('en-IN',{maximumFractionDigits:0})):'—'}</div></div>
+          <div class="mg"><div class="mgl">Return %</div><div class="mgv ${pct!==null?(pct>=0?'g':'r'):''}">${pct!==null?((pct>=0?'+':'')+pct.toFixed(1)+'%'):'—'}</div></div>
+          <div class="mg"><div class="mgl">Open Risk ₹</div><div class="mgv r">₹${Math.abs(risk).toLocaleString('en-IN',{maximumFractionDigits:0})}</div></div>
+          <div class="mg"><div class="mgl">Risk %</div><div class="mgv a">${riskPct.toFixed(1)}%</div></div>
+        </div>
+        <div class="rrow">
+          <span class="rlbl">Open Risk</span>
+          <div class="rt"><div class="rf" style="width:${Math.min(riskPct*12,100)}%;background:${riskPct>6?'var(--red)':riskPct>4?'var(--amber)':'var(--green)'}"></div></div>
+          <span style="font-size:11px;font-weight:700;font-family:var(--fm);color:${riskPct>6?'var(--red)':riskPct>4?'var(--amber)':'var(--green)'}">${riskPct.toFixed(1)}%</span>
+        </div>
+      </div>`;
+    c.appendChild(el);
+    requestAnimationFrame(()=>{
+      const cv=document.getElementById('oc_'+t.id);
+      if(cv){
+        cv.width=cv.offsetWidth||400;
+        cv.height=cv.offsetHeight||160;
+        drawOpen(cv,bars,45,t.entry_price,t.sl_price,t.cmp||t.entry_price);
+      }
+    });
+  });
+}
+
+/* ─ RENDER CLOSED (LIVE FROM SUPABASE) ─ */
+async function renderClosed(){
+  const c=document.getElementById('ct-container');
+  c.innerHTML='<div style="padding:40px;text-align:center;color:var(--muted)">Loading trade history...</div>';
+
+  const { data: trades, error } = await sb
+    .from('closed_trades')
+    .select('*')
+    .order('exit_date', { ascending: false });
+
+  if (error || !trades || trades.length === 0) {
+    c.innerHTML='<div style="padding:40px;text-align:center;color:var(--muted)">No closed trades yet.</div>';
+    return;
+  }
+
+  // Update closed trades summary strip
+  const wins   = trades.filter(t => t.realised_pnl > 0);
+  const losses  = trades.filter(t => t.realised_pnl <= 0);
+  const totalPnl = trades.reduce((s,t) => s + (t.realised_pnl||0), 0);
+  const avgWin  = wins.length ? wins.reduce((s,t)=>s+(t.return_pct||0),0)/wins.length : 0;
+  const avgLoss = losses.length ? losses.reduce((s,t)=>s+(t.return_pct||0),0)/losses.length : 0;
+  const grossWin  = wins.reduce((s,t)=>s+(t.realised_pnl||0),0);
+  const grossLoss = Math.abs(losses.reduce((s,t)=>s+(t.realised_pnl||0),0));
+  const pf = grossLoss > 0 ? (grossWin/grossLoss).toFixed(2) : '∞';
+  const winRate = trades.length ? Math.round((wins.length/trades.length)*100) : 0;
+
+  const ss = document.querySelectorAll('#pane-closed .sc');
+  if(ss[0]){ ss[0].querySelector('.scv').textContent=(totalPnl>=0?'+':'')+'₹'+Math.abs(totalPnl).toLocaleString('en-IN',{maximumFractionDigits:0}); }
+  if(ss[1]){ ss[1].querySelector('.scv').textContent=wins.length; ss[1].querySelector('.scs').textContent='Avg +'+avgWin.toFixed(1)+'%'; }
+  if(ss[2]){ ss[2].querySelector('.scv').textContent=losses.length; ss[2].querySelector('.scs').textContent='Avg '+avgLoss.toFixed(1)+'%'; }
+  if(ss[3]){ ss[3].querySelector('.scv').textContent=winRate+'%'; ss[3].querySelector('.scs').textContent=wins.length+'/'+trades.length; }
+  if(ss[4]){ ss[4].querySelector('.scv').textContent=pf+'×'; }
+
+  c.innerHTML='';
+  trades.forEach(t=>{
+    const pp = (t.realised_pnl||0) >= 0;
+    // Determine entry bar position based on holding days
+    const totalBars = Math.max((t.holding_days||20) + 10, 25);
+    const eb = 5;
+    const xb = Math.min(eb + (t.holding_days||20), totalBars - 2);
+    const p1b = t.partial_exit_date ? Math.round((eb + xb) / 2) : null;
+
+    const trend = pp ? 0.005 : -0.004;
+    const bars = gen(t.avg_entry_price * 0.97, totalBars, trend, 0.016);
+    if(bars.length > xb) bars[xb].c = t.avg_exit_price;
+
+    const el=document.createElement('div');
+    el.className='trade-card';
+    el.innerHTML=`
+      <div class="chart-col"><canvas class="tc" id="cc_${t.id}" width="400" height="160"></canvas></div>
+      <div class="info-col">
+        <div class="trade-top">
+          <div>
+            <div class="tnm">${t.company_name}</div>
+            <div class="tsc">NSE:${t.symbol} · ${t.sector||''}</div>
+            ${t.exit_reason ? `<div style="font-size:11px;color:var(--muted);margin-top:4px">Exit: ${t.exit_reason}</div>` : ''}
+          </div>
+          <span class="badge ${pp?'bwin':'bloss'}">${pp?'Winner':'Stopped'}</span>
+        </div>
+        <div class="mgrid">
+          <div class="mg"><div class="mgl">Avg Entry ₹</div><div class="mgv">${Number(t.avg_entry_price).toLocaleString('en-IN')}</div></div>
+          <div class="mg"><div class="mgl">Wt. Avg Exit ₹</div><div class="mgv ${pp?'g':'r'}">${Number(t.avg_exit_price).toLocaleString('en-IN')}</div></div>
+          <div class="mg"><div class="mgl">Realised P&L</div><div class="mgv ${pp?'g':'r'}">${pp?'+':''}₹${Math.abs(t.realised_pnl||0).toLocaleString('en-IN',{maximumFractionDigits:0})}</div></div>
+          <div class="mg"><div class="mgl">Return %</div><div class="mgv ${pp?'g':'r'}">${pp?'+':''}${(t.return_pct||0).toFixed(1)}%</div></div>
+        </div>
+        <div class="atags">
+          <div class="atag at-e">▲ Entry ₹${Number(t.avg_entry_price).toLocaleString('en-IN')} · ${t.entry_date}</div>
+          ${t.partial_exit_date ? `<div class="atag at-p">◆ Partial Exit ₹${Number(t.partial_exit_price).toLocaleString('en-IN')} · ${t.partial_exit_pct}% sold · ${t.partial_exit_date}</div>` : ''}
+          <div class="atag at-x">▼ Final Exit ₹${Number(t.avg_exit_price).toLocaleString('en-IN')} · ${t.exit_date}</div>
+          <div class="atag at-d">⏱ ${t.holding_days||'?'} days held</div>
+        </div>
+        ${t.trade_notes ? `<div style="font-size:11px;color:var(--muted);margin-top:4px;font-style:italic;border-top:1px solid var(--bdr);padding-top:8px">"${t.trade_notes}"</div>` : ''}
+      </div>`;
+    c.appendChild(el);
+    requestAnimationFrame(()=>{
+      const cv=document.getElementById('cc_'+t.id);
+      if(cv){
+        cv.width=cv.offsetWidth||400;
+        cv.height=cv.offsetHeight||160;
+        drawClosed(cv,bars,t.avg_entry_price,t.avg_exit_price,t.sl_price,
+          eb, p1b, t.partial_exit_price, xb);
+      }
+    });
+  });
+}
 
 /* ─ RENDER RS ─ */
 function renderRS(){document.getElementById('rs-tbody').innerHTML=rsD.map(s=>{const pips=Array.from({length:10},(_,i)=>`<div class="rs-pip ${i<Math.round(s.rs/10)?(s.rs>=90?'elite':'on'):''}"></div>`).join('');const spark=s.sp.map(v=>`<div class="sp" style="height:${v}%;background:${v>70?'var(--green)':v>50?'var(--blue)':'var(--amber)'}"></div>`).join('');const vc=s.vol==='high'?'vh':s.vol==='med'?'vm':'vn';const vl=s.vol==='high'?`+${s.vc}% 🔥`:`+${s.vc}%`;return`<tr><td style="color:var(--muted);font-weight:700;font-family:var(--fm)">${s.r}</td><td><div class="sname">${s.name}</div><div class="ssec">NSE:${s.sym} · ${s.sec}</div></td><td class="r" style="font-weight:700;color:var(--white)">${s.cmp.toLocaleString('en-IN')}</td><td class="r" style="color:var(--muted)">${s.hi52.toLocaleString('en-IN')}</td><td class="r" style="color:var(--red);font-weight:600">${s.fh}%</td><td><div class="rs-wrap">${pips}<span class="rs-num ${s.rs>=90?'elite':''}">${s.rs}</span></div></td><td class="r"><span class="ema-tag ${s.e21?'et-on':'et-off'}">${s.e21?'✓ Above':'✗ Below'}</span></td><td class="r"><span class="ema-tag ${s.e50?'et-on':'et-off'}">${s.e50?'✓ Above':'✗ Below'}</span></td><td class="r"><span class="ema-tag ${s.e200?'et-on':'et-near'}">${s.e200?'✓ Above':'≈ Near'}</span></td><td><span class="vol-tag ${vc}">${vl}</span></td><td><span class="setup">${s.setup}</span></td><td><div class="spark">${spark}</div></td><td><span class="wl-s ${s.wl?'on':''}" onclick="this.classList.toggle('on')">★</span></td></tr>`;}).join('');}
@@ -1379,12 +1629,31 @@ const idxData=[
 })();
 
 /* ── INIT ── */
-window.addEventListener('load',()=>{
-  renderOpen();renderClosed();renderRS();
+window.addEventListener('load', async () => {
+  // Render live data from Supabase
+  await renderOpen();
+  await renderClosed();
+  renderRS();
   drawPortfolioCharts();
-  window.addEventListener('resize',()=>{
-    renderOpen();renderClosed();
-    if(document.getElementById('pane-portfolio').classList.contains('active'))drawPortfolioCharts();
+
+  // Load latest portfolio snapshot for header
+  const { data: snap } = await sb
+    .from('portfolio_snapshots')
+    .select('total_capital, deployed, portfolio_value, cumulative_return_pct')
+    .order('snapshot_date', { ascending: false })
+    .limit(1)
+    .single();
+
+  if (snap) {
+    const capEl = document.getElementById('hdr-capital');
+    if (capEl) capEl.textContent = '₹' + (snap.total_capital/100000).toFixed(1) + 'L';
+  }
+
+  window.addEventListener('resize', async () => {
+    await renderOpen();
+    await renderClosed();
+    if(document.getElementById('pane-portfolio').classList.contains('active'))
+      drawPortfolioCharts();
   });
 });
 </script>
