@@ -282,7 +282,9 @@
   <!-- Tabs -->
   <div class="tabs">
     <button class="tab-btn active" onclick="openTab('tab-open',this)">Open Trades</button>
-    <button class="tab-btn" onclick="openTab('tab-close',this)">Close a Trade</button>
+    <button class="tab-btn" onclick="openTab('tab-pyramid',this)">Add Entry (Pyramid)</button>
+    <button class="tab-btn" onclick="openTab('tab-partial',this)">Partial Exit</button>
+    <button class="tab-btn" onclick="openTab('tab-close',this)">Final Exit</button>
     <button class="tab-btn" onclick="openTab('tab-students',this)">Students</button>
     <button class="tab-btn" onclick="openTab('tab-breadth',this)">Market Breadth</button>
     <button class="tab-btn" onclick="openTab('tab-snapshot',this)">Portfolio Snapshot</button>
@@ -332,7 +334,7 @@
             <div class="form-group">
               <label class="form-label">CMP ₹ (current price)</label>
               <input class="form-input" type="number" name="cmp" step="0.05" placeholder="13480">
-              <span class="form-hint">Leave blank — update separately</span>
+              <span class="form-hint">Leave blank — pipeline updates daily</span>
             </div>
             <div class="form-group">
               <label class="form-label">Status</label>
@@ -341,6 +343,40 @@
                 <option value="trail_sl">Trailing SL</option>
                 <option value="watch">Watch</option>
               </select>
+            </div>
+          </div>
+          <!-- Capital + Position Size row -->
+          <div class="card" style="margin-bottom:14px;background:var(--card2)">
+            <div class="card-hdr"><span class="card-title">Position Size (auto-calculated)</span></div>
+            <div class="card-body">
+              <div class="form-grid four">
+                <div class="form-group">
+                  <label class="form-label">Capital at Entry ₹ *</label>
+                  <input class="form-input" type="number" name="capital_at_entry"
+                    id="nt-capital" placeholder="2500000" required
+                    oninput="calcPositionSize()">
+                  <span class="form-hint">Your total trading capital today</span>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Amount Invested ₹</label>
+                  <input class="form-input" type="number" id="nt-amount" placeholder="—" readonly
+                    style="background:var(--card3);color:var(--blue-lt)">
+                  <span class="form-hint">Entry × Qty (auto)</span>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Position Size %</label>
+                  <input class="form-input" type="number" name="position_size_pct"
+                    id="nt-possize" placeholder="—" readonly
+                    style="background:var(--card3);color:var(--green);font-weight:700">
+                  <span class="form-hint">% of capital (auto)</span>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Risk Amount ₹</label>
+                  <input class="form-input" type="number" id="nt-risk" placeholder="—" readonly
+                    style="background:var(--card3);color:var(--red)">
+                  <span class="form-hint">(Entry − SL) × Qty (auto)</span>
+                </div>
+              </div>
             </div>
           </div>
           <div class="form-grid two" style="margin-bottom:14px">
@@ -369,8 +405,8 @@
         <table class="data-table">
           <thead><tr>
             <th>Symbol</th><th>Company</th><th>Entry Date</th>
-            <th>Entry ₹</th><th>Qty</th><th>SL ₹</th><th>CMP ₹</th>
-            <th>P&L ₹</th><th>Status</th><th>Actions</th>
+            <th>Avg Entry ₹</th><th>Rem/Total Qty</th><th>SL ₹</th><th>CMP ₹</th>
+            <th>P&L ₹</th><th>Pos Size</th><th>Status</th><th>Actions</th>
           </tr></thead>
           <tbody id="open-trades-tbody">
             <tr><td colspan="10" style="text-align:center;color:var(--muted);padding:20px">Loading...</td></tr>
@@ -380,42 +416,241 @@
     </div>
   </div>
 
-  <!-- ════ TAB 2: CLOSE A TRADE ════ -->
+  <!-- ════ TAB 2: ADD ENTRY (PYRAMID) ════ -->
+  <div class="tab-pane" id="tab-pyramid">
+    <div class="card">
+      <div class="card-hdr"><span class="card-title">Add Entry to Existing Position (Pyramid)</span></div>
+      <div class="card-body">
+        <p style="font-size:12px;color:var(--muted);margin-bottom:16px;line-height:1.6">
+          Adding to a winning position. The weighted average entry price and total qty will update automatically.
+        </p>
+        <div class="alert alert-success" id="pyramid-success"></div>
+        <div class="alert alert-error"   id="pyramid-error"></div>
+        <form id="form-pyramid">
+          <div class="form-group" style="margin-bottom:16px">
+            <label class="form-label">Select Trade to Add To *</label>
+            <select class="form-select" name="open_trade_id" id="pyramid-trade-select" required
+              onchange="loadTradeDetailsForPyramid(this.value)">
+              <option value="">— select an open trade —</option>
+            </select>
+          </div>
+          <!-- Current position summary -->
+          <div class="card" style="margin-bottom:16px;background:var(--card2)" id="pyramid-current-card">
+            <div class="card-hdr"><span class="card-title">Current Position</span></div>
+            <div class="card-body">
+              <div class="form-grid four">
+                <div class="form-group">
+                  <label class="form-label">Avg Entry ₹</label>
+                  <input class="form-input" id="py-cur-entry" readonly style="background:var(--card3)">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Total Qty</label>
+                  <input class="form-input" id="py-cur-qty" readonly style="background:var(--card3)">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Remaining Qty</label>
+                  <input class="form-input" id="py-cur-rem" readonly style="background:var(--card3)">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Position Size %</label>
+                  <input class="form-input" id="py-cur-pos" readonly style="background:var(--card3);color:var(--green)">
+                </div>
+              </div>
+            </div>
+          </div>
+          <!-- New entry details -->
+          <div class="form-grid four" style="margin-bottom:14px">
+            <div class="form-group">
+              <label class="form-label">New Entry Date *</label>
+              <input class="form-input" type="date" name="entry_date" id="py-date" required>
+            </div>
+            <div class="form-group">
+              <label class="form-label">New Entry Price ₹ *</label>
+              <input class="form-input" type="number" name="entry_price" id="py-price"
+                step="0.05" placeholder="420.00" required oninput="calcPyramidResult()">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Additional Qty *</label>
+              <input class="form-input" type="number" name="quantity" id="py-qty"
+                placeholder="300" required oninput="calcPyramidResult()">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Capital at This Entry ₹</label>
+              <input class="form-input" type="number" name="capital_at_entry" id="py-capital"
+                placeholder="2500000" oninput="calcPyramidResult()">
+            </div>
+          </div>
+          <!-- Result preview -->
+          <div class="card" style="margin-bottom:14px;background:var(--card2)">
+            <div class="card-hdr"><span class="card-title">After Adding This Entry (Preview)</span></div>
+            <div class="card-body">
+              <div class="form-grid four">
+                <div class="form-group">
+                  <label class="form-label">New Wtd Avg Entry ₹</label>
+                  <input class="form-input" id="py-new-avg" readonly
+                    style="background:var(--card3);color:var(--blue-lt);font-weight:700">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">New Total Qty</label>
+                  <input class="form-input" id="py-new-qty" readonly
+                    style="background:var(--card3);color:var(--white);font-weight:700">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">This Entry Size %</label>
+                  <input class="form-input" id="py-new-pos" readonly
+                    style="background:var(--card3);color:var(--green);font-weight:700">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Total Position Size %</label>
+                  <input class="form-input" id="py-new-total-pos" readonly
+                    style="background:var(--card3);color:var(--amber);font-weight:700">
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="form-group" style="margin-bottom:14px">
+            <label class="form-label">Notes (optional)</label>
+            <input class="form-input" type="text" name="notes"
+              placeholder="Added on breakout of resistance...">
+          </div>
+          <div style="display:flex;justify-content:flex-end;gap:10px">
+            <button type="reset" class="btn btn-ghost" onclick="resetPyramidForm()">Clear</button>
+            <button type="submit" class="btn btn-primary" id="pyramid-btn">Add Entry & Update Position</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════ TAB 3: PARTIAL EXIT ════ -->
+  <div class="tab-pane" id="tab-partial">
+    <div class="card">
+      <div class="card-hdr"><span class="card-title">Book Partial Profits / Partial Exit</span></div>
+      <div class="card-body">
+        <p style="font-size:12px;color:var(--muted);margin-bottom:16px;line-height:1.6">
+          Sell part of your position. Remaining qty stays in Open Trades. Trade moves to Closed Trades only on final exit.
+        </p>
+        <div class="alert alert-success" id="partial-success"></div>
+        <div class="alert alert-error"   id="partial-error"></div>
+        <form id="form-partial">
+          <div class="form-group" style="margin-bottom:16px">
+            <label class="form-label">Select Trade *</label>
+            <select class="form-select" name="open_trade_id" id="partial-trade-select" required
+              onchange="loadTradeDetailsForPartial(this.value)">
+              <option value="">— select an open trade —</option>
+            </select>
+          </div>
+          <!-- Current position -->
+          <div class="card" style="margin-bottom:16px;background:var(--card2)">
+            <div class="card-hdr"><span class="card-title">Current Position</span></div>
+            <div class="card-body">
+              <div class="form-grid four">
+                <div class="form-group">
+                  <label class="form-label">Avg Entry ₹</label>
+                  <input class="form-input" id="pe-cur-entry" readonly style="background:var(--card3)">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Remaining Qty</label>
+                  <input class="form-input" id="pe-cur-rem" readonly style="background:var(--card3)">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">CMP ₹</label>
+                  <input class="form-input" id="pe-cur-cmp" readonly style="background:var(--card3)">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Unrealised P&L</label>
+                  <input class="form-input" id="pe-cur-pnl" readonly style="background:var(--card3)">
+                </div>
+              </div>
+            </div>
+          </div>
+          <!-- Exit details -->
+          <div class="form-grid four" style="margin-bottom:14px">
+            <div class="form-group">
+              <label class="form-label">Exit Date *</label>
+              <input class="form-input" type="date" name="exit_date" id="pe-date" required>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Exit Price ₹ *</label>
+              <input class="form-input" type="number" name="exit_price" id="pe-price"
+                step="0.05" required oninput="calcPartialResult()">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Qty to Sell *</label>
+              <input class="form-input" type="number" name="quantity" id="pe-qty"
+                required oninput="calcPartialResult()">
+            </div>
+            <div class="form-group">
+              <label class="form-label">% of Position</label>
+              <input class="form-input" id="pe-pct" readonly
+                style="background:var(--card3);color:var(--amber)">
+              <span class="form-hint">Auto-calculated</span>
+            </div>
+          </div>
+          <!-- Result preview -->
+          <div class="card" style="margin-bottom:14px;background:var(--card2)">
+            <div class="card-hdr"><span class="card-title">Result Preview</span></div>
+            <div class="card-body">
+              <div class="form-grid four">
+                <div class="form-group">
+                  <label class="form-label">Realised P&L ₹</label>
+                  <input class="form-input" id="pe-realised" readonly
+                    style="background:var(--card3);font-weight:700">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Return %</label>
+                  <input class="form-input" id="pe-return" readonly
+                    style="background:var(--card3);font-weight:700">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Remaining Qty After</label>
+                  <input class="form-input" id="pe-rem-after" readonly
+                    style="background:var(--card3);color:var(--blue-lt)">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Remaining Invested ₹</label>
+                  <input class="form-input" id="pe-rem-invested" readonly
+                    style="background:var(--card3);color:var(--blue-lt)">
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="form-group" style="margin-bottom:14px">
+            <label class="form-label">Exit Reason / Notes</label>
+            <input class="form-input" type="text" name="notes"
+              placeholder="Booked 40% at resistance. Trailing rest...">
+          </div>
+          <div style="display:flex;justify-content:flex-end;gap:10px">
+            <button type="reset" class="btn btn-ghost" onclick="resetPartialForm()">Clear</button>
+            <button type="submit" class="btn btn-success" id="partial-btn">Book Partial Exit</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════ TAB 4: FINAL EXIT ════ -->
   <div class="tab-pane" id="tab-close">
     <div class="card">
-      <div class="card-hdr"><span class="card-title">Close / Book Profits on a Trade</span></div>
+      <div class="card-hdr"><span class="card-title">Final Exit — Close Trade Completely</span></div>
       <div class="card-body">
+        <p style="font-size:12px;color:var(--muted);margin-bottom:16px;line-height:1.6">
+          Use this only when exiting the <strong>remaining</strong> position. All partial exits + pyramid entries will be included in the closed trade record automatically.
+        </p>
         <div class="alert alert-success" id="close-success"></div>
         <div class="alert alert-error"   id="close-error"></div>
         <form id="form-close-trade">
           <div class="form-group" style="margin-bottom:16px">
             <label class="form-label">Select Trade to Close *</label>
-            <select class="form-select" name="open_trade_id" id="close-trade-select" required>
+            <select class="form-select" name="open_trade_id" id="close-trade-select" required
+              onchange="loadTradeHistoryForClose(this.value)">
               <option value="">— select an open trade —</option>
             </select>
           </div>
           <div class="card" style="margin-bottom:16px;background:var(--card2)">
-            <div class="card-hdr"><span class="card-title">Partial Exit (optional)</span></div>
-            <div class="card-body">
-              <div class="form-grid four">
-                <div class="form-group">
-                  <label class="form-label">Partial Exit Date</label>
-                  <input class="form-input" type="date" name="partial_exit_date">
-                </div>
-                <div class="form-group">
-                  <label class="form-label">Partial Exit Price ₹</label>
-                  <input class="form-input" type="number" name="partial_exit_price" step="0.05" placeholder="12000">
-                </div>
-                <div class="form-group">
-                  <label class="form-label">Qty Sold (partial)</label>
-                  <input class="form-input" type="number" name="partial_exit_qty" placeholder="8">
-                </div>
-                <div class="form-group">
-                  <label class="form-label">% of Position Sold</label>
-                  <input class="form-input" type="number" name="partial_exit_pct" step="0.01" placeholder="40">
-                  <span class="form-hint">e.g. 40 means 40%</span>
-                </div>
-              </div>
+            <div class="card-hdr"><span class="card-title">Trade History (entries + partial exits)</span></div>
+            <div id="close-history-body" style="padding:12px 16px;font-size:12px;color:var(--muted)">
+              Select a trade to see its history.
             </div>
           </div>
           <div class="form-grid four" style="margin-bottom:14px">
@@ -424,7 +659,7 @@
               <input class="form-input" type="date" name="exit_date" required>
             </div>
             <div class="form-group">
-              <label class="form-label">Avg Exit Price ₹ *</label>
+              <label class="form-label">Final Exit Price ₹ *</label>
               <input class="form-input" type="number" name="avg_exit_price" step="0.05" required>
             </div>
             <div class="form-group">
@@ -439,16 +674,20 @@
             </div>
             <div class="form-group">
               <label class="form-label">Teaching Notes</label>
-              <input class="form-input" type="text" name="trade_notes" placeholder="Booked at resistance...">
+              <input class="form-input" type="text" name="trade_notes"
+                placeholder="Final exit at target. Held for 45 days...">
             </div>
           </div>
           <div style="display:flex;justify-content:flex-end;gap:10px">
             <button type="reset" class="btn btn-ghost">Clear</button>
-            <button type="submit" class="btn btn-success" id="close-trade-btn">Close Trade &amp; Move to History</button>
+            <button type="submit" class="btn btn-success" id="close-trade-btn">
+              Final Exit → Move to Closed Trades
+            </button>
           </div>
         </form>
       </div>
     </div>
+  </div>
   </div>
 
   <!-- ════ TAB 3: STUDENTS ════ -->
@@ -737,55 +976,417 @@ function showAlert(id, msg, type = 'success') {
 }
 
 // ════════════════════════════════════════════
-// OPEN TRADES
+// POSITION SIZE CALCULATOR (new trade form)
 // ════════════════════════════════════════════
+function calcPositionSize() {
+  const price   = parseFloat(document.querySelector('[name="entry_price"]')?.value) || 0;
+  const qty     = parseFloat(document.querySelector('[name="quantity"]')?.value) || 0;
+  const capital = parseFloat(document.getElementById('nt-capital')?.value) || 0;
+  const sl      = parseFloat(document.querySelector('[name="sl_price"]')?.value) || 0;
+
+  const amount  = price * qty;
+  const risk    = Math.max(0, (price - sl)) * qty;
+  const posPct  = capital > 0 ? (amount / capital * 100) : 0;
+
+  const amtEl  = document.getElementById('nt-amount');
+  const posEl  = document.getElementById('nt-possize');
+  const riskEl = document.getElementById('nt-risk');
+
+  if(amtEl)  amtEl.value  = amount > 0 ? amount.toFixed(2) : '';
+  if(posEl)  posEl.value  = posPct > 0 ? posPct.toFixed(2) + '%' : '';
+  if(riskEl) riskEl.value = risk > 0   ? risk.toFixed(2) : '';
+}
+
+// Auto-calc when price/qty/sl changes
+['entry_price','quantity','sl_price'].forEach(name => {
+  const el = document.querySelector(`[name="${name}"]`);
+  if(el) el.addEventListener('input', calcPositionSize);
+});
+
+// ════════════════════════════════════════════
+// PYRAMID (ADD ENTRY) FUNCTIONS
+// ════════════════════════════════════════════
+let pyramidCurrentTrade = null;
+
+async function loadTradeDetailsForPyramid(tradeId) {
+  if(!tradeId) { pyramidCurrentTrade = null; return; }
+  const { data: t } = await sb.from('open_trades').select('*').eq('id', tradeId).single();
+  if(!t) return;
+  pyramidCurrentTrade = t;
+
+  const avgEntry  = t.avg_entry_price || t.entry_price;
+  const totalQty  = t.total_quantity  || t.quantity;
+  const remQty    = t.remaining_qty   || t.quantity;
+  const capital   = t.capital_at_entry || '';
+  const posPct    = t.position_size_pct || '';
+
+  document.getElementById('py-cur-entry').value = avgEntry;
+  document.getElementById('py-cur-qty').value   = totalQty;
+  document.getElementById('py-cur-rem').value   = remQty;
+  document.getElementById('py-cur-pos').value   = posPct ? posPct + '%' : '—';
+
+  // Pre-fill capital
+  const capEl = document.getElementById('py-capital');
+  if(capEl && capital) capEl.value = capital;
+
+  calcPyramidResult();
+}
+
+function calcPyramidResult() {
+  if(!pyramidCurrentTrade) return;
+  const t       = pyramidCurrentTrade;
+  const newPx   = parseFloat(document.getElementById('py-price')?.value) || 0;
+  const newQty  = parseFloat(document.getElementById('py-qty')?.value) || 0;
+  const capital = parseFloat(document.getElementById('py-capital')?.value) || 0;
+
+  const oldAvg  = t.avg_entry_price || t.entry_price;
+  const oldQty  = t.total_quantity  || t.quantity;
+
+  if(newPx === 0 || newQty === 0) return;
+
+  // Weighted avg entry price
+  const newAvg     = ((oldAvg * oldQty) + (newPx * newQty)) / (oldQty + newQty);
+  const newTotalQty = oldQty + newQty;
+  const thisPosPct = capital > 0 ? (newPx * newQty / capital * 100) : 0;
+  const oldAmount  = (t.capital_at_entry && t.position_size_pct)
+    ? t.position_size_pct : 0;
+  const totalPct   = capital > 0
+    ? (newAvg * newTotalQty / capital * 100)
+    : 0;
+
+  document.getElementById('py-new-avg').value      = newAvg.toFixed(2);
+  document.getElementById('py-new-qty').value      = newTotalQty;
+  document.getElementById('py-new-pos').value      = thisPosPct > 0 ? thisPosPct.toFixed(2) + '%' : '—';
+  document.getElementById('py-new-total-pos').value = totalPct > 0 ? totalPct.toFixed(2) + '%' : '—';
+}
+
+function resetPyramidForm() {
+  pyramidCurrentTrade = null;
+  ['py-cur-entry','py-cur-qty','py-cur-rem','py-cur-pos',
+   'py-new-avg','py-new-qty','py-new-pos','py-new-total-pos'].forEach(id => {
+    const el = document.getElementById(id);
+    if(el) el.value = '';
+  });
+}
+
+document.getElementById('form-pyramid').addEventListener('submit', async e => {
+  e.preventDefault();
+  if(!pyramidCurrentTrade) {
+    showAlert('pyramid-error', 'Please select a trade first.', 'error'); return;
+  }
+  const btn = document.getElementById('pyramid-btn');
+  btn.disabled = true; btn.textContent = 'Saving...';
+
+  const fd       = new FormData(e.target);
+  const tradeId  = fd.get('open_trade_id');
+  const newPx    = parseFloat(fd.get('entry_price'));
+  const newQty   = parseInt(fd.get('quantity'));
+  const capital  = parseFloat(fd.get('capital_at_entry')) || null;
+  const t        = pyramidCurrentTrade;
+
+  const oldAvg   = t.avg_entry_price || t.entry_price;
+  const oldQty   = t.total_quantity  || t.quantity;
+  const oldRem   = t.remaining_qty   || t.quantity;
+
+  // Calculate new weighted avg
+  const newAvg     = ((oldAvg * oldQty) + (newPx * newQty)) / (oldQty + newQty);
+  const newTotalQty = oldQty + newQty;
+  const newRemQty   = oldRem + newQty;
+  const posPct     = capital ? parseFloat((newPx * newQty / capital * 100).toFixed(2)) : null;
+
+  try {
+    // 1. Save entry to trade_entries table
+    await sb.from('trade_entries').insert({
+      open_trade_id:     tradeId,
+      entry_date:        fd.get('entry_date'),
+      entry_price:       newPx,
+      quantity:          newQty,
+      capital_at_entry:  capital,
+      position_size_pct: posPct,
+      notes:             fd.get('notes') || null,
+    });
+
+    // 2. Update open_trades with new weighted avg
+    await sb.from('open_trades').update({
+      avg_entry_price:  parseFloat(newAvg.toFixed(2)),
+      total_quantity:   newTotalQty,
+      remaining_qty:    newRemQty,
+      has_pyramid:      true,
+      updated_at:       new Date().toISOString(),
+    }).eq('id', tradeId);
+
+    showAlert('pyramid-success',
+      `✓ Entry added! ${t.symbol}: New avg ₹${newAvg.toFixed(2)} · Total qty ${newTotalQty}`,
+      'success');
+    e.target.reset();
+    resetPyramidForm();
+    await loadOpenTrades();
+    await loadOpenTradesForSelect();
+
+  } catch(err) {
+    showAlert('pyramid-error', '✗ Error: ' + err.message, 'error');
+  }
+  btn.disabled = false; btn.textContent = 'Add Entry & Update Position';
+});
+
+// ════════════════════════════════════════════
+// PARTIAL EXIT FUNCTIONS
+// ════════════════════════════════════════════
+let partialCurrentTrade = null;
+
+async function loadTradeDetailsForPartial(tradeId) {
+  if(!tradeId) { partialCurrentTrade = null; return; }
+  const { data: t } = await sb.from('open_trades').select('*').eq('id', tradeId).single();
+  if(!t) return;
+  partialCurrentTrade = t;
+
+  const avgEntry = t.avg_entry_price || t.entry_price;
+  const remQty   = t.remaining_qty   || t.quantity;
+  const cmp      = t.cmp || t.entry_price;
+  const pnl      = (cmp - avgEntry) * remQty;
+
+  document.getElementById('pe-cur-entry').value = avgEntry;
+  document.getElementById('pe-cur-rem').value   = remQty;
+  document.getElementById('pe-cur-cmp').value   = cmp;
+  document.getElementById('pe-cur-pnl').value   =
+    (pnl >= 0 ? '+₹' : '-₹') + Math.abs(pnl).toLocaleString('en-IN', {maximumFractionDigits:0});
+
+  calcPartialResult();
+}
+
+function calcPartialResult() {
+  if(!partialCurrentTrade) return;
+  const t       = partialCurrentTrade;
+  const exitPx  = parseFloat(document.getElementById('pe-price')?.value) || 0;
+  const sellQty = parseFloat(document.getElementById('pe-qty')?.value) || 0;
+  const avgEntry = t.avg_entry_price || t.entry_price;
+  const remQty   = t.remaining_qty   || t.quantity;
+
+  if(exitPx === 0 || sellQty === 0) return;
+
+  const realisedPnl = (exitPx - avgEntry) * sellQty;
+  const returnPct   = ((exitPx - avgEntry) / avgEntry * 100);
+  const remAfter    = remQty - sellQty;
+  const pctSold     = remQty > 0 ? (sellQty / remQty * 100) : 0;
+  const remInvested = avgEntry * remAfter;
+
+  const pnlCol = realisedPnl >= 0 ? '#2ed8a0' : '#ff5d7a';
+
+  const pnlEl = document.getElementById('pe-realised');
+  const retEl = document.getElementById('pe-return');
+  if(pnlEl) {
+    pnlEl.value = (realisedPnl >= 0 ? '+₹' : '-₹') +
+      Math.abs(realisedPnl).toLocaleString('en-IN', {maximumFractionDigits:0});
+    pnlEl.style.color = pnlCol;
+  }
+  if(retEl) {
+    retEl.value = (returnPct >= 0 ? '+' : '') + returnPct.toFixed(2) + '%';
+    retEl.style.color = pnlCol;
+  }
+  const pctEl = document.getElementById('pe-pct');
+  if(pctEl) pctEl.value = pctSold.toFixed(1) + '%';
+  const remEl = document.getElementById('pe-rem-after');
+  if(remEl) remEl.value = remAfter >= 0 ? remAfter : '⚠️ Too many!';
+  const invEl = document.getElementById('pe-rem-invested');
+  if(invEl) invEl.value = remAfter > 0
+    ? '₹' + remInvested.toLocaleString('en-IN', {maximumFractionDigits:0}) : '₹0 (fully exited)';
+}
+
+function resetPartialForm() {
+  partialCurrentTrade = null;
+  ['pe-cur-entry','pe-cur-rem','pe-cur-cmp','pe-cur-pnl',
+   'pe-realised','pe-return','pe-pct','pe-rem-after','pe-rem-invested'].forEach(id => {
+    const el = document.getElementById(id);
+    if(el) el.value = '';
+  });
+}
+
+document.getElementById('form-partial').addEventListener('submit', async e => {
+  e.preventDefault();
+  if(!partialCurrentTrade) {
+    showAlert('partial-error', 'Please select a trade first.', 'error'); return;
+  }
+  const btn = document.getElementById('partial-btn');
+  btn.disabled = true; btn.textContent = 'Saving...';
+
+  const fd       = new FormData(e.target);
+  const tradeId  = fd.get('open_trade_id');
+  const exitPx   = parseFloat(fd.get('exit_price'));
+  const sellQty  = parseInt(fd.get('quantity'));
+  const t        = partialCurrentTrade;
+  const avgEntry = t.avg_entry_price || t.entry_price;
+  const remQty   = t.remaining_qty   || t.quantity;
+
+  if(sellQty >= remQty) {
+    showAlert('partial-error',
+      `⚠️ Qty (${sellQty}) ≥ remaining (${remQty}). Use "Final Exit" tab to close fully.`,
+      'error');
+    btn.disabled = false; btn.textContent = 'Book Partial Exit';
+    return;
+  }
+
+  const realisedPnl = parseFloat(((exitPx - avgEntry) * sellQty).toFixed(2));
+  const returnPct   = parseFloat(((exitPx - avgEntry) / avgEntry * 100).toFixed(2));
+  const newRemQty   = remQty - sellQty;
+  const pctSold     = parseFloat((sellQty / remQty * 100).toFixed(2));
+
+  try {
+    // 1. Save to partial_exits table
+    await sb.from('partial_exits').insert({
+      open_trade_id:    tradeId,
+      symbol:           t.symbol,
+      exit_date:        fd.get('exit_date'),
+      exit_price:       exitPx,
+      quantity:         sellQty,
+      realised_pnl:     realisedPnl,
+      return_pct:       returnPct,
+      avg_entry_price:  avgEntry,
+      notes:            fd.get('notes') || null,
+    });
+
+    // 2. Update remaining qty in open_trades
+    await sb.from('open_trades').update({
+      remaining_qty:    newRemQty,
+      has_partial_exit: true,
+      updated_at:       new Date().toISOString(),
+    }).eq('id', tradeId);
+
+    showAlert('partial-success',
+      `✓ Partial exit booked! ${t.symbol}: Sold ${sellQty} @ ₹${exitPx} · ` +
+      `P&L: ${realisedPnl >= 0 ? '+' : ''}₹${Math.abs(realisedPnl).toLocaleString('en-IN',{maximumFractionDigits:0})} ` +
+      `(${returnPct >= 0 ? '+' : ''}${returnPct}%) · Remaining: ${newRemQty} shares`,
+      'success');
+    e.target.reset();
+    resetPartialForm();
+    await loadOpenTrades();
+    await loadOpenTradesForSelect();
+
+  } catch(err) {
+    showAlert('partial-error', '✗ Error: ' + err.message, 'error');
+  }
+  btn.disabled = false; btn.textContent = 'Book Partial Exit';
+});
+
+// ════════════════════════════════════════════
+// LOAD TRADE HISTORY FOR FINAL EXIT
+// ════════════════════════════════════════════
+async function loadTradeHistoryForClose(tradeId) {
+  const histEl = document.getElementById('close-history-body');
+  if(!tradeId || !histEl) return;
+
+  const { data: t } = await sb.from('open_trades').select('*').eq('id', tradeId).single();
+  if(!t) return;
+
+  const avgEntry = t.avg_entry_price || t.entry_price;
+  const remQty   = t.remaining_qty   || t.quantity;
+
+  // Fetch entries and partial exits
+  const [{ data: entries }, { data: partials }] = await Promise.all([
+    sb.from('trade_entries').select('*').eq('open_trade_id', tradeId).order('entry_date'),
+    sb.from('partial_exits').select('*').eq('open_trade_id', tradeId).order('exit_date'),
+  ]);
+
+  let html = `<div style="margin-bottom:10px;color:var(--text2)">
+    <strong>${t.symbol}</strong> · Avg Entry: ₹${avgEntry} · Remaining Qty: ${remQty}
+    ${t.has_pyramid ? ' · <span style="color:var(--blue-lt)">Pyramided</span>' : ''}
+    ${t.has_partial_exit ? ' · <span style="color:var(--amber)">Partially Exited</span>' : ''}
+  </div>`;
+
+  // Initial entry
+  html += `<div style="display:flex;gap:8px;align-items:center;margin-bottom:6px;font-size:11px">
+    <span style="color:var(--green);font-weight:700">▲ INITIAL ENTRY</span>
+    <span style="color:var(--muted)">${t.entry_date}</span>
+    <span>₹${t.entry_price} × ${t.quantity} shares</span>
+    ${t.position_size_pct ? `<span style="color:var(--blue-lt)">(${t.position_size_pct}% of capital)</span>` : ''}
+  </div>`;
+
+  // Pyramid entries
+  if(entries && entries.length > 0) {
+    entries.forEach(en => {
+      html += `<div style="display:flex;gap:8px;align-items:center;margin-bottom:6px;font-size:11px;padding-left:16px">
+        <span style="color:var(--blue-lt);font-weight:700">▲ ADD ENTRY</span>
+        <span style="color:var(--muted)">${en.entry_date}</span>
+        <span>₹${en.entry_price} × ${en.quantity} shares</span>
+        ${en.position_size_pct ? `<span style="color:var(--blue-lt)">(${en.position_size_pct}% of capital)</span>` : ''}
+      </div>`;
+    });
+  }
+
+  // Partial exits
+  if(partials && partials.length > 0) {
+    partials.forEach(px => {
+      const pnlCol = px.realised_pnl >= 0 ? 'var(--green)' : 'var(--red)';
+      html += `<div style="display:flex;gap:8px;align-items:center;margin-bottom:6px;font-size:11px;padding-left:16px">
+        <span style="color:var(--amber);font-weight:700">◆ PARTIAL EXIT</span>
+        <span style="color:var(--muted)">${px.exit_date}</span>
+        <span>₹${px.exit_price} × ${px.quantity} shares</span>
+        <span style="color:${pnlCol}">${px.realised_pnl >= 0 ? '+' : ''}₹${Math.abs(px.realised_pnl).toLocaleString('en-IN',{maximumFractionDigits:0})} (${px.return_pct >= 0 ? '+' : ''}${px.return_pct}%)</span>
+      </div>`;
+    });
+  }
+
+  html += `<div style="margin-top:10px;padding-top:8px;border-top:1px solid var(--bdr);font-size:11px;color:var(--amber)">
+    ▼ FINAL EXIT will close remaining ${remQty} shares
+  </div>`;
+
+  histEl.innerHTML = html;
+}
 async function loadOpenTrades() {
   const tbody = document.getElementById('open-trades-tbody');
-  tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;color:var(--muted);padding:20px">Loading...</td></tr>';
-
+  tbody.innerHTML = '<tr><td colspan="11" style="text-align:center;color:var(--muted);padding:20px">Loading...</td></tr>';
   const { data, error } = await sb
     .from('open_trades').select('*').order('entry_date', { ascending: false });
-
-  if (error) {
-    tbody.innerHTML = `<tr><td colspan="10" style="color:var(--red);padding:16px">${error.message}</td></tr>`;
-    return;
-  }
-  if (!data || data.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;color:var(--muted);padding:20px">No open trades yet.</td></tr>';
-    return;
-  }
-
+  if (error) { tbody.innerHTML = `<tr><td colspan="11" style="color:var(--red);padding:16px">${error.message}</td></tr>`; return; }
+  if (!data || data.length === 0) { tbody.innerHTML = '<tr><td colspan="11" style="text-align:center;color:var(--muted);padding:20px">No open trades yet.</td></tr>'; return; }
   tbody.innerHTML = data.map(t => {
-    const pnl = t.cmp ? ((t.cmp - t.entry_price) * t.quantity) : null;
-    const pnlStr = pnl !== null
-      ? `<span style="color:${pnl >= 0 ? 'var(--green)' : 'var(--red)'}">${pnl >= 0 ? '+' : ''}₹${Math.abs(pnl).toLocaleString('en-IN', {maximumFractionDigits:0})}</span>`
-      : '<span style="color:var(--muted)">—</span>';
+    const avgEntry = t.avg_entry_price || t.entry_price;
+    const remQty   = t.remaining_qty   || t.quantity;
+    const pnl      = t.cmp ? ((t.cmp - avgEntry) * remQty) : null;
+    const pnlStr   = pnl !== null
+      ? `<span style="color:${pnl>=0?'var(--green)':'var(--red)'}">${pnl>=0?'+':''}\u20b9${Math.abs(pnl).toLocaleString('en-IN',{maximumFractionDigits:0})}</span>`
+      : '<span style="color:var(--muted)">\u2014</span>';
     const badgeMap = { long:'badge-long', trail_sl:'badge-trail', watch:'badge-watch' };
+    const posPct   = t.position_size_pct ? t.position_size_pct+'%' : '\u2014';
+    const flags    = [
+      t.has_pyramid      ? '<span class="badge badge-long" style="font-size:9px">P</span>' : '',
+      t.has_partial_exit ? '<span class="badge badge-watch" style="font-size:9px">PE</span>' : '',
+    ].filter(Boolean).join(' ');
     return `<tr>
-      <td class="mono" style="font-weight:700;color:var(--white)">${t.symbol}</td>
+      <td class="mono" style="font-weight:700;color:var(--white)">${t.symbol} ${flags}</td>
       <td style="color:var(--text2)">${t.company_name}</td>
       <td class="mono">${t.entry_date}</td>
-      <td class="mono">₹${Number(t.entry_price).toLocaleString('en-IN')}</td>
-      <td class="mono">${t.quantity}</td>
-      <td class="mono" style="color:var(--red)">₹${Number(t.sl_price).toLocaleString('en-IN')}</td>
-      <td class="mono">${t.cmp ? '₹' + Number(t.cmp).toLocaleString('en-IN') : '<span style="color:var(--muted)">—</span>'}</td>
+      <td class="mono">\u20b9${Number(avgEntry).toLocaleString('en-IN')}</td>
+      <td class="mono">${remQty}<span style="color:var(--muted);font-size:10px">/${t.total_quantity||t.quantity}</span></td>
+      <td class="mono" style="color:var(--red)">\u20b9${Number(t.sl_price).toLocaleString('en-IN')}</td>
+      <td class="mono">${t.cmp?'\u20b9'+Number(t.cmp).toLocaleString('en-IN'):'<span style="color:var(--muted)">\u2014</span>'}</td>
       <td>${pnlStr}</td>
-      <td><span class="badge ${badgeMap[t.status] || 'badge-watch'}">${t.status.replace('_', ' ')}</span></td>
+      <td style="color:var(--blue-lt);font-weight:700">${posPct}</td>
+      <td><span class="badge ${badgeMap[t.status]||'badge-watch'}">${t.status.replace('_',' ')}</span></td>
       <td><button class="btn btn-danger btn-sm" onclick="deleteTrade('${t.id}','${t.symbol}')">Delete</button></td>
     </tr>`;
   }).join('');
 }
 
 async function loadOpenTradesForSelect() {
-  const select = document.getElementById('close-trade-select');
+  const selects = [
+    document.getElementById('close-trade-select'),
+    document.getElementById('pyramid-trade-select'),
+    document.getElementById('partial-trade-select'),
+  ].filter(Boolean);
+
   const { data } = await sb
-    .from('open_trades').select('id,symbol,company_name,quantity,entry_price')
+    .from('open_trades').select('id,symbol,company_name,remaining_qty,avg_entry_price,entry_price,quantity')
     .order('entry_date', { ascending: false });
-  if (!data) return;
-  select.innerHTML = '<option value="">— select an open trade —</option>' +
-    data.map(t =>
-      `<option value="${t.id}">${t.symbol} — ${t.company_name} (${t.quantity} @ ₹${t.entry_price})</option>`
-    ).join('');
+  if(!data) return;
+
+  const opts = '<option value="">— select an open trade —</option>' +
+    data.map(t => {
+      const avgEntry = t.avg_entry_price || t.entry_price;
+      const remQty   = t.remaining_qty   || t.quantity;
+      return `<option value="${t.id}">${t.symbol} — ${t.company_name} (${remQty} shares @ ₹${avgEntry})</option>`;
+    }).join('');
+
+  selects.forEach(s => { s.innerHTML = opts; });
 }
 
 document.getElementById('form-open-trade').addEventListener('submit', async e => {
@@ -795,17 +1396,25 @@ document.getElementById('form-open-trade').addEventListener('submit', async e =>
 
   const fd = new FormData(e.target);
   const payload = {
-    symbol:        fd.get('symbol').toUpperCase().trim(),
-    company_name:  fd.get('company_name').trim(),
-    sector:        fd.get('sector').trim() || null,
-    entry_date:    fd.get('entry_date'),
-    entry_price:   parseFloat(fd.get('entry_price')),
-    quantity:      parseInt(fd.get('quantity')),
-    sl_price:      parseFloat(fd.get('sl_price')),
-    cmp:           fd.get('cmp') ? parseFloat(fd.get('cmp')) : null,
-    status:        fd.get('status'),
-    chart_pattern: fd.get('chart_pattern').trim() || null,
-    trade_notes:   fd.get('trade_notes').trim() || null,
+    symbol:            fd.get('symbol').toUpperCase().trim(),
+    company_name:      fd.get('company_name').trim(),
+    sector:            fd.get('sector').trim() || null,
+    entry_date:        fd.get('entry_date'),
+    entry_price:       parseFloat(fd.get('entry_price')),
+    quantity:          parseInt(fd.get('quantity')),
+    sl_price:          parseFloat(fd.get('sl_price')),
+    cmp:               fd.get('cmp') ? parseFloat(fd.get('cmp')) : null,
+    status:            fd.get('status'),
+    chart_pattern:     fd.get('chart_pattern').trim() || null,
+    trade_notes:       fd.get('trade_notes').trim() || null,
+    // New fields
+    avg_entry_price:   parseFloat(fd.get('entry_price')),
+    total_quantity:    parseInt(fd.get('quantity')),
+    remaining_qty:     parseInt(fd.get('quantity')),
+    capital_at_entry:  fd.get('capital_at_entry') ? parseFloat(fd.get('capital_at_entry')) : null,
+    position_size_pct: fd.get('position_size_pct')
+      ? parseFloat(fd.get('position_size_pct').replace('%',''))
+      : null,
   };
 
   const { error } = await sb.from('open_trades').insert(payload);
@@ -839,69 +1448,86 @@ document.getElementById('form-close-trade').addEventListener('submit', async e =
   const btn = document.getElementById('close-trade-btn');
   btn.disabled = true; btn.textContent = 'Processing...';
 
-  const fd = new FormData(e.target);
+  const fd     = new FormData(e.target);
   const openId = fd.get('open_trade_id');
 
   if (!openId) {
     showAlert('close-error', 'Please select a trade to close.', 'error');
-    btn.disabled = false; btn.textContent = 'Close Trade & Move to History';
+    btn.disabled = false; btn.textContent = 'Final Exit → Move to Closed Trades';
     return;
   }
 
-  const { data: openTrade, error: fetchErr } = await sb
+  const { data: t, error: fetchErr } = await sb
     .from('open_trades').select('*').eq('id', openId).single();
 
-  if (fetchErr || !openTrade) {
+  if (fetchErr || !t) {
     showAlert('close-error', 'Could not find that trade.', 'error');
-    btn.disabled = false; btn.textContent = 'Close Trade & Move to History';
+    btn.disabled = false; btn.textContent = 'Final Exit → Move to Closed Trades';
     return;
   }
 
+  // Use avg_entry_price and remaining_qty (accounts for pyramids + partials)
+  const avgEntry   = t.avg_entry_price || t.entry_price;
+  const remQty     = t.remaining_qty   || t.quantity;
+  const totalQty   = t.total_quantity  || t.quantity;
   const avgExit    = parseFloat(fd.get('avg_exit_price'));
   const exitDate   = fd.get('exit_date');
-  const holdingDays = Math.round((new Date(exitDate) - new Date(openTrade.entry_date)) / 86400000);
-  const realisedPnl = (avgExit - openTrade.entry_price) * openTrade.quantity;
-  const returnPct   = ((avgExit - openTrade.entry_price) / openTrade.entry_price) * 100;
+  const holdingDays = Math.round((new Date(exitDate) - new Date(t.entry_date)) / 86400000);
+
+  // P&L on remaining (final) position
+  const finalPnl  = (avgExit - avgEntry) * remQty;
+  const returnPct = ((avgExit - avgEntry) / avgEntry) * 100;
+
+  // Fetch partial exits to calculate total realised P&L
+  const { data: partials } = await sb
+    .from('partial_exits').select('realised_pnl,quantity').eq('open_trade_id', openId);
+
+  const partialPnl   = partials ? partials.reduce((s,p) => s+(p.realised_pnl||0), 0) : 0;
+  const totalRealised = finalPnl + partialPnl;
+  const partialQty    = partials ? partials.reduce((s,p) => s+(p.quantity||0), 0) : 0;
 
   const closedPayload = {
-    symbol:            openTrade.symbol,
-    company_name:      openTrade.company_name,
-    sector:            openTrade.sector,
-    exchange:          openTrade.exchange || 'NSE',
-    entry_date:        openTrade.entry_date,
-    avg_entry_price:   openTrade.entry_price,
-    quantity:          openTrade.quantity,
-    sl_price:          openTrade.sl_price,
-    partial_exit_date:  fd.get('partial_exit_date')  || null,
-    partial_exit_price: fd.get('partial_exit_price') ? parseFloat(fd.get('partial_exit_price')) : null,
-    partial_exit_qty:   fd.get('partial_exit_qty')   ? parseInt(fd.get('partial_exit_qty'))     : null,
-    partial_exit_pct:   fd.get('partial_exit_pct')   ? parseFloat(fd.get('partial_exit_pct'))   : null,
+    symbol:            t.symbol,
+    company_name:      t.company_name,
+    sector:            t.sector,
+    exchange:          t.exchange || 'NSE',
+    entry_date:        t.entry_date,
+    avg_entry_price:   avgEntry,
+    quantity:          totalQty,          // total ever bought
+    sl_price:          t.sl_price,
     exit_date:         exitDate,
     avg_exit_price:    avgExit,
-    realised_pnl:      Math.round(realisedPnl * 100) / 100,
+    realised_pnl:      Math.round(totalRealised * 100) / 100,
     return_pct:        Math.round(returnPct * 100) / 100,
     holding_days:      holdingDays,
     exit_reason:       fd.get('exit_reason'),
-    trade_notes:       fd.get('trade_notes').trim() || openTrade.trade_notes,
+    trade_notes:       fd.get('trade_notes').trim() || t.trade_notes,
+    // Partial exit summary (first partial for display)
+    partial_exit_qty:  partialQty > 0 ? partialQty : null,
+    // Position size
+    capital_at_entry:  t.capital_at_entry,
+    position_size_pct: t.position_size_pct,
   };
 
   const { error: insertErr } = await sb.from('closed_trades').insert(closedPayload);
   if (insertErr) {
     showAlert('close-error', 'Error: ' + insertErr.message, 'error');
-    btn.disabled = false; btn.textContent = 'Close Trade & Move to History';
+    btn.disabled = false; btn.textContent = 'Final Exit → Move to Closed Trades';
     return;
   }
 
+  // Delete from open_trades
   await sb.from('open_trades').delete().eq('id', openId);
-  btn.disabled = false; btn.textContent = 'Close Trade & Move to History';
+  btn.disabled = false; btn.textContent = 'Final Exit → Move to Closed Trades';
 
-  const pnlStr = (realisedPnl >= 0 ? '+' : '') + '₹' +
-    Math.abs(realisedPnl).toLocaleString('en-IN', {maximumFractionDigits:0});
+  const pnlStr = (totalRealised >= 0 ? '+' : '') + '₹' +
+    Math.abs(totalRealised).toLocaleString('en-IN', {maximumFractionDigits:0});
   showAlert('close-success',
-    `✓ ${openTrade.symbol} closed. Realised P&L: ${pnlStr} (${returnPct.toFixed(1)}%). Moved to history.`,
-    'success'
-  );
+    `✓ ${t.symbol} fully closed! Total Realised P&L: ${pnlStr} ` +
+    `(Final leg: ${returnPct.toFixed(1)}%). Moved to Closed Trades.`,
+    'success');
   e.target.reset();
+  document.getElementById('close-history-body').textContent = 'Select a trade to see its history.';
   await loadOpenTrades();
   await loadOpenTradesForSelect();
 });
