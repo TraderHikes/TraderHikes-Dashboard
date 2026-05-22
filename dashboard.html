@@ -1054,7 +1054,7 @@ canvas.tc{display:block;width:100%;height:100%}
     <div class="sc"><div class="scl">Day's P&L</div><div class="scv" id="os-daypnl">—</div><div class="scs" id="os-daypnl-sub">vs yesterday's close</div></div>
     <div class="sc"><div class="scl">Net Open P&L</div><div class="scv" id="os-netpnl">—</div><div class="scs" id="os-netpct">—</div></div>
     <div class="sc"><div class="scl">Open Risk</div><div class="scv r" id="os-risk">—</div><div class="scs" id="os-riskpct">—</div></div>
-    <div class="sc"><div class="scl">Cash Margin</div><div class="scv c" id="os-cash">—</div><div class="scs" id="os-cashpct">—</div></div>
+    <div class="sc"><div class="scl">Cash Margin</div><div class="scv c" id="os-cash" style="font-size:28px">—</div><div class="scs" id="os-cashpct">of total capital</div></div>
   </div>
   <div class="card">
     <div class="ch"><span class="ct">Active Positions — Annotated Charts</span><div class="ch-r"><div class="legend-row"><span class="li"><span style="color:var(--blue-lt);font-size:13px">▲</span>Entry</span><span class="li"><span style="display:inline-block;width:14px;height:1.5px;background:var(--red);border-top:1.5px dashed var(--red)"></span>Stop Loss</span><span class="li"><span style="display:inline-block;width:14px;height:2px;background:var(--cyan)"></span>EMA-21</span></div><span class="chip">60-day daily</span></div></div>
@@ -1915,45 +1915,36 @@ async function renderOpen(){
   setT('os-deployed', fmtL(totalDeployed));
   setT('os-positions', `${trades.length} position${trades.length!==1?'s':''}`);
 
-  // ── Day's P&L (CMP vs previous close from index_levels or entry as proxy) ──
-  // Fetch previous close data from Supabase index_levels for context
-  // For individual stocks, we use: day's change = (cmp - prev_close) * qty
-  // prev_close is estimated as entry_price if no historical data stored per stock
-  // A better approach: fetch prev close from yfinance (done in pipeline, stored in open_trades)
-  // For now: Day P&L = today's unrealised - yesterday's unrealised
-  // We approximate using the pipeline's last two CMP values
-  // Simple approach: show today's move = sum of (cmp - entry) * qty for all trades
-  // vs what it was yesterday — since we don't store per-stock prev close in the DB yet,
-  // we show it as "Today's gain vs entry" and note it's cumulative
-  const dayPnl = trades.reduce((s,t) => {
-    if(!t.cmp) return s;
-    // Approximate day's move: use 0.5% of CMP as a placeholder until
-    // we store prev_close per stock in open_trades table
-    // This will be replaced once pipeline stores prev_cmp
-    return s + (t.cmp - t.entry_price) * t.quantity;
-  }, 0);
-  // Actually use net P&L as the primary figure — Day's P&L needs prev close
-  // Fetch from Supabase portfolio_snapshots: compare today vs yesterday's portfolio value
+  // ── Day's P&L ─────────────────────────────────
+  // Compare the two most RECENT snapshots that are consecutive trading days
+  // Also filter out old dummy data by only using snapshots from last 7 days
+  const sevenDaysAgo = new Date();
+  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+  const cutoff = sevenDaysAgo.toISOString().split('T')[0];
+
   sb.from('portfolio_snapshots')
-    .select('portfolio_value, snapshot_date, deployed')
+    .select('portfolio_value, snapshot_date')
+    .gte('snapshot_date', cutoff)
     .order('snapshot_date', { ascending: false })
     .limit(2)
     .then(({ data: snaps }) => {
+      const dayChgEl  = document.getElementById('os-daypnl');
+      const daySubEl  = document.getElementById('os-daypnl-sub');
       if(snaps && snaps.length >= 2) {
-        const todayVal = snaps[0].portfolio_value;
-        const yesterVal = snaps[1].portfolio_value;
-        const dayChg = todayVal - yesterVal;
-        const dayChgEl = document.getElementById('os-daypnl');
+        const dayChg = snaps[0].portfolio_value - snaps[1].portfolio_value;
         if(dayChgEl){
           dayChgEl.textContent = (dayChg>=0?'+':'')+fmt(dayChg);
           dayChgEl.style.color = dayChg>=0?'var(--green)':'var(--red)';
         }
-        const daySubEl = document.getElementById('os-daypnl-sub');
-        if(daySubEl) daySubEl.textContent = 'vs ' + new Date(snaps[1].snapshot_date)
-          .toLocaleDateString('en-IN',{day:'numeric',month:'short'});
+        // Just show "Change from prev day" — no date label
+        if(daySubEl) daySubEl.textContent = 'change from prev session';
       } else {
-        setT('os-daypnl', (totalPnl>=0?'+':'')+fmt(totalPnl), totalPnl>=0?'var(--green)':'var(--red)');
-        setT('os-daypnl-sub', 'cumulative open P&L');
+        // Only one snapshot this week — show today's unrealised P&L
+        if(dayChgEl){
+          dayChgEl.textContent = (totalPnl>=0?'+':'')+fmt(totalPnl);
+          dayChgEl.style.color = totalPnl>=0?'var(--green)':'var(--red)';
+        }
+        if(daySubEl) daySubEl.textContent = 'unrealised open P&L';
       }
     });
 
@@ -1965,18 +1956,22 @@ async function renderOpen(){
   setT('os-risk', fmt(totalRisk));
   setT('os-riskpct', riskPct+'% of deployed');
 
-  // ── Cash Margin ───────────────────────────────
-  // Fetch total capital from latest portfolio snapshot
+  // ── Cash Margin % only ────────────────────────
   sb.from('portfolio_snapshots')
     .select('total_capital, cash_available')
     .order('snapshot_date', { ascending: false })
     .limit(1).single()
     .then(({ data: snap }) => {
-      const totalCap  = snap?.total_capital || (totalDeployed / 0.736);
+      const totalCap  = snap?.total_capital || (totalDeployed * (1/0.11));
       const cashAvail = snap?.cash_available || Math.max(0, totalCap - totalDeployed);
       const cashPct   = totalCap > 0 ? (cashAvail/totalCap*100).toFixed(1) : 0;
-      setT('os-cash', fmtL(cashAvail), 'var(--cyan)');
-      setT('os-cashpct', cashPct+'% of capital');
+      // Show % only — amount removed as requested
+      setT('os-cash', cashPct + '%', 'var(--cyan)');
+      setT('os-cashpct', 'of total capital');
+
+      // Also update Portfolio Overview header capital
+      const hdrCap = document.getElementById('hdr-capital');
+      if(hdrCap) hdrCap.textContent = '₹'+(totalCap/100000).toFixed(2)+'L';
     });
 
   // Update header
