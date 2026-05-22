@@ -1379,6 +1379,8 @@ function renderFiiTable(rows, period) {
       ${chgCell}
     </tr>`;
   }).join('');
+} // end renderFiiTable
+
 /* ── PORTFOLIO OVERVIEW — LIVE DATA ── */
 async function loadPortfolioOverview() {
   const fmt  = (n) => '₹' + Math.abs(n).toLocaleString('en-IN', {maximumFractionDigits:0});
