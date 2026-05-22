@@ -454,31 +454,14 @@ const sb = createClient(SUPABASE_URL, SUPABASE_KEY);
 // CHECK STUDENT ACCESS
 // ═══════════════════════════════════════════════
 async function checkAccess(userId, email) {
+  // Check approved_students table by email (our access control table)
   const { data, error } = await sb
-    .from('students')
+    .from('approved_students')
     .select('plan, access_until')
-    .eq('id', userId)
+    .eq('email', email.toLowerCase().trim())
     .single();
 
-  // If not found by ID, try by email
-  // (needed for Google sign-in where ID may differ from initial setup)
-  if (error || !data) {
-    const { data: byEmail } = await sb
-      .from('students')
-      .select('plan, access_until, id')
-      .eq('email', email)
-      .single();
-
-    if (!byEmail) return false;
-
-    // Update the row with the correct auth ID
-    await sb.from('students').update({ id: userId }).eq('email', email);
-
-    if (byEmail.plan !== 'active') return false;
-    if (byEmail.access_until && new Date(byEmail.access_until) < new Date()) return false;
-    return true;
-  }
-
+  if (error || !data) return false;
   if (data.plan !== 'active') return false;
   if (data.access_until && new Date(data.access_until) < new Date()) return false;
   return true;
