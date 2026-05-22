@@ -510,7 +510,7 @@ canvas.tc{display:block;width:100%;height:100%}
 
   <div class="sh">
     <div class="st">Portfolio Overview</div>
-    <div class="sb">As of today, 18 May 2026 · All values in INR</div>
+    <div class="sb" id="port-date">Loading...</div>
   </div>
 
   <!-- 4 Big Stat Cards -->
@@ -518,30 +518,30 @@ canvas.tc{display:block;width:100%;height:100%}
     <div class="pstat ps-blue">
       <div class="pstat-icon pi-blue">💼</div>
       <div class="pstat-label">Amount Invested</div>
-      <div class="pstat-value" style="color:var(--white)">₹18,40,000</div>
-      <div class="pstat-sub">Across 7 open positions</div>
-      <div class="pstat-delta pd-up">▲ 73.6% of ₹25L capital</div>
+      <div class="pstat-value" id="port-invested" style="color:var(--white)">—</div>
+      <div class="pstat-sub" id="port-invested-sub">Loading...</div>
+      <div class="pstat-delta pd-up" id="port-invested-pct">—</div>
     </div>
     <div class="pstat ps-green">
       <div class="pstat-icon pi-green">📈</div>
       <div class="pstat-label">Notional P&L (Open)</div>
-      <div class="pstat-value" style="color:var(--green)">+₹1,96,140</div>
+      <div class="pstat-value" id="port-pnl" style="color:var(--green)">—</div>
       <div class="pstat-sub">Unrealised gain on open trades</div>
-      <div class="pstat-delta pd-up">▲ +10.7% return on deployed</div>
+      <div class="pstat-delta pd-up" id="port-pnl-pct">—</div>
     </div>
     <div class="pstat ps-cyan">
       <div class="pstat-icon pi-cyan">💰</div>
       <div class="pstat-label">Cash Margin Available</div>
-      <div class="pstat-value" style="color:var(--cyan)">₹6,60,000</div>
+      <div class="pstat-value" id="port-cash" style="color:var(--cyan)">—</div>
       <div class="pstat-sub">Free capital for new trades</div>
-      <div class="pstat-delta pd-up">▲ 26.4% of total capital</div>
+      <div class="pstat-delta pd-up" id="port-cash-pct">—</div>
     </div>
     <div class="pstat ps-red">
       <div class="pstat-icon pi-red">🛡️</div>
       <div class="pstat-label">Open Risk (Max Loss)</div>
-      <div class="pstat-value" style="color:var(--red)">₹54,200</div>
+      <div class="pstat-value" id="port-risk" style="color:var(--red)">—</div>
       <div class="pstat-sub">If all SLs hit simultaneously</div>
-      <div class="pstat-delta pd-dn">▼ 2.9% of total capital</div>
+      <div class="pstat-delta pd-dn" id="port-risk-pct">—</div>
     </div>
   </div>
 
@@ -569,19 +569,29 @@ canvas.tc{display:block;width:100%;height:100%}
     <!-- Equity Stats Row -->
     <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:1px;background:var(--bdr);border-top:1px solid var(--bdr)">
       <div style="background:var(--card2);padding:12px 18px">
-        <div class="pcl">Portfolio Return</div><div class="pcv g">+24.8%</div><div class="pcs">Since inception</div>
+        <div class="pcl">Portfolio Return</div>
+        <div class="pcv g" id="eq-port-return">—</div>
+        <div class="pcs">Since inception</div>
       </div>
       <div style="background:var(--card2);padding:12px 18px;border-left:1px solid var(--bdr)">
-        <div class="pcl">Nifty 500 Return</div><div class="pcv a">+14.2%</div><div class="pcs">Same period</div>
+        <div class="pcl">Nifty 500 Return</div>
+        <div class="pcv a" id="eq-nifty-return">—</div>
+        <div class="pcs">Same period</div>
       </div>
       <div style="background:var(--card2);padding:12px 18px;border-left:1px solid var(--bdr)">
-        <div class="pcl">Alpha Generated</div><div class="pcv g">+10.6%</div><div class="pcs">Outperformance</div>
+        <div class="pcl">Alpha Generated</div>
+        <div class="pcv g" id="eq-alpha">—</div>
+        <div class="pcs">Outperformance</div>
       </div>
       <div style="background:var(--card2);padding:12px 18px;border-left:1px solid var(--bdr)">
-        <div class="pcl">Portfolio Value</div><div class="pcv b">₹27.36L</div><div class="pcs">Invested + P&L</div>
+        <div class="pcl">Portfolio Value</div>
+        <div class="pcv b" id="eq-port-value">—</div>
+        <div class="pcs">Invested + P&L</div>
       </div>
       <div style="background:var(--card2);padding:12px 18px;border-left:1px solid var(--bdr)">
-        <div class="pcl">Total Realised P&L</div><div class="pcv g">+₹5,00,140</div><div class="pcs">Closed + Open</div>
+        <div class="pcl">Total Realised P&L</div>
+        <div class="pcv g" id="eq-realised-pnl">—</div>
+        <div class="pcs">Closed trades</div>
       </div>
     </div>
   </div>
@@ -595,7 +605,7 @@ canvas.tc{display:block;width:100%;height:100%}
           <canvas id="donut-canvas" width="200" height="200"></canvas>
           <div style="text-align:center;margin-top:10px">
             <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;font-weight:600">Deployed</div>
-            <div style="font-size:22px;font-weight:800;color:var(--white);letter-spacing:-.5px">73.6%</div>
+            <div id="donut-pct" style="font-size:22px;font-weight:800;color:var(--white);letter-spacing:-.5px">—</div>
           </div>
         </div>
         <div class="alloc-list" id="alloc-list"></div>
@@ -604,31 +614,31 @@ canvas.tc{display:block;width:100%;height:100%}
 
     <!-- Drawdown Chart -->
     <div class="card">
-      <div class="ch"><span class="ct">Drawdown from Peak</span><div class="ch-r"><span style="font-size:11px;color:var(--red);font-weight:700">Max DD: −8.4%</span><span class="chip">3M</span></div></div>
+      <div class="ch"><span class="ct">Drawdown from Peak</span><div class="ch-r"><span id="max-dd-label" style="font-size:11px;color:var(--red);font-weight:700">—</span><span class="chip">All-time</span></div></div>
       <div class="dd-canvas-wrap" style="padding:12px 8px 8px">
         <canvas id="dd-canvas" height="160" style="width:100%;display:block"></canvas>
       </div>
       <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--bdr);border-top:1px solid var(--bdr)">
-        <div style="background:var(--card2);padding:11px 16px"><div class="pcl">Max Drawdown</div><div class="pcv r">−8.4%</div><div class="pcs">Worst peak-to-trough</div></div>
-        <div style="background:var(--card2);padding:11px 16px;border-left:1px solid var(--bdr)"><div class="pcl">Current DD</div><div class="pcv" style="color:var(--amber)">−1.2%</div><div class="pcs">From last peak</div></div>
-        <div style="background:var(--card2);padding:11px 16px;border-left:1px solid var(--bdr)"><div class="pcl">Avg Recovery</div><div class="pcv b">12 days</div><div class="pcs">DD recovery time</div></div>
+        <div style="background:var(--card2);padding:11px 16px"><div class="pcl">Max Drawdown</div><div class="pcv r" id="dd-max">—</div><div class="pcs">Worst peak-to-trough</div></div>
+        <div style="background:var(--card2);padding:11px 16px;border-left:1px solid var(--bdr)"><div class="pcl">Current DD</div><div class="pcv" id="dd-current" style="color:var(--amber)">—</div><div class="pcs">From last peak</div></div>
+        <div style="background:var(--card2);padding:11px 16px;border-left:1px solid var(--bdr)"><div class="pcl">Total Snapshots</div><div class="pcv b" id="dd-days">—</div><div class="pcs">Trading days tracked</div></div>
       </div>
     </div>
   </div>
 
   <div class="g2">
-    <!-- Performance Stats -->
+    <!-- Performance Stats — computed from closed trades -->
     <div class="card">
-      <div class="ch"><span class="ct">Performance Metrics</span><span class="chip">All-time</span></div>
-      <div class="perf-grid">
-        <div class="perf-cell"><div class="pcl">Profit Factor</div><div class="pcv g">3.47×</div><div class="pcs">Gross win / gross loss</div></div>
-        <div class="perf-cell"><div class="pcl">Win Rate</div><div class="pcv b">68%</div><div class="pcs">17 of 25 trades</div></div>
-        <div class="perf-cell"><div class="pcl">Avg Win</div><div class="pcv g">+14.2%</div><div class="pcs">Per winning trade</div></div>
-        <div class="perf-cell"><div class="pcl">Avg Loss</div><div class="pcv r">−4.1%</div><div class="pcs">Per losing trade</div></div>
-        <div class="perf-cell"><div class="pcl">Expectancy</div><div class="pcv g">+8.9%</div><div class="pcs">Per trade expected</div></div>
-        <div class="perf-cell"><div class="pcl">Sharpe Ratio</div><div class="pcv c">2.14</div><div class="pcs">Risk-adjusted return</div></div>
-        <div class="perf-cell"><div class="pcl">Best Trade</div><div class="pcv g">+22.4%</div><div class="pcs">ASTRAL POLY</div></div>
-        <div class="perf-cell"><div class="pcl">Worst Trade</div><div class="pcv r">−7.1%</div><div class="pcs">LT FOODS</div></div>
+      <div class="ch"><span class="ct">Performance Metrics</span><span class="chip">All closed trades</span></div>
+      <div class="perf-grid" id="perf-grid">
+        <div class="perf-cell"><div class="pcl">Profit Factor</div><div class="pcv g" id="perf-pf">—</div><div class="pcs">Gross win / gross loss</div></div>
+        <div class="perf-cell"><div class="pcl">Win Rate</div><div class="pcv b" id="perf-wr">—</div><div class="pcs" id="perf-wr-sub">— trades</div></div>
+        <div class="perf-cell"><div class="pcl">Avg Win</div><div class="pcv g" id="perf-avgwin">—</div><div class="pcs">Per winning trade</div></div>
+        <div class="perf-cell"><div class="pcl">Avg Loss</div><div class="pcv r" id="perf-avgloss">—</div><div class="pcs">Per losing trade</div></div>
+        <div class="perf-cell"><div class="pcl">Expectancy</div><div class="pcv g" id="perf-exp">—</div><div class="pcs">Per trade expected</div></div>
+        <div class="perf-cell"><div class="pcl">Total Trades</div><div class="pcv c" id="perf-total">—</div><div class="pcs">Closed positions</div></div>
+        <div class="perf-cell"><div class="pcl">Best Trade</div><div class="pcv g" id="perf-best">—</div><div class="pcs" id="perf-best-sym">—</div></div>
+        <div class="perf-cell"><div class="pcl">Worst Trade</div><div class="pcv r" id="perf-worst">—</div><div class="pcs" id="perf-worst-sym">—</div></div>
       </div>
     </div>
 
@@ -636,20 +646,19 @@ canvas.tc{display:block;width:100%;height:100%}
     <div class="card">
       <div class="ch"><span class="ct">Cash & Margin Status</span><span class="chip">Live</span></div>
       <div style="padding:20px;display:flex;flex-direction:column;gap:14px">
-        <!-- Ring chart for cash vs deployed -->
         <div style="display:flex;align-items:center;gap:20px">
           <canvas id="margin-canvas" width="120" height="120"></canvas>
           <div style="flex:1;display:flex;flex-direction:column;gap:8px">
             <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px;background:var(--card3);border:1px solid var(--bdr);border-radius:10px">
-              <div><div class="pcl">Total Capital</div><div style="font-size:16px;font-weight:800;color:var(--white);font-family:var(--fm)">₹25,00,000</div></div>
+              <div><div class="pcl">Total Capital</div><div id="margin-total" style="font-size:16px;font-weight:800;color:var(--white);font-family:var(--fm)">—</div></div>
               <div style="width:8px;height:8px;border-radius:50%;background:var(--blue)"></div>
             </div>
             <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px;background:var(--card3);border:1px solid var(--bdr);border-radius:10px">
-              <div><div class="pcl">Deployed in Trades</div><div style="font-size:16px;font-weight:800;color:var(--green);font-family:var(--fm)">₹18,40,000</div></div>
+              <div><div class="pcl">Deployed in Trades</div><div id="margin-deployed" style="font-size:16px;font-weight:800;color:var(--green);font-family:var(--fm)">—</div></div>
               <div style="width:8px;height:8px;border-radius:50%;background:var(--green)"></div>
             </div>
             <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px;background:var(--card3);border:1px solid var(--bdr);border-radius:10px">
-              <div><div class="pcl">Cash Available</div><div style="font-size:16px;font-weight:800;color:var(--cyan);font-family:var(--fm)">₹6,60,000</div></div>
+              <div><div class="pcl">Cash Available</div><div id="margin-cash" style="font-size:16px;font-weight:800;color:var(--cyan);font-family:var(--fm)">—</div></div>
               <div style="width:8px;height:8px;border-radius:50%;background:var(--cyan)"></div>
             </div>
           </div>
@@ -658,13 +667,17 @@ canvas.tc{display:block;width:100%;height:100%}
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
           <div style="background:var(--card3);border:1px solid var(--bdr);border-radius:10px;padding:12px">
             <div class="pcl">Margin Utilised</div>
-            <div style="font-size:18px;font-weight:800;color:var(--amber);font-family:var(--fm)">73.6%</div>
-            <div style="height:5px;background:var(--card4);border-radius:3px;margin-top:8px;overflow:hidden"><div style="height:100%;width:73.6%;background:linear-gradient(90deg,var(--blue),var(--amber));border-radius:3px"></div></div>
+            <div id="margin-util-pct" style="font-size:18px;font-weight:800;color:var(--amber);font-family:var(--fm)">—</div>
+            <div style="height:5px;background:var(--card4);border-radius:3px;margin-top:8px;overflow:hidden">
+              <div id="margin-util-bar" style="height:100%;width:0%;background:linear-gradient(90deg,var(--blue),var(--amber));border-radius:3px"></div>
+            </div>
           </div>
           <div style="background:var(--card3);border:1px solid var(--bdr);border-radius:10px;padding:12px">
             <div class="pcl">Risk Deployed</div>
-            <div style="font-size:18px;font-weight:800;color:var(--red);font-family:var(--fm)">2.9%</div>
-            <div style="height:5px;background:var(--card4);border-radius:3px;margin-top:8px;overflow:hidden"><div style="height:100%;width:29%;background:linear-gradient(90deg,var(--green),var(--red));border-radius:3px"></div></div>
+            <div id="margin-risk-pct" style="font-size:18px;font-weight:800;color:var(--red);font-family:var(--fm)">—</div>
+            <div style="height:5px;background:var(--card4);border-radius:3px;margin-top:8px;overflow:hidden">
+              <div id="margin-risk-bar" style="height:100%;width:0%;background:linear-gradient(90deg,var(--green),var(--red));border-radius:3px"></div>
+            </div>
           </div>
         </div>
       </div>
@@ -673,21 +686,8 @@ canvas.tc{display:block;width:100%;height:100%}
 
   <!-- Monthly Returns Heatmap -->
   <div class="card">
-    <div class="ch"><span class="ct">Monthly Returns — FY 2025–26</span><div class="ch-r"><span class="chip">Jan–May 2026</span><span style="font-size:11px;color:var(--green);font-weight:700">YTD: +18.4%</span></div></div>
-    <div class="monthly-grid">
-      <div class="mo-cell mr-zero"><div class="mo-month">Jun</div><div class="mo-val">—</div></div>
-      <div class="mo-cell mr-hot2"><div class="mo-month">Jul</div><div class="mo-val">+4.2%</div></div>
-      <div class="mo-cell mr-cold1"><div class="mo-month">Aug</div><div class="mo-val">−1.8%</div></div>
-      <div class="mo-cell mr-hot3"><div class="mo-month">Sep</div><div class="mo-val">+7.1%</div></div>
-      <div class="mo-cell mr-hot1"><div class="mo-month">Oct</div><div class="mo-val">+2.4%</div></div>
-      <div class="mo-cell mr-cold2"><div class="mo-month">Nov</div><div class="mo-val">−3.6%</div></div>
-      <div class="mo-cell mr-hot2"><div class="mo-month">Dec</div><div class="mo-val">+5.8%</div></div>
-      <div class="mo-cell mr-hot1"><div class="mo-month">Jan</div><div class="mo-val">+1.9%</div></div>
-      <div class="mo-cell mr-hot3"><div class="mo-month">Feb</div><div class="mo-val">+6.3%</div></div>
-      <div class="mo-cell mr-cold1"><div class="mo-month">Mar</div><div class="mo-val">−0.8%</div></div>
-      <div class="mo-cell mr-hot2"><div class="mo-month">Apr</div><div class="mo-val">+4.9%</div></div>
-      <div class="mo-cell mr-hot1"><div class="mo-month">May</div><div class="mo-val">+2.1%</div></div>
-    </div>
+    <div class="ch"><span class="ct">Monthly Returns — FY 2025–26</span><div class="ch-r"><span class="chip" id="heatmap-range">—</span><span id="heatmap-ytd" style="font-size:11px;color:var(--green);font-weight:700">—</span></div></div>
+    <div class="monthly-grid" id="monthly-grid"></div>
     <div style="display:flex;align-items:center;gap:6px;padding:0 20px 14px;flex-wrap:wrap">
       <span style="font-size:10px;color:var(--muted)">Scale:</span>
       <div style="display:flex;gap:4px;align-items:center">
@@ -703,9 +703,9 @@ canvas.tc{display:block;width:100%;height:100%}
 
   <!-- P&L Distribution -->
   <div class="card">
-    <div class="ch"><span class="ct">Trade P&L Distribution</span><div class="ch-r"><span class="chip">25 closed trades</span></div></div>
-    <div style="padding:16px 20px 4px;font-size:11px;color:var(--muted)">
-      Returns bucketed by size. Most wins are concentrated between +10% and +20%.
+    <div class="ch"><span class="ct">Trade P&L Distribution</span><div class="ch-r"><span class="chip" id="distrib-chip">—</span></div></div>
+    <div style="padding:16px 20px 4px;font-size:11px;color:var(--muted)" id="distrib-desc">
+      Returns bucketed by size.
     </div>
     <div class="distrib-row" id="distrib-row"></div>
     <div class="distrib-labels"><span>&lt;−8%</span><span>−6%</span><span>−4%</span><span>−2%</span><span>0%</span><span>+2%</span><span>+5%</span><span>+8%</span><span>+12%</span><span>+16%</span><span>+20%</span><span>&gt;+20%</span></div>
@@ -964,6 +964,223 @@ function buildSBS(id,vals){const el=document.getElementById(id);if(!el)return;el
 buildSBS('sbs21',[.9,.85,.75,.8,.5,.7,.3,.65,.8,.6]);buildSBS('sbs50',[.75,.6,.8,.55,.7,.3,.6,.5,.65,.4]);buildSBS('sbs200',[.8,.7,.65,.7,.5,.55,.35,.6,.7,.45]);
 
 /* ══════════════════════════════
+   PORTFOLIO OVERVIEW — LIVE DATA
+══════════════════════════════ */
+async function loadPortfolioOverview() {
+  const fmt  = (n) => '₹' + Math.abs(n).toLocaleString('en-IN', {maximumFractionDigits:0});
+  const fmtL = (n) => '₹' + (n/100000).toFixed(2) + 'L';
+  const setText = (id, val) => { const el=document.getElementById(id); if(el) el.textContent=val; };
+
+  // Date header
+  const today = new Date().toLocaleDateString('en-IN',
+    {day:'numeric', month:'long', year:'numeric', timeZone:'Asia/Kolkata'});
+  setText('port-date', `As of today, ${today} · All values in INR`);
+
+  // 1. Open trades
+  const { data: openTrades } = await sb.from('open_trades').select('*');
+  let totalDeployed=0, totalPnl=0, totalRisk=0;
+  if(openTrades) openTrades.forEach(t => {
+    totalDeployed += t.entry_price * t.quantity;
+    if(t.cmp) totalPnl += (t.cmp - t.entry_price) * t.quantity;
+    totalRisk += Math.max(0, (t.entry_price - t.sl_price) * t.quantity);
+  });
+
+  // 2. Latest portfolio snapshot
+  const { data: snap } = await sb
+    .from('portfolio_snapshots').select('*')
+    .order('snapshot_date', { ascending:false }).limit(1).single();
+
+  const totalCapital = snap?.total_capital || Math.max(totalDeployed * 1.36, 1);
+  const cashAvail    = snap?.cash_available || Math.max(0, totalCapital - totalDeployed);
+  const portValue    = snap?.portfolio_value || (totalDeployed + totalPnl + cashAvail);
+  const portReturn   = snap?.cumulative_return_pct || 0;
+
+  // 3. Closed trades
+  const { data: closedTrades } = await sb.from('closed_trades').select('*');
+  let realisedPnl = 0;
+  if(closedTrades) closedTrades.forEach(t => realisedPnl += (t.realised_pnl||0));
+
+  // All snapshots for equity curve + monthly heatmap
+  const { data: allSnaps } = await sb
+    .from('portfolio_snapshots')
+    .select('portfolio_value,nifty500_level,cumulative_return_pct,snapshot_date')
+    .order('snapshot_date', { ascending:true });
+
+  // ── STAT CARDS ────────────────────────────
+  const deployedPct = totalCapital>0 ? (totalDeployed/totalCapital*100).toFixed(1) : 0;
+  const cashPct     = totalCapital>0 ? (cashAvail/totalCapital*100).toFixed(1) : 0;
+  const riskPct     = totalCapital>0 ? (totalRisk/totalCapital*100).toFixed(1) : 0;
+  const pnlPct      = totalDeployed>0 ? (totalPnl/totalDeployed*100).toFixed(1) : 0;
+
+  setText('port-invested', fmtL(totalDeployed));
+  setText('port-invested-sub', `Across ${openTrades?.length||0} open position${openTrades?.length!==1?'s':''}`);
+  setText('port-invested-pct', `▲ ${deployedPct}% of ${fmtL(totalCapital)} capital`);
+
+  const pnlEl = document.getElementById('port-pnl');
+  if(pnlEl){ pnlEl.textContent=(totalPnl>=0?'+':'')+fmt(totalPnl); pnlEl.style.color=totalPnl>=0?'var(--green)':'var(--red)'; }
+  setText('port-pnl-pct', `${totalPnl>=0?'▲':'▼'} ${totalPnl>=0?'+':''}${pnlPct}% return on deployed`);
+
+  setText('port-cash', fmtL(cashAvail));
+  setText('port-cash-pct', `▲ ${cashPct}% of total capital`);
+  setText('port-risk', fmt(totalRisk));
+  setText('port-risk-pct', `▼ ${riskPct}% of total capital`);
+
+  // Header
+  const hdrCap = document.getElementById('hdr-capital');
+  if(hdrCap) hdrCap.textContent = fmtL(totalCapital);
+  const hdrDep = document.getElementById('hdr-deployed');
+  if(hdrDep) hdrDep.textContent = fmtL(totalDeployed);
+  const hdrPnl = document.getElementById('hdr-pnl');
+  if(hdrPnl){ hdrPnl.textContent=(totalPnl>=0?'+':'')+fmt(totalPnl); hdrPnl.style.color=totalPnl>=0?'var(--green)':'var(--red)'; }
+
+  // ── EQUITY CURVE STATS ROW ─────────────────
+  let niftyReturn = 0;
+  if(allSnaps && allSnaps.length>=2){
+    const f=allSnaps[0], l=allSnaps[allSnaps.length-1];
+    if(f.nifty500_level && l.nifty500_level)
+      niftyReturn = (l.nifty500_level-f.nifty500_level)/f.nifty500_level*100;
+  }
+  const alpha = portReturn - niftyReturn;
+  setText('eq-port-return', (portReturn>=0?'+':'')+portReturn.toFixed(1)+'%');
+  setText('eq-nifty-return', (niftyReturn>=0?'+':'')+niftyReturn.toFixed(1)+'%');
+  setText('eq-alpha', (alpha>=0?'+':'')+alpha.toFixed(1)+'%');
+  setText('eq-port-value', fmtL(portValue));
+  const rpEl = document.getElementById('eq-realised-pnl');
+  if(rpEl){ rpEl.textContent=(realisedPnl>=0?'+':'')+fmt(realisedPnl); rpEl.style.color=realisedPnl>=0?'var(--green)':'var(--red)'; }
+
+  // ── CAPITAL ALLOCATION DONUT ───────────────
+  setText('donut-pct', deployedPct+'%');
+  const allocEl = document.getElementById('alloc-list');
+  if(allocEl){
+    const colors=['#5c6ffb','#7b8bfc','#00d4c8','#1ec993','#7c4dff','#f5a623','#4da8ff','#ff5d7a'];
+    let html = '';
+    if(openTrades && openTrades.length>0){
+      html = openTrades.map((t,i)=>{
+        const pct = totalCapital>0?(t.entry_price*t.quantity/totalCapital*100).toFixed(1):0;
+        return `<div class="alloc-item">
+          <div class="alloc-dot" style="background:${colors[i%colors.length]}"></div>
+          <div class="alloc-name">${t.company_name}</div>
+          <div class="alloc-bar-wrap"><div class="alloc-bar-fill" style="width:${Math.min(pct*2,100)}%;background:${colors[i%colors.length]}"></div></div>
+          <div class="alloc-pct">${pct}%</div>
+        </div>`;
+      }).join('');
+    }
+    if(cashAvail>0) html += `<div class="alloc-item">
+      <div class="alloc-dot" style="background:rgba(60,70,100,.8)"></div>
+      <div class="alloc-name">Cash</div>
+      <div class="alloc-bar-wrap"><div class="alloc-bar-fill" style="width:${Math.min(cashPct*2,100)}%;background:rgba(60,70,100,.8)"></div></div>
+      <div class="alloc-pct">${cashPct}%</div>
+    </div>`;
+    allocEl.innerHTML = html || '<div style="padding:16px;color:var(--muted);font-size:12px">No open positions</div>';
+  }
+
+  // ── DRAWDOWN ───────────────────────────────
+  if(allSnaps && allSnaps.length>1){
+    const vals = allSnaps.map(s=>s.portfolio_value);
+    let peak=vals[0], maxDD=0, currentDD=0;
+    window._ddSeries = vals.map(v=>{
+      if(v>peak) peak=v;
+      const dd = peak>0?((v-peak)/peak*100):0;
+      if(dd<maxDD) maxDD=dd;
+      currentDD=dd;
+      return dd;
+    });
+    setText('dd-max', maxDD.toFixed(1)+'%');
+    setText('dd-current', currentDD.toFixed(1)+'%');
+    setText('dd-days', allSnaps.length+' days');
+    const ddLbl=document.getElementById('max-dd-label');
+    if(ddLbl) ddLbl.textContent='Max DD: '+maxDD.toFixed(1)+'%';
+  }
+
+  // ── PERFORMANCE METRICS ────────────────────
+  if(closedTrades && closedTrades.length>0){
+    const wins=closedTrades.filter(t=>(t.realised_pnl||0)>0);
+    const losses=closedTrades.filter(t=>(t.realised_pnl||0)<=0);
+    const gw=wins.reduce((s,t)=>s+(t.realised_pnl||0),0);
+    const gl=Math.abs(losses.reduce((s,t)=>s+(t.realised_pnl||0),0));
+    const pf=gl>0?(gw/gl).toFixed(2):'∞';
+    const wr=Math.round(wins.length/closedTrades.length*100);
+    const avgW=wins.length?wins.reduce((s,t)=>s+(t.return_pct||0),0)/wins.length:0;
+    const avgL=losses.length?losses.reduce((s,t)=>s+(t.return_pct||0),0)/losses.length:0;
+    const exp=(wr/100)*avgW+((100-wr)/100)*avgL;
+    const best=closedTrades.reduce((b,t)=>(t.return_pct||0)>(b.return_pct||0)?t:b,closedTrades[0]);
+    const worst=closedTrades.reduce((b,t)=>(t.return_pct||0)<(b.return_pct||0)?t:b,closedTrades[0]);
+    setText('perf-pf', pf+'×');
+    setText('perf-wr', wr+'%');
+    setText('perf-wr-sub', wins.length+' of '+closedTrades.length+' trades');
+    setText('perf-avgwin', '+'+avgW.toFixed(1)+'%');
+    setText('perf-avgloss', avgL.toFixed(1)+'%');
+    setText('perf-exp', (exp>=0?'+':'')+exp.toFixed(1)+'%');
+    setText('perf-total', closedTrades.length);
+    setText('perf-best', '+'+(best.return_pct||0).toFixed(1)+'%');
+    setText('perf-best-sym', best.symbol);
+    setText('perf-worst', (worst.return_pct||0).toFixed(1)+'%');
+    setText('perf-worst-sym', worst.symbol);
+    const dc=document.getElementById('distrib-chip'); if(dc) dc.textContent=closedTrades.length+' closed trades';
+    buildDistribLive(closedTrades);
+  } else {
+    ['perf-pf','perf-wr','perf-avgwin','perf-avgloss','perf-exp','perf-total','perf-best','perf-worst']
+      .forEach(id=>setText(id,'—'));
+    setText('perf-wr-sub','No closed trades yet');
+    setText('perf-best-sym','—'); setText('perf-worst-sym','—');
+    const dc=document.getElementById('distrib-chip'); if(dc) dc.textContent='0 trades';
+    const dd=document.getElementById('distrib-desc'); if(dd) dd.textContent='No closed trades yet. Returns appear here as you close positions.';
+    const dr=document.getElementById('distrib-row'); if(dr) dr.innerHTML='';
+  }
+
+  // ── MARGIN STATUS ──────────────────────────
+  setText('margin-total', fmt(totalCapital));
+  setText('margin-deployed', fmt(totalDeployed));
+  setText('margin-cash', fmt(cashAvail));
+  setText('margin-util-pct', deployedPct+'%');
+  setText('margin-risk-pct', riskPct+'%');
+  const ub=document.getElementById('margin-util-bar'); if(ub) ub.style.width=Math.min(deployedPct,100)+'%';
+  const rb=document.getElementById('margin-risk-bar'); if(rb) rb.style.width=Math.min(riskPct*10,100)+'%';
+
+  // ── MONTHLY HEATMAP ────────────────────────
+  buildMonthlyHeatmapLive(allSnaps, portReturn);
+}
+
+function buildDistribLive(trades){
+  const buckets=[-8,-6,-4,-2,0,2,5,8,12,16,20,999];
+  const counts=new Array(buckets.length).fill(0);
+  trades.forEach(t=>{ const r=t.return_pct||0; for(let i=0;i<buckets.length;i++){if(r<=buckets[i]){counts[i]++;break;}} });
+  const maxN=Math.max(...counts,1);
+  const el=document.getElementById('distrib-row'); if(!el)return;
+  el.innerHTML=counts.map((n,i)=>{
+    if(n===0)return`<div class="db" style="height:4px;background:var(--card3)"></div>`;
+    const h=Math.round((n/maxN)*80),pos=i>=5;
+    return`<div class="db" style="height:${h}px;background:${pos?'rgba(46,216,160,.7)':'rgba(255,93,122,.6)'}" title="${n} trade${n!==1?'s':''}"></div>`;
+  }).join('');
+}
+
+function buildMonthlyHeatmapLive(snaps,ytdReturn){
+  const grid=document.getElementById('monthly-grid');
+  if(!grid)return;
+  if(!snaps||snaps.length<2){
+    grid.innerHTML='<div style="padding:20px;color:var(--muted);font-size:12px;grid-column:span 12">Add portfolio snapshots daily to see monthly returns.</div>';
+    return;
+  }
+  const months={};
+  snaps.forEach(s=>{ const d=new Date(s.snapshot_date),key=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+    if(!months[key])months[key]=[];months[key].push(s.portfolio_value); });
+  const mNames=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const fyM=['Jun','Jul','Aug','Sep','Oct','Nov','Dec','Jan','Feb','Mar','Apr','May'];
+  const curY=new Date().getFullYear();
+  const fyKeys=fyM.map(m=>{ const mi=mNames.indexOf(m),yr=mi>=5?curY-1:curY; return`${yr}-${String(mi+1).padStart(2,'0')}`; });
+  const gc=r=>r===null?'mr-zero':r>6?'mr-hot3':r>3?'mr-hot2':r>0?'mr-hot1':r>-3?'mr-cold1':'mr-cold2';
+  grid.innerHTML=fyKeys.map((key,i)=>{
+    const d=months[key]; let ret=null,rs='—';
+    if(d&&d.length>=2){ret=(d[d.length-1]-d[0])/d[0]*100;rs=(ret>=0?'+':'')+ret.toFixed(1)+'%';}
+    return`<div class="mo-cell ${gc(ret)}"><div class="mo-month">${fyM[i]}</div><div class="mo-val">${rs}</div></div>`;
+  }).join('');
+  const ytdEl=document.getElementById('heatmap-ytd');
+  if(ytdEl) ytdEl.textContent='YTD: '+(ytdReturn>=0?'+':'')+ytdReturn.toFixed(1)+'%';
+  const rEl=document.getElementById('heatmap-range');
+  if(rEl) rEl.textContent='FY '+(curY-1)+'–'+String(curY).slice(2);
+}
+
+/* ══════════════════════════════
    PORTFOLIO CHART ENGINE
 ══════════════════════════════ */
 const DAYS = 90; // default 3M view
@@ -1068,21 +1285,26 @@ function drawEquityCurve(){
   }
 }
 
-function drawDrawdown(){
+function drawDrawdown(liveSeries){
   const cv=document.getElementById('dd-canvas');if(!cv)return;
   const W=cv.offsetWidth||800;cv.width=W;cv.height=160;
   const ctx=cv.getContext('2d');
   ctx.clearRect(0,0,W,160);
 
-  // Generate drawdown series
-  const n=66;const dd=[];
-  let peak=100,val=100;
-  for(let i=0;i<n;i++){
-    val*=(1+(Math.random()-.48)*.018);
-    if(val>peak)peak=val;
-    dd.push(((val-peak)/peak)*100);
+  // Use live data if provided, otherwise simulate
+  let dd;
+  if(liveSeries && liveSeries.length > 1){
+    dd = liveSeries;
+  } else {
+    const n=66;dd=[];
+    let peak=100,val=100;
+    for(let i=0;i<n;i++){
+      val*=(1+(Math.random()-.48)*.018);
+      if(val>peak)peak=val;
+      dd.push(((val-peak)/peak)*100);
+    }
+    dd[Math.floor(n*.35)]=-8.4;
   }
-  dd[Math.floor(n*.35)]=-8.4;
   const PL=12,PR=12,PT=14,PB=24;
   const cW=W-PL-PR,cH=160-PT-PB;
   const vMin=Math.min(...dd)*1.1,vMax=0.5;
@@ -1196,7 +1418,10 @@ function buildDistrib(){
 }
 
 function drawPortfolioCharts(){
-  drawEquityCurve();drawDrawdown();drawDonut();drawMarginRing();buildAllocList();buildDistrib();
+  drawEquityCurve();
+  // Use live drawdown data if available, otherwise simulate
+  drawDrawdown(window._ddSeries || null);
+  drawDonut();drawMarginRing();buildAllocList();buildDistrib();
 }
 
 /* ── CHART THEME ── */
@@ -1641,24 +1866,16 @@ const idxData=[
 
 /* ── INIT ── */
 window.addEventListener('load', async () => {
-  // Render live data from Supabase
+  // Load portfolio overview from Supabase first
+  await loadPortfolioOverview();
+
+  // Render live trades from Supabase
   await renderOpen();
   await renderClosed();
   renderRS();
+
+  // Draw canvas charts after data is loaded
   drawPortfolioCharts();
-
-  // Load latest portfolio snapshot for header
-  const { data: snap } = await sb
-    .from('portfolio_snapshots')
-    .select('total_capital, deployed, portfolio_value, cumulative_return_pct')
-    .order('snapshot_date', { ascending: false })
-    .limit(1)
-    .single();
-
-  if (snap) {
-    const capEl = document.getElementById('hdr-capital');
-    if (capEl) capEl.textContent = '₹' + (snap.total_capital/100000).toFixed(1) + 'L';
-  }
 
   window.addEventListener('resize', async () => {
     await renderOpen();
