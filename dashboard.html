@@ -408,6 +408,14 @@ canvas.tc{display:block;width:100%;height:100%}
 .hl-count{font-size:38px;font-weight:800;letter-spacing:-1.5px;line-height:1;margin-bottom:4px}
 .hl-count.g{color:var(--green)}.hl-count.r{color:var(--red)}
 .hl-sub{font-size:11px;color:var(--muted);margin-bottom:14px}
+.fii-period-btn{padding:5px 12px;border:none;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;font-family:var(--f);color:var(--muted);background:transparent;transition:all .15s}
+.fii-period-btn:hover{color:var(--text2)}
+.fii-period-btn.active{background:var(--blue);color:#fff;box-shadow:0 2px 8px rgba(92,111,251,.35)}
+.fii-bar-wrap{position:relative;width:160px;height:18px;display:flex;align-items:center}
+.fii-bar-center{position:absolute;left:50%;top:0;width:1px;height:100%;background:var(--bdr2)}
+.fii-bar-fill{position:absolute;height:10px;border-radius:3px;top:50%;transform:translateY(-50%)}
+.fii-bar-fill.bull{left:50%;background:linear-gradient(90deg,rgba(46,216,160,.5),var(--green))}
+.fii-bar-fill.bear{right:50%;background:linear-gradient(90deg,var(--red),rgba(255,93,122,.5))}
 .hl-stocks{display:flex;flex-direction:column;gap:6px}
 .hl-row{display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:var(--card3);border:1px solid var(--bdr);border-radius:8px;transition:background .12s}
 .hl-row:hover{background:var(--card4)}
@@ -949,79 +957,70 @@ canvas.tc{display:block;width:100%;height:100%}
     <div class="ch">
       <span class="ct">FII / DII Activity — Institutional Flow</span>
       <div class="ch-r">
-        <span class="chip" id="fii-date-chip">Loading...</span>
+        <!-- Daily / Monthly / Yearly filter -->
+        <div style="display:flex;gap:2px;background:var(--card3);border:1px solid var(--bdr);border-radius:8px;padding:2px">
+          <button class="fii-period-btn active" onclick="setFiiPeriod('daily',this)">Daily</button>
+          <button class="fii-period-btn" onclick="setFiiPeriod('monthly',this)">Monthly</button>
+          <button class="fii-period-btn" onclick="setFiiPeriod('yearly',this)">Yearly</button>
+        </div>
         <span class="chip">NSE · Cash Market</span>
       </div>
     </div>
 
-    <!-- Summary bar -->
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--bdr);border-bottom:1px solid var(--bdr)">
-      <!-- FII -->
-      <div style="padding:18px 24px;background:var(--card2)">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
-          <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--muted)">FII (Foreign Inst.)</div>
-          <div id="fii-net-badge" style="padding:3px 10px;border-radius:100px;font-size:11px;font-weight:700">—</div>
-        </div>
-        <div id="fii-net-val" style="font-size:32px;font-weight:800;letter-spacing:-1px;margin-bottom:6px">—</div>
-        <div style="display:flex;gap:16px;margin-top:10px">
-          <div>
-            <div style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:3px">Buy</div>
-            <div id="fii-buy" style="font-size:14px;font-weight:700;color:var(--green);font-family:var(--fm)">—</div>
-          </div>
-          <div>
-            <div style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:3px">Sell</div>
-            <div id="fii-sell" style="font-size:14px;font-weight:700;color:var(--red);font-family:var(--fm)">—</div>
-          </div>
-        </div>
-        <!-- FII net bar -->
-        <div style="margin-top:12px;height:5px;border-radius:3px;background:var(--card3);overflow:hidden">
-          <div id="fii-bar" style="height:100%;border-radius:3px;width:0%"></div>
-        </div>
+    <!-- Latest day summary strip -->
+    <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:1px;background:var(--bdr);border-bottom:1px solid var(--bdr)">
+      <div style="background:var(--card2);padding:14px 18px">
+        <div class="pcl">Latest Date</div>
+        <div class="pcv w" id="fii-latest-date" style="font-size:16px">—</div>
       </div>
-
-      <!-- DII -->
-      <div style="padding:18px 24px;background:var(--card2)">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
-          <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--muted)">DII (Domestic Inst.)</div>
-          <div id="dii-net-badge" style="padding:3px 10px;border-radius:100px;font-size:11px;font-weight:700">—</div>
-        </div>
-        <div id="dii-net-val" style="font-size:32px;font-weight:800;letter-spacing:-1px;margin-bottom:6px">—</div>
-        <div style="display:flex;gap:16px;margin-top:10px">
-          <div>
-            <div style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:3px">Buy</div>
-            <div id="dii-buy" style="font-size:14px;font-weight:700;color:var(--green);font-family:var(--fm)">—</div>
-          </div>
-          <div>
-            <div style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:3px">Sell</div>
-            <div id="dii-sell" style="font-size:14px;font-weight:700;color:var(--red);font-family:var(--fm)">—</div>
-          </div>
-        </div>
-        <!-- DII net bar -->
-        <div style="margin-top:12px;height:5px;border-radius:3px;background:var(--card3);overflow:hidden">
-          <div id="dii-bar" style="height:100%;border-radius:3px;width:0%"></div>
-        </div>
+      <div style="background:var(--card2);padding:14px 18px">
+        <div class="pcl">FII Net (₹ Cr)</div>
+        <div class="pcv" id="fii-net-val">—</div>
+        <div class="pcs" id="fii-net-badge">—</div>
+      </div>
+      <div style="background:var(--card2);padding:14px 18px">
+        <div class="pcl">DII Net (₹ Cr)</div>
+        <div class="pcv" id="dii-net-val">—</div>
+        <div class="pcs" id="dii-net-badge">—</div>
+      </div>
+      <div style="background:var(--card2);padding:14px 18px">
+        <div class="pcl">Combined Flow</div>
+        <div class="pcv" id="fii-combined">—</div>
+        <div class="pcs" id="fii-combined-sub">—</div>
+      </div>
+      <div style="background:var(--card2);padding:14px 18px">
+        <div class="pcl">Market Signal</div>
+        <div id="flow-signal" style="font-size:13px;font-weight:700;margin-top:4px">—</div>
       </div>
     </div>
 
-    <!-- Combined signal + 5-day history -->
-    <div style="padding:16px 20px;border-bottom:1px solid var(--bdr);display:flex;align-items:center;gap:16px">
-      <div id="flow-signal" style="padding:8px 18px;border-radius:10px;font-size:13px;font-weight:700">—</div>
-      <div style="font-size:12px;color:var(--muted)" id="flow-desc">—</div>
-    </div>
-
-    <!-- 5-day history table -->
+    <!-- Main history table — StockEdge style -->
     <div style="overflow-x:auto">
-      <table class="data-table" id="fii-dii-history">
-        <thead><tr>
-          <th>Date</th>
-          <th>Nifty Close</th>
-          <th class="r">FII Net (₹ Cr)</th>
-          <th class="r">DII Net (₹ Cr)</th>
-          <th class="r">Combined Flow</th>
-          <th class="r">Market Mood</th>
-        </tr></thead>
+      <table class="idx-table" id="fii-dii-history">
+        <thead>
+          <tr>
+            <th style="min-width:90px">Date</th>
+            <th style="min-width:100px;text-align:center" colspan="2">FII (₹ Cr)</th>
+            <th style="min-width:200px;text-align:center">Net Buy / (Sell)</th>
+            <th style="min-width:100px;text-align:center" colspan="2">DII (₹ Cr)</th>
+            <th style="min-width:200px;text-align:center">Net Buy / (Sell)</th>
+            <th class="r" style="min-width:100px">Nifty Close</th>
+            <th class="r" style="min-width:70px">Chg %</th>
+          </tr>
+          <tr style="background:var(--card3)">
+            <th></th>
+            <th class="r" style="font-size:9px;color:var(--green);font-weight:600">Net Buy</th>
+            <th class="r" style="font-size:9px;color:var(--red);font-weight:600">Net Sell</th>
+            <th></th>
+            <th class="r" style="font-size:9px;color:var(--green);font-weight:600">Net Buy</th>
+            <th class="r" style="font-size:9px;color:var(--red);font-weight:600">Net Sell</th>
+            <th></th>
+            <th></th>
+            <th></th>
+          </tr>
+        </thead>
         <tbody id="fii-dii-tbody">
-          <tr><td colspan="6" style="text-align:center;color:var(--muted);padding:20px">
+          <tr><td colspan="9" style="text-align:center;color:var(--muted);padding:24px;font-size:12px">
             Loading FII/DII data...
           </td></tr>
         </tbody>
@@ -1029,7 +1028,7 @@ canvas.tc{display:block;width:100%;height:100%}
     </div>
 
     <div style="padding:10px 20px;font-size:10px;color:var(--muted);border-top:1px solid var(--bdr)">
-      Source: NSE India · Updated daily at 7:30 PM IST after NSE publishes provisional data
+      Source: NSE India · Updated daily at 7:30 PM IST · * Provisional data
     </div>
   </div>
 
@@ -1177,157 +1176,209 @@ function sw(id,el){
 function buildSBS(id,vals){const el=document.getElementById(id);if(!el)return;el.innerHTML=vals.map(v=>{const c=v>.65?`rgba(30,201,147,${v*.85})`:v<.45?`rgba(240,82,114,${v*.85+.15})`:`rgba(245,166,35,${v*.8+.1})`;return`<div class="sbs" style="height:${Math.round(v*100)}%;background:${c}"></div>`;}).join('');}
 buildSBS('sbs21',[.9,.85,.75,.8,.5,.7,.3,.65,.8,.6]);buildSBS('sbs50',[.75,.6,.8,.55,.7,.3,.6,.5,.65,.4]);buildSBS('sbs200',[.8,.7,.65,.7,.5,.55,.35,.6,.7,.45]);
 
-/* ── FII / DII ACTIVITY ── */
-async function loadFiiDii() {
-  const setText = (id,v,col) => {
-    const e=document.getElementById(id);
-    if(e){e.textContent=v; if(col)e.style.color=col;}
-  };
-  const fmtCr = (n) => {
-    if(n==null) return '—';
-    const abs = Math.abs(n);
-    const str = abs >= 1000
-      ? '₹' + (abs/1000).toFixed(2) + 'K Cr'
-      : '₹' + abs.toLocaleString('en-IN', {maximumFractionDigits:2}) + ' Cr';
-    return (n >= 0 ? '+' : '−') + str;
-  };
+/* ── FII / DII ACTIVITY — StockEdge Style ── */
+let fiiCurrentPeriod = 'daily';
+let fiiAllData = [];
 
+function setFiiPeriod(period, btn) {
+  fiiCurrentPeriod = period;
+  document.querySelectorAll('.fii-period-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderFiiTable(fiiAllData, period);
+}
+
+async function loadFiiDii() {
   try {
-    // Fetch last 10 days of FII/DII data
+    // Fetch last 60 days for daily, enough for monthly/yearly aggregation
     const { data: rows, error } = await sb
       .from('fii_dii_activity')
       .select('*')
       .order('activity_date', { ascending: false })
-      .limit(10);
+      .limit(60);
 
     if(error || !rows || rows.length === 0) {
-      setText('fii-date-chip', 'Data updates at 7:30 PM IST');
+      document.getElementById('fii-latest-date').textContent = 'No data yet';
       document.getElementById('fii-dii-tbody').innerHTML =
-        `<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:24px;font-size:12px;line-height:1.8">
+        `<tr><td colspan="9" style="text-align:center;color:var(--muted);padding:28px;font-size:12px;line-height:1.9">
           FII/DII data not yet available.<br>
           <span style="font-size:11px">Pipeline fetches this daily at 7:30 PM IST after NSE publishes.</span>
         </td></tr>`;
       return;
     }
 
+    fiiAllData = rows;
+
+    // ── Update summary strip from latest row ──
     const latest = rows[0];
     const fiiNet = latest.fii_cash_net || 0;
     const diiNet = latest.dii_cash_net || 0;
     const combined = fiiNet + diiNet;
 
-    // Date chip
+    const fmtCr = (n) => (n >= 0 ? '+' : '') +
+      Math.abs(n).toLocaleString('en-IN', { maximumFractionDigits: 2 });
+    const setText = (id, v, col) => {
+      const e = document.getElementById(id);
+      if(e){ e.textContent = v; if(col) e.style.color = col; }
+    };
+
     const d = new Date(latest.activity_date);
-    const dateStr = d.toLocaleDateString('en-IN', {day:'numeric',month:'short',year:'numeric'});
-    setText('fii-date-chip', dateStr);
+    setText('fii-latest-date',
+      d.toLocaleDateString('en-IN', {weekday:'short',day:'numeric',month:'short',year:'numeric'}));
 
-    // FII card
     const fiiCol = fiiNet >= 0 ? 'var(--green)' : 'var(--red)';
-    const fiiBg  = fiiNet >= 0 ? 'var(--green-dim)' : 'var(--red-dim)';
-    const fiiBd  = fiiNet >= 0 ? 'var(--green-bd)'  : 'var(--red-bd)';
-    setText('fii-net-val', fmtCr(fiiNet), fiiCol);
-    const fiiBadge = document.getElementById('fii-net-badge');
-    if(fiiBadge){
-      fiiBadge.textContent = fiiNet >= 0 ? '▲ Buying' : '▼ Selling';
-      fiiBadge.style.cssText = `padding:3px 10px;border-radius:100px;font-size:11px;font-weight:700;background:${fiiBg};border:1px solid ${fiiBd};color:${fiiCol}`;
-    }
-    setText('fii-buy',  latest.fii_cash_buy  ? '₹'+Number(latest.fii_cash_buy).toLocaleString('en-IN',{maximumFractionDigits:0})+' Cr' : '—', 'var(--green)');
-    setText('fii-sell', latest.fii_cash_sell ? '₹'+Number(latest.fii_cash_sell).toLocaleString('en-IN',{maximumFractionDigits:0})+' Cr' : '—', 'var(--red)');
-    const fiiBar = document.getElementById('fii-bar');
-    if(fiiBar){
-      const maxAbs = Math.max(Math.abs(fiiNet), Math.abs(diiNet), 1000);
-      fiiBar.style.width = Math.min(Math.abs(fiiNet)/maxAbs*100, 100) + '%';
-      fiiBar.style.background = fiiNet >= 0
-        ? 'linear-gradient(90deg,#1ab880,var(--green))'
-        : 'linear-gradient(90deg,var(--red),#c03050)';
-    }
-
-    // DII card
     const diiCol = diiNet >= 0 ? 'var(--green)' : 'var(--red)';
-    const diiBg  = diiNet >= 0 ? 'var(--green-dim)' : 'var(--red-dim)';
-    const diiBd  = diiNet >= 0 ? 'var(--green-bd)'  : 'var(--red-bd)';
-    setText('dii-net-val', fmtCr(diiNet), diiCol);
-    const diiBadge = document.getElementById('dii-net-badge');
-    if(diiBadge){
-      diiBadge.textContent = diiNet >= 0 ? '▲ Buying' : '▼ Selling';
-      diiBadge.style.cssText = `padding:3px 10px;border-radius:100px;font-size:11px;font-weight:700;background:${diiBg};border:1px solid ${diiBd};color:${diiCol}`;
-    }
-    setText('dii-buy',  latest.dii_cash_buy  ? '₹'+Number(latest.dii_cash_buy).toLocaleString('en-IN',{maximumFractionDigits:0})+' Cr' : '—', 'var(--green)');
-    setText('dii-sell', latest.dii_cash_sell ? '₹'+Number(latest.dii_cash_sell).toLocaleString('en-IN',{maximumFractionDigits:0})+' Cr' : '—', 'var(--red)');
-    const diiBar = document.getElementById('dii-bar');
-    if(diiBar){
-      const maxAbs = Math.max(Math.abs(fiiNet), Math.abs(diiNet), 1000);
-      diiBar.style.width = Math.min(Math.abs(diiNet)/maxAbs*100, 100) + '%';
-      diiBar.style.background = diiNet >= 0
-        ? 'linear-gradient(90deg,#1ab880,var(--green))'
-        : 'linear-gradient(90deg,var(--red),#c03050)';
-    }
+    const combCol = combined >= 0 ? 'var(--green)' : 'var(--red)';
 
-    // Combined flow signal
-    const signal = document.getElementById('flow-signal');
-    const desc   = document.getElementById('flow-desc');
-    if(signal && desc){
-      let sigText, sigCol, sigBg, sigBd, descText;
-      if(fiiNet > 0 && diiNet > 0){
-        sigText='Both Buying'; sigCol='var(--green)'; sigBg='var(--green-dim)'; sigBd='var(--green-bd)';
-        descText=`FII & DII both net buyers. Strong institutional support. Combined: +₹${(fiiNet+diiNet).toLocaleString('en-IN',{maximumFractionDigits:0})} Cr`;
-      } else if(fiiNet < 0 && diiNet < 0){
-        sigText='Both Selling'; sigCol='var(--red)'; sigBg='var(--red-dim)'; sigBd='var(--red-bd)';
-        descText=`FII & DII both net sellers. Institutional pressure. Combined: ₹${Math.abs(fiiNet+diiNet).toLocaleString('en-IN',{maximumFractionDigits:0})} Cr outflow`;
-      } else if(fiiNet < 0 && diiNet > 0){
-        sigText='FII Selling · DII Supporting'; sigCol='var(--amber)'; sigBg='var(--amber-dim)'; sigBd='var(--amber-bd)';
-        descText=`FII selling (₹${Math.abs(fiiNet).toFixed(0)} Cr) offset by DII buying (₹${diiNet.toFixed(0)} Cr). Domestic institutions cushioning the market.`;
-      } else {
-        sigText='FII Buying · DII Cautious'; sigCol='var(--cyan)'; sigBg='var(--cyan-dim)'; sigBd='rgba(46,232,220,.28)';
-        descText=`FII net buyers. DII selling. Net combined: ${fmtCr(combined)}.`;
-      }
-      signal.textContent = sigText;
-      signal.style.cssText = `padding:8px 18px;border-radius:10px;font-size:13px;font-weight:700;background:${sigBg};border:1px solid ${sigBd};color:${sigCol}`;
-      desc.textContent = descText;
-    }
+    setText('fii-net-val', fmtCr(fiiNet) + ' Cr', fiiCol);
+    setText('fii-net-badge', fiiNet >= 0 ? '▲ Buying' : '▼ Selling', fiiCol);
+    setText('dii-net-val', fmtCr(diiNet) + ' Cr', diiCol);
+    setText('dii-net-badge', diiNet >= 0 ? '▲ Buying' : '▼ Selling', diiCol);
+    setText('fii-combined', fmtCr(combined) + ' Cr', combCol);
 
-    // 5-day history table
-    const tbody = document.getElementById('fii-dii-tbody');
-    if(tbody){
-      tbody.innerHTML = rows.slice(0,7).map(r => {
-        const fii  = r.fii_cash_net || 0;
-        const dii  = r.dii_cash_net || 0;
-        const comb = fii + dii;
-        const fCol = fii >= 0 ? 'var(--green)' : 'var(--red)';
-        const dCol = dii >= 0 ? 'var(--green)' : 'var(--red)';
-        const cCol = comb >= 0 ? 'var(--green)' : 'var(--red)';
-        const dt   = new Date(r.activity_date);
-        const dtStr= dt.toLocaleDateString('en-IN',{weekday:'short',day:'numeric',month:'short'});
-        const mood = comb > 2000  ? { t:'Strong Buying',  c:'var(--green)' }
-                   : comb > 0    ? { t:'Net Buying',      c:'var(--green)' }
-                   : comb > -2000? { t:'Net Selling',     c:'var(--red)'   }
-                   :               { t:'Heavy Selling',   c:'var(--red)'   };
-        if(fii===0 && dii===0) return '';  // skip empty rows
-        return `<tr>
-          <td style="font-weight:600;color:var(--text2)">${dtStr}</td>
-          <td style="font-family:var(--fm);color:var(--white)">
-            ${r.nifty_close ? r.nifty_close.toLocaleString('en-IN',{maximumFractionDigits:0}) : '—'}
-          </td>
-          <td class="r" style="font-family:var(--fm);font-weight:700;color:${fCol}">
-            ${(fii>=0?'+':'')}${fii.toLocaleString('en-IN',{maximumFractionDigits:0})}
-          </td>
-          <td class="r" style="font-family:var(--fm);font-weight:700;color:${dCol}">
-            ${(dii>=0?'+':'')}${dii.toLocaleString('en-IN',{maximumFractionDigits:0})}
-          </td>
-          <td class="r" style="font-family:var(--fm);font-weight:700;color:${cCol}">
-            ${(comb>=0?'+':'')}${comb.toLocaleString('en-IN',{maximumFractionDigits:0})}
-          </td>
-          <td class="r">
-            <span style="font-size:11px;font-weight:700;color:${mood.c}">${mood.t}</span>
-          </td>
-        </tr>`;
-      }).filter(Boolean).join('');
-    }
+    // Signal
+    let signal, sigCol;
+    if(fiiNet > 0 && diiNet > 0){ signal='Both Buying 🟢'; sigCol='var(--green)'; }
+    else if(fiiNet < 0 && diiNet < 0){ signal='Both Selling 🔴'; sigCol='var(--red)'; }
+    else if(fiiNet < 0 && diiNet > 0){ signal='FII Sell · DII Buy 🟡'; sigCol='var(--amber)'; }
+    else { signal='FII Buy · DII Sell 🔵'; sigCol='var(--cyan)'; }
+    setText('flow-signal', signal, sigCol);
+    setText('fii-combined-sub', combined >= 0 ? 'Net inflow' : 'Net outflow');
+
+    // Render table for current period
+    renderFiiTable(rows, fiiCurrentPeriod);
 
   } catch(err) {
-    console.warn('FII/DII load error:', err.message);
+    console.warn('FII/DII error:', err.message);
   }
 }
 
+function renderFiiTable(rows, period) {
+  const tbody = document.getElementById('fii-dii-tbody');
+  if(!tbody) return;
+
+  let displayData = [];
+
+  if(period === 'daily') {
+    // Show last 20 trading days
+    displayData = rows.slice(0, 20).map(r => ({
+      label: new Date(r.activity_date).toLocaleDateString('en-IN',
+        {weekday:'short', day:'numeric', month:'short'}),
+      fii:   r.fii_cash_net || 0,
+      dii:   r.dii_cash_net || 0,
+      nifty: r.nifty_close,
+      date:  r.activity_date,
+    }));
+
+  } else if(period === 'monthly') {
+    // Aggregate by month
+    const months = {};
+    rows.forEach(r => {
+      const d   = new Date(r.activity_date);
+      const key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+      if(!months[key]) months[key] = { fii:0, dii:0, nifty:null, count:0, date:r.activity_date };
+      months[key].fii += (r.fii_cash_net || 0);
+      months[key].dii += (r.dii_cash_net || 0);
+      months[key].count++;
+      if(!months[key].nifty && r.nifty_close) months[key].nifty = r.nifty_close;
+    });
+    displayData = Object.entries(months)
+      .sort((a,b) => b[0].localeCompare(a[0]))
+      .slice(0, 12)
+      .map(([key, v]) => {
+        const [yr, mo] = key.split('-');
+        const label = new Date(yr, mo-1, 1)
+          .toLocaleDateString('en-IN', {month:'short', year:'numeric'});
+        return { label, fii: v.fii, dii: v.dii, nifty: v.nifty };
+      });
+
+  } else {
+    // Aggregate by year
+    const years = {};
+    rows.forEach(r => {
+      const yr = new Date(r.activity_date).getFullYear();
+      if(!years[yr]) years[yr] = { fii:0, dii:0, nifty:null };
+      years[yr].fii += (r.fii_cash_net || 0);
+      years[yr].dii += (r.dii_cash_net || 0);
+      if(!years[yr].nifty && r.nifty_close) years[yr].nifty = r.nifty_close;
+    });
+    displayData = Object.entries(years)
+      .sort((a,b) => b[0]-a[0])
+      .map(([yr, v]) => ({ label: yr, fii: v.fii, dii: v.dii, nifty: v.nifty }));
+  }
+
+  if(displayData.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="9" style="text-align:center;color:var(--muted);padding:24px">
+      No data available for this period yet.</td></tr>`;
+    return;
+  }
+
+  // Max absolute value for bar scaling
+  const maxAbs = Math.max(...displayData.map(r => Math.max(Math.abs(r.fii), Math.abs(r.dii))), 1000);
+
+  // For daily: compute nifty change %
+  const niftyPrev = {};
+  if(period === 'daily' && rows.length > 1) {
+    rows.forEach((r, i) => {
+      if(i < rows.length - 1) {
+        niftyPrev[r.activity_date] = rows[i+1].nifty_close;
+      }
+    });
+  }
+
+  const fmtBar = (val, maxV) => {
+    const pct = Math.min(Math.abs(val) / maxV * 50, 50); // max 50% of half-width
+    const isBull = val >= 0;
+    return `<div class="fii-bar-wrap">
+      <div class="fii-bar-center"></div>
+      <div class="fii-bar-fill ${isBull?'bull':'bear'}" style="width:${pct}%"></div>
+    </div>`;
+  };
+
+  tbody.innerHTML = displayData.map(r => {
+    const fCol = r.fii >= 0 ? 'var(--green)' : 'var(--red)';
+    const dCol = r.dii >= 0 ? 'var(--green)' : 'var(--red)';
+    const fmtN = (n) => n != null
+      ? n.toLocaleString('en-IN', { maximumFractionDigits: 2 }) : '—';
+
+    let chgCell = '<td class="r" style="color:var(--muted)">—</td>';
+    if(period === 'daily' && r.date && niftyPrev[r.date] && r.nifty) {
+      const chgPct = ((r.nifty - niftyPrev[r.date]) / niftyPrev[r.date] * 100);
+      const chgCol = chgPct >= 0 ? 'var(--green)' : 'var(--red)';
+      chgCell = `<td class="r" style="color:${chgCol};font-weight:700;font-family:var(--fm)">
+        ${chgPct >= 0 ? '▲' : '▼'} ${Math.abs(chgPct).toFixed(1)}%</td>`;
+    }
+
+    // FII/DII split columns: positive = buy side, negative = sell side
+    const fiiBuyVal  = r.fii >= 0 ? fmtN(r.fii) : '—';
+    const fiiSellVal = r.fii < 0  ? fmtN(Math.abs(r.fii)) : '—';
+    const diiBuyVal  = r.dii >= 0 ? fmtN(r.dii) : '—';
+    const diiSellVal = r.dii < 0  ? fmtN(Math.abs(r.dii)) : '—';
+
+    return `<tr>
+      <td style="font-weight:600;color:var(--text2);white-space:nowrap">${r.label}</td>
+      <td class="r" style="color:var(--green);font-family:var(--fm);font-size:12px">${fiiBuyVal}</td>
+      <td class="r" style="color:var(--red);font-family:var(--fm);font-size:12px">${fiiSellVal}</td>
+      <td style="padding:6px 8px">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:6px">
+          <span style="font-size:11px;font-weight:700;color:${fCol};font-family:var(--fm);min-width:70px;text-align:right">
+            ${(r.fii>=0?'+':'')}${fmtN(r.fii)}</span>
+          ${fmtBar(r.fii, maxAbs)}
+        </div>
+      </td>
+      <td class="r" style="color:var(--green);font-family:var(--fm);font-size:12px">${diiBuyVal}</td>
+      <td class="r" style="color:var(--red);font-family:var(--fm);font-size:12px">${diiSellVal}</td>
+      <td style="padding:6px 8px">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:6px">
+          <span style="font-size:11px;font-weight:700;color:${dCol};font-family:var(--fm);min-width:70px;text-align:right">
+            ${(r.dii>=0?'+':'')}${fmtN(r.dii)}</span>
+          ${fmtBar(r.dii, maxAbs)}
+        </div>
+      </td>
+      <td class="r" style="font-family:var(--fm);color:var(--white)">
+        ${r.nifty ? r.nifty.toLocaleString('en-IN',{maximumFractionDigits:0}) : '—'}</td>
+      ${chgCell}
+    </tr>`;
+  }).join('');
 /* ── PORTFOLIO OVERVIEW — LIVE DATA ── */
 async function loadPortfolioOverview() {
   const fmt  = (n) => '₹' + Math.abs(n).toLocaleString('en-IN', {maximumFractionDigits:0});
