@@ -6,7 +6,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<title>TraderHikes — Member Dashboard</title>
+<title>Market Basecamp — TraderHikes</title>
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
@@ -86,9 +86,40 @@ body{
 
 /* ═══ HEADER ═══ */
 .hdr{display:flex;align-items:center;justify-content:space-between;padding:0 28px;height:62px;background:var(--bg2);border-bottom:1px solid var(--bdr);position:sticky;top:28px;z-index:200;backdrop-filter:blur(20px)}
-.logo-wrap{display:flex;align-items:center;gap:10px}
-.logo-icon{width:36px;height:36px;border-radius:10px;background:var(--grad-btn);display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:800;color:#fff;box-shadow:0 4px 18px var(--blue-glow);letter-spacing:-1px}
-.logo{font-size:20px;font-weight:800;color:var(--white);letter-spacing:-.5px}
+.logo-wrap{display:flex;align-items:center;gap:12px}
+.logo-icon{
+  width:42px;height:42px;border-radius:10px;
+  background:linear-gradient(135deg,#1a2040 0%,#0e1528 100%);
+  border:1.5px solid rgba(143,163,255,.35);
+  display:flex;align-items:center;justify-content:center;
+  box-shadow:0 4px 18px rgba(92,111,251,.3),inset 0 1px 0 rgba(255,255,255,.08);
+  flex-shrink:0;position:relative;overflow:hidden;
+}
+.logo-icon::before{
+  content:'';position:absolute;inset:0;
+  background:linear-gradient(135deg,rgba(143,163,255,.12) 0%,transparent 60%);
+}
+.logo-mb{
+  font-size:14px;font-weight:800;
+  letter-spacing:1.5px;
+  font-family:'Plus Jakarta Sans',sans-serif;
+  color:#8fa3ff;
+  position:relative;z-index:1;
+  text-shadow:0 0 12px rgba(143,163,255,.4);
+}
+.logo-text-wrap{display:flex;flex-direction:column;gap:1px}
+.logo-line1{
+  font-size:11px;font-weight:800;
+  color:var(--white);letter-spacing:2px;
+  text-transform:uppercase;line-height:1;
+  font-family:'Plus Jakarta Sans',sans-serif;
+}
+.logo-line2{
+  font-size:11px;font-weight:700;
+  color:var(--blue-lt);letter-spacing:2px;
+  text-transform:uppercase;line-height:1;
+  font-family:'Plus Jakarta Sans',sans-serif;
+}
 .logo span{color:var(--blue-lt)}
 .hdr-meta{display:flex;align-items:center;gap:12px}
 .hdr-sep{width:1px;height:20px;background:var(--bdr2)}
@@ -465,8 +496,13 @@ canvas.tc{display:block;width:100%;height:100%}
 <!-- HEADER -->
 <header class="hdr">
   <div class="logo-wrap">
-    <div class="logo-icon">₹</div>
-    <div class="logo">Paisa<span>Pro</span></div>
+    <div class="logo-icon">
+      <span class="logo-mb">MB</span>
+    </div>
+    <div class="logo-text-wrap">
+      <span class="logo-line1">Market</span>
+      <span class="logo-line2">Basecamp</span>
+    </div>
   </div>
   <div class="hdr-meta">
     <div class="regime-pill"><div class="rp-dot"></div>Bull Phase · 74/100</div>
