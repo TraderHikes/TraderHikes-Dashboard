@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>TraderHikes — Admin Panel</title>
+<title>Market Basecamp — Admin</title>
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
@@ -85,8 +85,20 @@
     display:flex; align-items:center; justify-content:space-between;
     margin-bottom:24px; padding-bottom:16px; border-bottom:1px solid var(--bdr);
   }
-  .app-logo { font-size:18px; font-weight:800; color:var(--white); }
-  .app-logo span { color:var(--blue-lt); }
+  .app-logo { display:flex; align-items:center; gap:10px; }
+  .app-logo-icon {
+    width:36px; height:36px; border-radius:9px;
+    background:linear-gradient(135deg,#1a2040 0%,#0e1528 100%);
+    border:1.5px solid rgba(143,163,255,.35);
+    display:flex; align-items:center; justify-content:center;
+    box-shadow:0 4px 14px rgba(92,111,251,.3);
+    font-size:12px; font-weight:800; letter-spacing:1.5px;
+    color:#8fa3ff; font-family:'Plus Jakarta Sans',sans-serif;
+    flex-shrink:0;
+  }
+  .app-logo-text { display:flex; flex-direction:column; gap:1px; }
+  .app-logo-l1 { font-size:10px; font-weight:800; color:var(--white); letter-spacing:2px; text-transform:uppercase; line-height:1; }
+  .app-logo-l2 { font-size:10px; font-weight:700; color:var(--blue-lt); letter-spacing:2px; text-transform:uppercase; line-height:1; }
   .admin-badge {
     background:var(--red-dim); border:1px solid var(--red-bd);
     color:var(--red); border-radius:100px;
@@ -215,7 +227,7 @@
     <!-- Login state (shown if not authenticated) -->
     <div id="gate-login" style="display:none">
       <div class="gate-icon">🔐</div>
-      <div class="gate-title">Admin Access Only</div>
+      <div class="gate-title">Market Basecamp Admin</div>
       <div class="gate-sub">
         Sign in with your admin Google account.<br>
         Only <strong style="color:var(--text2)">traderhikes@gmail.com</strong> can access this panel.
@@ -252,7 +264,13 @@
 ══════════════════════════════════ -->
 <div class="app" id="app-content" style="display:none">
   <div class="app-hdr">
-    <div class="app-logo">TraderHikes <span>Admin</span></div>
+    <div class="app-logo">
+      <div class="app-logo-icon">MB</div>
+      <div class="app-logo-text">
+        <span class="app-logo-l1">Market</span>
+        <span class="app-logo-l2">Basecamp</span>
+      </div>
+    </div>
     <div style="display:flex;align-items:center;gap:12px">
       <span class="admin-badge">ADMIN PANEL</span>
       <span id="admin-email-display" style="font-size:11px;color:var(--muted);font-family:var(--fm)"></span>
