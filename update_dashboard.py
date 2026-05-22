@@ -133,13 +133,16 @@ def fetch_cmp_for_open_trades():
     for t in trades:
         sym = t["symbol"].upper().strip()
         try:
-            hist = yf.Ticker(f"{sym}.NS").history(period="2d", interval="1d")
+            hist = yf.Ticker(f"{sym}.NS").history(period="5d", interval="1d")
             if hist.empty: continue
-            cmp = round(float(hist["Close"].iloc[-1]), 2)
+            closes = hist["Close"].dropna()
+            cmp = round(float(closes.iloc[-1]), 2)
+            prev_cmp = round(float(closes.iloc[-2]), 2) if len(closes) >= 2 else cmp
             cmp_map[t["id"]] = cmp
             pnl = round((cmp - t["entry_price"]) * t["quantity"], 2)
             pct = round((cmp - t["entry_price"]) / t["entry_price"] * 100, 2)
-            print(f"   ✓ {sym}: ₹{cmp:,.2f} | P&L: {'+'if pnl>=0 else ''}₹{pnl:,.0f} ({pct:+.2f}%)")
+            day_pnl = round((cmp - prev_cmp) * t["quantity"], 2)
+            print(f"   ✓ {sym}: ₹{cmp:,.2f} | P&L: {'+'if pnl>=0 else ''}₹{pnl:,.0f} ({pct:+.2f}%) | Day: {'+'if day_pnl>=0 else ''}₹{day_pnl:,.0f}")
             sb.table("open_trades").update({
                 "cmp": cmp, "updated_at": datetime.now(IST).isoformat()
             }).eq("id", t["id"]).execute()
