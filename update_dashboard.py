@@ -1,29 +1,23 @@
 """
-TraderHikes Dashboard — Daily Data Pipeline
+TraderHikes — Market Basecamp Data Pipeline
 ============================================
-Runs automatically via GitHub Actions at 4:30 PM IST every trading day.
+Smart scheduling — different jobs run at different times:
 
-What it does:
-1. Fetches CMP for all open positions → updates open_trades.cmp
-2. Fetches key index levels (Nifty 50, Nifty 500, VIX etc.)
-3. Calculates portfolio value → saves daily snapshot
-4. Fetches FULL Nifty 500 constituent list from NSE India
-5. Calculates market breadth (% above 21/50/200 EMA) on all 500 stocks
-6. Saves breadth data to Supabase
+  10:00 AM IST  →  intraday update (CMP + index levels only)
+  12:01 PM IST  →  intraday update (CMP + index levels only)
+   2:00 PM IST  →  intraday update (CMP + index levels only)
+   4:30 PM IST  →  full EOD run   (breadth + all steps)
+   7:30 PM IST  →  FII/DII fetch  (NSE publishes ~6-7 PM)
 
-Data source: yfinance + NSE India CSV (free, ~15 min delay)
+GitHub Actions cron runs all times — the script decides
+what to do based on the current IST hour.
 """
 
-import os
-import sys
-import io
-import time
-import requests
+import os, sys, io, time, requests
 import pandas as pd
 import pytz
-from datetime import datetime
+from datetime import datetime, timedelta
 
-# ── Install dependencies ──────────────────────────────────
 try:
     import yfinance as yf
 except ImportError:
@@ -36,76 +30,73 @@ except ImportError:
     os.system("pip install supabase --quiet")
     from supabase import create_client, Client
 
-# ════════════════════════════════════════════════════════════
+# ════════════════════════════════════════════════════
 # CONFIG
-# ════════════════════════════════════════════════════════════
+# ════════════════════════════════════════════════════
 SUPABASE_URL         = os.environ.get("SUPABASE_URL", "https://kqndpeflwuztzhixibih.supabase.co")
 SUPABASE_SERVICE_KEY = os.environ.get("SUPABASE_SERVICE_KEY")
 
 if not SUPABASE_SERVICE_KEY:
-    print("ERROR: SUPABASE_SERVICE_KEY not set")
-    sys.exit(1)
+    print("ERROR: SUPABASE_SERVICE_KEY not set"); sys.exit(1)
 
 IST       = pytz.timezone("Asia/Kolkata")
-TODAY     = datetime.now(IST).date()
+NOW_IST   = datetime.now(IST)
+TODAY     = NOW_IST.date()
 TODAY_STR = TODAY.strftime("%Y-%m-%d")
-
-print(f"\n{'='*58}")
-print(f"  TraderHikes Data Pipeline — {TODAY_STR}")
-print(f"{'='*58}\n")
+HOUR_IST  = NOW_IST.hour
+MINUTE_IST= NOW_IST.minute
 
 sb: Client = create_client(SUPABASE_URL, SUPABASE_SERVICE_KEY)
 
+# ── Determine run mode based on IST time ────────────
+# 7-8 AM UTC  = 12:30-1:30 PM IST  → INTRADAY
+# 9-10 AM UTC = 2:30-3:30 PM IST   → INTRADAY
+# 11 AM UTC   = 4:30 PM IST        → FULL EOD
+# 2 PM UTC    = 7:30 PM IST        → FII/DII
 
-# ════════════════════════════════════════════════════════════
-# STEP 0 — Fetch full Nifty 500 constituent list from NSE
-# ════════════════════════════════════════════════════════════
+if HOUR_IST >= 19:        # 7 PM onwards
+    RUN_MODE = "fii_dii"
+elif HOUR_IST >= 16:      # 4 PM onwards
+    RUN_MODE = "full_eod"
+elif 9 <= HOUR_IST <= 15: # 9 AM - 3 PM
+    RUN_MODE = "intraday"
+else:
+    RUN_MODE = "full_eod"  # default
+
+# Allow manual override via environment variable
+RUN_MODE = os.environ.get("RUN_MODE", RUN_MODE)
+
+print(f"\n{'='*58}")
+print(f"  Market Basecamp Pipeline — {TODAY_STR}")
+print(f"  Time: {NOW_IST.strftime('%I:%M %p IST')} | Mode: {RUN_MODE.upper()}")
+print(f"{'='*58}\n")
+
+
+# ════════════════════════════════════════════════════
+# STEP 0 — Fetch Nifty 500 list (full EOD only)
+# ════════════════════════════════════════════════════
 def fetch_nifty500_symbols():
-    """
-    Downloads the official Nifty 500 constituent CSV from NSE India.
-    Returns a list of NSE symbols (without .NS suffix).
-    Falls back to a curated list of 200 stocks if download fails.
-    """
-    print("📋 Step 0: Fetching Nifty 500 constituent list from NSE...")
-
-    # NSE India hosts the official constituent list here
+    print("📋 Step 0: Fetching Nifty 500 list from NSE...")
     url = "https://archives.nseindia.com/content/indices/ind_nifty500list.csv"
-
     headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-        "Accept-Language": "en-US,en;q=0.5",
-        "Referer": "https://www.nseindia.com/",
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
+        "Referer":    "https://www.nseindia.com/",
     }
-
     try:
-        response = requests.get(url, headers=headers, timeout=30)
-        response.raise_for_status()
-
-        df = pd.read_csv(io.StringIO(response.text))
-
-        # The CSV has a column called 'Symbol'
+        r = requests.get(url, headers=headers, timeout=30)
+        r.raise_for_status()
+        df = pd.read_csv(io.StringIO(r.text))
         if "Symbol" in df.columns:
-            symbols = df["Symbol"].str.strip().tolist()
-            print(f"   ✓ Downloaded {len(symbols)} Nifty 500 constituents from NSE")
-            return symbols
-        else:
-            print(f"   ⚠️  Unexpected CSV format. Columns: {df.columns.tolist()}")
-            raise ValueError("Symbol column not found")
-
+            syms = df["Symbol"].str.strip().tolist()
+            print(f"   ✓ {len(syms)} constituents downloaded\n")
+            return syms
     except Exception as e:
-        print(f"   ⚠️  NSE download failed ({e}). Using curated fallback list...")
-        return get_fallback_symbols()
+        print(f"   ⚠️  NSE download failed: {e}. Using fallback.\n")
+    return get_fallback_symbols()
 
 
 def get_fallback_symbols():
-    """
-    Curated list of 200 highly liquid Nifty 500 stocks.
-    Used only if NSE website is unreachable.
-    Covers all major sectors proportionally.
-    """
     return [
-        # Large Cap — Nifty 50
         "RELIANCE","TCS","HDFCBANK","INFY","ICICIBANK","HINDUNILVR","ITC","SBIN",
         "BAJFINANCE","BHARTIARTL","KOTAKBANK","LT","AXISBANK","ASIANPAINT","MARUTI",
         "TITAN","SUNPHARMA","NESTLEIND","WIPRO","ULTRACEMCO","POWERGRID","NTPC",
@@ -113,218 +104,132 @@ def get_fallback_symbols():
         "ADANIPORTS","HINDALCO","JSWSTEEL","TATASTEEL","ONGC","COALINDIA","BPCL",
         "IOC","GRASIM","BRITANNIA","HEROMOTOCO","EICHERMOT","BAJAJ-AUTO","SHREECEM",
         "UPL","TATACONSUM","INDUSINDBK","SBILIFE","HDFCLIFE","ICICIGI","APOLLOHOSP",
-
-        # Mid Cap — IT & Tech
-        "PERSISTENT","MPHASIS","COFORGE","LTIM","KPITTECH","HAPPSTMNDS",
-        "MASTEK","BIRLASOFT","HEXAWARE","RATEGAIN","TATAELXSI","CYIENT",
-
-        # Mid Cap — Capital Goods & Infra
-        "ABB","SIEMENS","HAVELLS","POLYCAB","DIXON","KAYNES","AMBER","PGEL",
-        "CUMMINSIND","THERMAX","BHEL","IRCON","KEC","KALPATPOWR","GPPL",
-
-        # Mid Cap — Consumer & FMCG
-        "TRENT","DMART","VMART","ABFRL","MANYAVAR","VEDL","PAGEIND",
-        "MARICO","DABUR","GODREJCP","COLPAL","EMAMILTD","JYOTHYLAB",
-        "RADICO","MCDOWELL-N","UNITDSPR",
-
-        # Mid Cap — Pharma & Healthcare
-        "ASTRAL","TORNTPHARM","ALKEM","IPCALAB","NATCOPHARMA","AUROPHARMA",
-        "GLENMARK","BIOCON","JUBLPHARMA","GRANULES","SOLARA","LAURUSLABS",
-        "LALPATHLAB","METROPOLIS","THYROCARE","AJANTPHARM","PFIZER","SANOFI",
-
-        # Mid Cap — Banking & Finance
-        "FEDERALBNK","BANDHANBNK","IDFCFIRSTB","RBLBANK","DCBBANK",
-        "CANBK","BANKBARODA","PNB","UNIONBANK","INDIANB",
-        "CHOLAFIN","MUTHOOTFIN","MANAPPURAM","AAVAS","HOMEFIRST",
-        "CAMS","CDSL","BSE","MCLEODRUSSEL",
-
-        # Mid Cap — Auto & Ancillaries
-        "MOTHERSON","BOSCHLTD","EXIDEIND","AMARAJABAT","BALKRISIND",
-        "APOLLOTYRE","CEATLTD","MRF","TIINDIA","SUPRAJIT",
-
-        # Mid Cap — Chemicals
-        "PIDILITIND","AARTIIND","ATUL","DEEPAKNTR","PIIND","SRF",
-        "ALKYLAMINE","FLUOROCHEM","NAVINFLUOR","FINEORG","TATACHEM",
-
-        # Mid Cap — Realty & Construction
-        "DLF","GODREJPROP","OBEROIRLTY","PRESTIGE","PHOENIXLTD",
-        "BRIGADE","SOBHA","MAHLIFE","KOLTEPATIL","SUNTECK",
-
-        # Mid Cap — Metals & Mining
-        "NMDC","VEDL","NATIONALUM","MOIL","HINDCOPPER",
-        "RATNAMANI","APL","SAILESH","MIDHANI",
-
-        # Small/Mid — Diversified
-        "IRCTC","CONCOR","BLUEDART","GESHIP","SCI",
-        "ZOMATO","NYKAA","PAYTM","DELHIVERY","CARTRADE",
-        "INDIGO","SPICEJET","INTERGLOBE",
-        "LICI","GICRE","NIACL","STARHEALTH",
+        "PERSISTENT","MPHASIS","COFORGE","LTIM","KPITTECH","TATAELXSI","CYIENT",
+        "ABB","SIEMENS","HAVELLS","POLYCAB","DIXON","KAYNES","CUMMINSIND","THERMAX",
+        "TRENT","DMART","MARICO","DABUR","GODREJCP","COLPAL","EMAMILTD",
+        "TORNTPHARM","ALKEM","IPCALAB","AUROPHARMA","GLENMARK","BIOCON","LAURUSLABS",
+        "FEDERALBNK","BANDHANBNK","IDFCFIRSTB","CANBK","BANKBARODA","PNB",
+        "CHOLAFIN","MUTHOOTFIN","CDSL","CAMS","MOTHERSON","BOSCHLTD","BALKRISIND",
+        "APOLLOTYRE","MRF","PIDILITIND","AARTIIND","ATUL","DEEPAKNTR","SRF",
+        "DLF","GODREJPROP","OBEROIRLTY","PRESTIGE","IRCTC","CONCOR","ZOMATO",
+        "NMDC","VEDL","NATIONALUM","RATNAMANI","LICI","STARHEALTH","INDIGO",
     ]
 
 
-# ════════════════════════════════════════════════════════════
+# ════════════════════════════════════════════════════
 # STEP 1 — Fetch CMP for open trades
-# ════════════════════════════════════════════════════════════
+# ════════════════════════════════════════════════════
 def fetch_cmp_for_open_trades():
-    print("📈 Step 1: Fetching CMP for open trades...")
-
-    result = sb.table("open_trades").select("id,symbol,entry_price,quantity,sl_price").execute()
-    trades = result.data
+    print("📈 Step 1: Updating CMP for open trades...")
+    trades = sb.table("open_trades").select(
+        "id,symbol,entry_price,quantity,sl_price").execute().data
 
     if not trades:
-        print("   No open trades found. Skipping.\n")
-        return {}
+        print("   No open trades. Skipping.\n"); return {}
 
-    print(f"   Found {len(trades)} open trade(s): {[t['symbol'] for t in trades]}")
-
+    print(f"   Found {len(trades)} trade(s): {[t['symbol'] for t in trades]}")
     cmp_map = {}
-    for trade in trades:
-        symbol = trade["symbol"].upper().strip()
-        # Handle special NSE symbols (e.g. M&M → MM, L&T → LT)
-        ticker_sym = f"{symbol}.NS"
 
+    for t in trades:
+        sym = t["symbol"].upper().strip()
         try:
-            ticker = yf.Ticker(ticker_sym)
-            hist   = ticker.history(period="2d", interval="1d")
-
-            if hist.empty:
-                print(f"   ⚠️  No data for {symbol}")
-                continue
-
+            hist = yf.Ticker(f"{sym}.NS").history(period="2d", interval="1d")
+            if hist.empty: continue
             cmp = round(float(hist["Close"].iloc[-1]), 2)
-            cmp_map[trade["id"]] = cmp
-
-            pnl     = round((cmp - trade["entry_price"]) * trade["quantity"], 2)
-            pnl_pct = round((cmp - trade["entry_price"]) / trade["entry_price"] * 100, 2)
-
-            print(f"   ✓ {symbol}: CMP ₹{cmp:,.2f} | "
-                  f"P&L: {'+'if pnl>=0 else ''}₹{pnl:,.0f} ({pnl_pct:+.2f}%)")
-
+            cmp_map[t["id"]] = cmp
+            pnl = round((cmp - t["entry_price"]) * t["quantity"], 2)
+            pct = round((cmp - t["entry_price"]) / t["entry_price"] * 100, 2)
+            print(f"   ✓ {sym}: ₹{cmp:,.2f} | P&L: {'+'if pnl>=0 else ''}₹{pnl:,.0f} ({pct:+.2f}%)")
             sb.table("open_trades").update({
-                "cmp":        cmp,
-                "updated_at": datetime.now(IST).isoformat()
-            }).eq("id", trade["id"]).execute()
-
+                "cmp": cmp, "updated_at": datetime.now(IST).isoformat()
+            }).eq("id", t["id"]).execute()
         except Exception as e:
-            print(f"   ⚠️  Error fetching {symbol}: {e}")
+            print(f"   ⚠️  {sym}: {e}")
 
     print(f"   Updated {len(cmp_map)} position(s).\n")
     return cmp_map
 
 
-# ════════════════════════════════════════════════════════════
-# STEP 2 — Fetch all index levels + save to Supabase
-# ════════════════════════════════════════════════════════════
+# ════════════════════════════════════════════════════
+# STEP 2 — Fetch index levels
+# ════════════════════════════════════════════════════
 def fetch_index_levels():
     print("📊 Step 2: Fetching index levels...")
-
-    # Full list of indices to fetch and store
     indices = {
-        "nifty50":      "^NSEI",
-        "sensex":       "^BSESN",
-        "nifty500":     "^CRSLDX",
-        "nifty_midcap": "^NSEMDCP50",
-        "nifty_it":     "^CNXIT",
-        "nifty_bank":   "^NSEBANK",
-        "nifty_pharma": "^CNXPHARMA",
-        "nifty_auto":   "^CNXAUTO",
-        "nifty_psubank":"^CNXPSUBANK",
-        "nifty_metal":  "^CNXMETAL",
-        "nifty_realty": "^CNXREALTY",
-        "nifty_fmcg":   "^CNXFMCG",
-        "india_vix":    "^INDIAVIX",
+        "nifty50":       "^NSEI",
+        "sensex":        "^BSESN",
+        "nifty500":      "^CRSLDX",
+        "nifty_midcap":  "^NSEMDCP50",
+        "nifty_it":      "^CNXIT",
+        "nifty_bank":    "^NSEBANK",
+        "nifty_pharma":  "^CNXPHARMA",
+        "nifty_auto":    "^CNXAUTO",
+        "nifty_psubank": "^CNXPSUBANK",
+        "nifty_metal":   "^CNXMETAL",
+        "nifty_realty":  "^CNXREALTY",
+        "nifty_fmcg":    "^CNXFMCG",
+        "india_vix":     "^INDIAVIX",
     }
-
-    levels = {}      # current close
-    prev   = {}      # previous close (for day change)
-
+    levels, prev = {}, {}
     for name, sym in indices.items():
         try:
-            hist = yf.Ticker(sym).history(period="5d", interval="1d")
-            if hist.empty:
-                print(f"   ⚠️  No data for {name}")
-                continue
-
-            # Get last two valid closes
-            closes = hist["Close"].dropna()
-            if len(closes) >= 1:
-                levels[name] = round(float(closes.iloc[-1]), 2)
-            if len(closes) >= 2:
-                prev[name]   = round(float(closes.iloc[-2]), 2)
-
+            closes = yf.Ticker(sym).history(period="5d", interval="1d")["Close"].dropna()
+            if len(closes) >= 1: levels[name] = round(float(closes.iloc[-1]), 2)
+            if len(closes) >= 2: prev[name]   = round(float(closes.iloc[-2]), 2)
             chg = levels.get(name,0) - prev.get(name,0)
             pct = chg / prev[name] * 100 if prev.get(name) else 0
-            print(f"   ✓ {name.upper():16s}: {levels[name]:>10,.2f}  "
-                  f"({'+'if chg>=0 else ''}{chg:,.2f}, {pct:+.2f}%)")
-
+            print(f"   ✓ {name.upper():16s}: {levels.get(name,0):>10,.2f}  ({pct:+.2f}%)")
         except Exception as e:
             print(f"   ⚠️  {name}: {e}")
 
-    # Save to index_levels table
     if levels:
         row = {"snapshot_date": TODAY_STR}
-        for key, val in levels.items():
-            if key != "india_vix":
-                row[key] = val
-        for key, val in prev.items():
-            if key != "india_vix":
-                row[f"{key}_prev"] = val
-        # india_vix goes into market_breadth table (already done)
-        # but store it in levels dict for other steps to use
-        levels["india_vix"] = levels.get("india_vix", None)
-
+        for k, v in levels.items():
+            if k != "india_vix": row[k] = v
+        for k, v in prev.items():
+            if k != "india_vix": row[f"{k}_prev"] = v
         try:
-            sb.table("index_levels").upsert(
-                row, on_conflict="snapshot_date"
-            ).execute()
-            print(f"   ✓ All index levels saved to Supabase for {TODAY_STR}")
+            sb.table("index_levels").upsert(row, on_conflict="snapshot_date").execute()
+            print(f"   ✓ Index levels saved for {TODAY_STR}")
         except Exception as e:
-            print(f"   ⚠️  Could not save index levels: {e}")
+            print(f"   ⚠️  Save failed: {e}")
 
     print()
     return levels
 
 
-# ════════════════════════════════════════════════════════════
-# STEP 3 — Save portfolio snapshot
-# ════════════════════════════════════════════════════════════
+# ════════════════════════════════════════════════════
+# STEP 3 — Save portfolio snapshot (EOD only)
+# ════════════════════════════════════════════════════
 def save_portfolio_snapshot(cmp_map, index_levels):
     print("💼 Step 3: Saving portfolio snapshot...")
+    trades = sb.table("open_trades").select("*").execute().data
 
-    trades     = sb.table("open_trades").select("*").execute().data
     prev_snaps = sb.table("portfolio_snapshots")\
-                   .select("total_capital,snapshot_date")\
-                   .order("snapshot_date", desc=True)\
-                   .limit(2).execute().data
+        .select("total_capital,snapshot_date")\
+        .order("snapshot_date", desc=True).limit(2).execute().data
 
-    # Use most recent total_capital (skip today's if already exists)
-    total_capital = 2500000  # ₹25L default
+    total_capital = 2500000
     for s in prev_snaps:
         if s["snapshot_date"] != TODAY_STR and s["total_capital"]:
-            total_capital = s["total_capital"]
-            break
+            total_capital = s["total_capital"]; break
 
     deployed       = sum(t["entry_price"] * t["quantity"] for t in trades)
-    unrealised_pnl = sum(
-        (t["cmp"] - t["entry_price"]) * t["quantity"]
-        for t in trades if t.get("cmp")
-    )
+    unrealised_pnl = sum((t["cmp"] - t["entry_price"]) * t["quantity"]
+                         for t in trades if t.get("cmp"))
     cash_available  = total_capital - deployed
     portfolio_value = deployed + unrealised_pnl + cash_available
 
-    # Cumulative return vs first snapshot
     first = sb.table("portfolio_snapshots")\
-               .select("portfolio_value,snapshot_date")\
-               .order("snapshot_date", desc=False)\
-               .limit(1).execute().data
+        .select("portfolio_value,snapshot_date")\
+        .order("snapshot_date", desc=False).limit(1).execute().data
 
+    cumulative_return = 0.0
     if first and first[0]["snapshot_date"] != TODAY_STR and first[0]["portfolio_value"]:
-        base_value          = first[0]["portfolio_value"]
-        cumulative_return   = round((portfolio_value - base_value) / base_value * 100, 2)
-    else:
-        cumulative_return   = 0.0
+        base = first[0]["portfolio_value"]
+        if base > 0: cumulative_return = round((portfolio_value - base) / base * 100, 2)
 
-    snapshot = {
+    snap = {
         "snapshot_date":         TODAY_STR,
         "total_capital":         round(total_capital, 2),
         "deployed":              round(deployed, 2),
@@ -333,186 +238,244 @@ def save_portfolio_snapshot(cmp_map, index_levels):
         "nifty500_level":        index_levels.get("nifty500"),
         "cumulative_return_pct": cumulative_return,
     }
+    sb.table("portfolio_snapshots").upsert(snap, on_conflict="snapshot_date").execute()
 
-    sb.table("portfolio_snapshots").upsert(
-        snapshot, on_conflict="snapshot_date"
-    ).execute()
-
-    print(f"   ✓ Total Capital:     ₹{total_capital:>12,.0f}")
-    print(f"   ✓ Deployed:          ₹{deployed:>12,.0f}")
-    print(f"   ✓ Unrealised P&L:  {'+'if unrealised_pnl>=0 else ''}₹{unrealised_pnl:>11,.0f}")
-    print(f"   ✓ Cash Available:    ₹{cash_available:>12,.0f}")
-    print(f"   ✓ Portfolio Value:   ₹{portfolio_value:>12,.0f}")
-    print(f"   ✓ Cumulative Return: {cumulative_return:>+.2f}%")
+    print(f"   ✓ Total Capital:    ₹{total_capital:>12,.0f}")
+    print(f"   ✓ Deployed:         ₹{deployed:>12,.0f}")
+    print(f"   ✓ Unrealised P&L: {'+'if unrealised_pnl>=0 else ''}₹{unrealised_pnl:>11,.0f}")
+    print(f"   ✓ Portfolio Value:  ₹{portfolio_value:>12,.0f}")
+    print(f"   ✓ Return: {cumulative_return:+.2f}%")
     print(f"   Snapshot saved for {TODAY_STR}.\n")
 
 
-# ════════════════════════════════════════════════════════════
-# STEP 4 — Calculate market breadth on full Nifty 500
-# ════════════════════════════════════════════════════════════
+# ════════════════════════════════════════════════════
+# STEP 4 — Market breadth (EOD only)
+# ════════════════════════════════════════════════════
 def calculate_market_breadth(symbols, index_levels):
-    print(f"📡 Step 4: Calculating market breadth on {len(symbols)} Nifty 500 stocks...")
-    print(f"   This will take 3–5 minutes. Fetching in batches...\n")
+    print(f"📡 Step 4: Market breadth on {len(symbols)} stocks...")
+    above_21=above_50=above_200=advancing=declining=new_high=new_low=processed=0
+    BATCH = 20
 
-    above_21    = 0
-    above_50    = 0
-    above_200   = 0
-    advancing   = 0
-    declining   = 0
-    new_52w_high = 0
-    new_52w_low  = 0
-    processed   = 0
-    failed      = 0
-
-    # Process in batches of 20 to avoid rate limits
-    BATCH_SIZE = 20
-
-    for batch_start in range(0, len(symbols), BATCH_SIZE):
-        batch = symbols[batch_start : batch_start + BATCH_SIZE]
-        batch_num = batch_start // BATCH_SIZE + 1
-        total_batches = (len(symbols) + BATCH_SIZE - 1) // BATCH_SIZE
-
-        print(f"   Batch {batch_num}/{total_batches}: "
-              f"{', '.join(batch[:5])}{'...' if len(batch)>5 else ''}")
-
-        # Fetch all tickers in the batch at once using yfinance download
-        ticker_list = " ".join(f"{s}.NS" for s in batch)
-
+    for i in range(0, len(symbols), BATCH):
+        batch = symbols[i:i+BATCH]
+        bn = i//BATCH+1; total_b = (len(symbols)+BATCH-1)//BATCH
+        print(f"   Batch {bn}/{total_b}: {', '.join(batch[:4])}{'...' if len(batch)>4 else ''}")
+        tickers = " ".join(f"{s}.NS" for s in batch)
         try:
-            # Download 1 year of daily data for the entire batch at once
-            data = yf.download(
-                ticker_list,
-                period="1y",
-                interval="1d",
-                group_by="ticker",
-                auto_adjust=True,
-                progress=False,
-                threads=True,
-            )
-
-            for symbol in batch:
-                ticker_sym = f"{symbol}.NS"
+            data = yf.download(tickers, period="1y", interval="1d",
+                group_by="ticker", auto_adjust=True, progress=False, threads=True)
+            for sym in batch:
+                t = f"{sym}.NS"
                 try:
-                    # Extract close prices for this ticker
-                    if len(batch) == 1:
-                        close = data["Close"]
-                    else:
-                        if ticker_sym not in data.columns.get_level_values(0):
-                            failed += 1
-                            continue
-                        close = data[ticker_sym]["Close"]
-
-                    close = close.dropna()
-                    if len(close) < 21:
-                        failed += 1
-                        continue
-
-                    latest = float(close.iloc[-1])
-                    prev   = float(close.iloc[-2]) if len(close) >= 2 else latest
-
-                    # EMAs
-                    ema21  = float(close.ewm(span=21,  adjust=False).mean().iloc[-1])
-                    ema50  = float(close.ewm(span=50,  adjust=False).mean().iloc[-1]) if len(close) >= 50 else None
-                    ema200 = float(close.ewm(span=200, adjust=False).mean().iloc[-1]) if len(close) >= 200 else None
-
-                    if latest > ema21:  above_21  += 1
-                    if ema50  and latest > ema50:  above_50  += 1
-                    if ema200 and latest > ema200: above_200 += 1
-
-                    # Advance / Decline
-                    if latest > prev * 1.001:  advancing += 1
-                    elif latest < prev * 0.999: declining += 1
-
-                    # 52-week high / low (within 0.5% counts)
-                    high_52w = float(close.max())
-                    low_52w  = float(close.min())
-                    if latest >= high_52w * 0.995: new_52w_high += 1
-                    if latest <= low_52w  * 1.005: new_52w_low  += 1
-
+                    close = data[t]["Close"].dropna() if len(batch)>1 else data["Close"].dropna()
+                    if len(close) < 21: continue
+                    last = float(close.iloc[-1])
+                    prev = float(close.iloc[-2]) if len(close)>=2 else last
+                    e21  = float(close.ewm(span=21, adjust=False).mean().iloc[-1])
+                    e50  = float(close.ewm(span=50, adjust=False).mean().iloc[-1]) if len(close)>=50 else None
+                    e200 = float(close.ewm(span=200,adjust=False).mean().iloc[-1]) if len(close)>=200 else None
+                    if last > e21:  above_21  += 1
+                    if e50  and last > e50:  above_50  += 1
+                    if e200 and last > e200: above_200 += 1
+                    if last > prev*1.001:  advancing += 1
+                    elif last < prev*0.999: declining += 1
+                    hi52 = float(close.max()); lo52 = float(close.min())
+                    if last >= hi52*0.995: new_high += 1
+                    if last <= lo52*1.005: new_low  += 1
                     processed += 1
-
-                except Exception:
-                    failed += 1
-                    continue
-
+                except: continue
         except Exception as e:
-            print(f"   ⚠️  Batch error: {e}")
-            failed += len(batch)
-            continue
-
-        # Small pause between batches to be polite to yfinance
-        if batch_start + BATCH_SIZE < len(symbols):
-            time.sleep(1)
+            print(f"   ⚠️  Batch error: {e}"); continue
+        if i+BATCH < len(symbols): time.sleep(1)
 
     if processed == 0:
-        print("   ⚠️  Could not process any stocks. Skipping breadth update.\n")
-        return
+        print("   ⚠️  No stocks processed.\n"); return
 
-    # Calculate percentages
-    pct_21  = round(above_21  / processed * 100, 2)
-    pct_50  = round(above_50  / processed * 100, 2)
-    pct_200 = round(above_200 / processed * 100, 2)
+    p21  = round(above_21/processed*100, 2)
+    p50  = round(above_50/processed*100, 2)
+    p200 = round(above_200/processed*100, 2)
 
-    print(f"\n   ── Nifty 500 Breadth Results ──────────────────")
-    print(f"   Processed:        {processed} stocks ({failed} failed/skipped)")
-    print(f"   Above 21  EMA:    {pct_21}%  ({above_21} stocks)")
-    print(f"   Above 50  EMA:    {pct_50}%  ({above_50} stocks)")
-    print(f"   Above 200 EMA:    {pct_200}% ({above_200} stocks)")
-    print(f"   Advancing:        {advancing} stocks")
-    print(f"   Declining:        {declining} stocks")
-    print(f"   A/D Ratio:        {advancing/max(declining,1):.2f}")
-    print(f"   New 52W Highs:    {new_52w_high}")
-    print(f"   New 52W Lows:     {new_52w_low}")
-    print(f"   ──────────────────────────────────────────────")
+    print(f"\n   ── Nifty 500 Breadth ────────────────")
+    print(f"   Processed:      {processed} stocks")
+    print(f"   Above 21  EMA:  {p21}%  ({above_21})")
+    print(f"   Above 50  EMA:  {p50}%  ({above_50})")
+    print(f"   Above 200 EMA:  {p200}% ({above_200})")
+    print(f"   Advancing:      {advancing} | Declining: {declining}")
+    print(f"   A/D Ratio:      {advancing/max(declining,1):.2f}")
+    print(f"   52W Highs:      {new_high} | 52W Lows: {new_low}")
 
-    breadth = {
+    sb.table("market_breadth").upsert({
         "snapshot_date":       TODAY_STR,
-        "pct_above_21ema":     pct_21,
-        "pct_above_50ema":     pct_50,
-        "pct_above_200ema":    pct_200,
+        "pct_above_21ema":     p21,
+        "pct_above_50ema":     p50,
+        "pct_above_200ema":    p200,
         "total_stocks":        processed,
         "above_21ema_count":   above_21,
         "above_50ema_count":   above_50,
         "above_200ema_count":  above_200,
         "advancing":           advancing,
         "declining":           declining,
-        "new_52w_highs":       new_52w_high,
-        "new_52w_lows":        new_52w_low,
+        "new_52w_highs":       new_high,
+        "new_52w_lows":        new_low,
         "nifty50_close":       index_levels.get("nifty50"),
         "india_vix":           index_levels.get("india_vix"),
+    }, on_conflict="snapshot_date").execute()
+
+    print(f"   Breadth saved for {TODAY_STR}.\n")
+
+
+# ════════════════════════════════════════════════════
+# STEP 5 — FII/DII Activity (7:30 PM run only)
+# ════════════════════════════════════════════════════
+def fetch_fii_dii():
+    print("🏦 Step 5: Fetching FII/DII activity from NSE...")
+
+    # NSE publishes provisional FII/DII data daily after market close
+    # Official source: NSE India — FII/DII activity report
+    url = "https://www.nseindia.com/api/fiidiiTradeReact"
+    headers = {
+        "User-Agent":      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+        "Accept":          "application/json, text/plain, */*",
+        "Accept-Language": "en-US,en;q=0.9",
+        "Referer":         "https://www.nseindia.com/market-data/fii-dii-trade-history",
+        "X-Requested-With":"XMLHttpRequest",
     }
 
-    sb.table("market_breadth").upsert(
-        breadth, on_conflict="snapshot_date"
-    ).execute()
+    try:
+        # NSE requires a session cookie — get it first
+        session = requests.Session()
+        session.get("https://www.nseindia.com", headers=headers, timeout=15)
+        time.sleep(2)
 
-    print(f"   Market breadth saved for {TODAY_STR}.\n")
+        r = session.get(url, headers=headers, timeout=20)
+        r.raise_for_status()
+        data = r.json()
+
+        if not data or not isinstance(data, list):
+            raise ValueError("Unexpected response format")
+
+        # Most recent entry (index 0 = today or most recent trading day)
+        latest = data[0]
+
+        # NSE field names
+        date_str     = latest.get("date", TODAY_STR)
+        fii_buy      = float(latest.get("fiiBuy",  0) or 0)
+        fii_sell     = float(latest.get("fiiSell", 0) or 0)
+        dii_buy      = float(latest.get("diiBuy",  0) or 0)
+        dii_sell     = float(latest.get("diiSell", 0) or 0)
+        fii_net      = round(fii_buy - fii_sell, 2)
+        dii_net      = round(dii_buy - dii_sell, 2)
+
+        # Parse date
+        try:
+            activity_date = datetime.strptime(date_str, "%d-%b-%Y").strftime("%Y-%m-%d")
+        except:
+            activity_date = TODAY_STR
+
+        print(f"   Date:     {activity_date}")
+        print(f"   FII Net:  {'+'if fii_net>=0 else ''}₹{fii_net:,.2f} Cr  "
+              f"(Buy: ₹{fii_buy:,.2f} | Sell: ₹{fii_sell:,.2f})")
+        print(f"   DII Net:  {'+'if dii_net>=0 else ''}₹{dii_net:,.2f} Cr  "
+              f"(Buy: ₹{dii_buy:,.2f} | Sell: ₹{dii_sell:,.2f})")
+
+        # Get Nifty close for context
+        nifty_close = None
+        try:
+            closes = yf.Ticker("^NSEI").history(period="2d")["Close"].dropna()
+            if not closes.empty: nifty_close = round(float(closes.iloc[-1]), 2)
+        except: pass
+
+        sb.table("fii_dii_activity").upsert({
+            "activity_date": activity_date,
+            "fii_cash_net":  fii_net,
+            "fii_cash_buy":  fii_buy,
+            "fii_cash_sell": fii_sell,
+            "dii_cash_net":  dii_net,
+            "dii_cash_buy":  dii_buy,
+            "dii_cash_sell": dii_sell,
+            "nifty_close":   nifty_close,
+            "source":        "NSE",
+            "updated_at":    datetime.now(IST).isoformat(),
+        }, on_conflict="activity_date").execute()
+
+        print(f"   ✓ FII/DII data saved for {activity_date}.\n")
+
+    except Exception as e:
+        print(f"   ⚠️  NSE API failed: {e}")
+        print(f"   Trying alternative source (StockEdge / BSE)...\n")
+        fetch_fii_dii_fallback()
 
 
-# ════════════════════════════════════════════════════════════
-# MAIN
-# ════════════════════════════════════════════════════════════
+def fetch_fii_dii_fallback():
+    """
+    Fallback: fetch FII/DII from BSE India which has a more stable API.
+    """
+    try:
+        url = "https://api.bseindia.com/BseIndiaAPI/api/FIIDIIData/w"
+        headers = {
+            "User-Agent": "Mozilla/5.0",
+            "Referer":    "https://www.bseindia.com/",
+        }
+        r = requests.get(url, headers=headers, timeout=15)
+        r.raise_for_status()
+        data = r.json()
+
+        if not data: raise ValueError("Empty BSE response")
+
+        # BSE format varies — try to extract first row
+        row = data[0] if isinstance(data, list) else data
+        fii_net = float(row.get("FII", row.get("fiiNet", 0)) or 0)
+        dii_net = float(row.get("DII", row.get("diiNet", 0)) or 0)
+
+        print(f"   ✓ FII Net (BSE): ₹{fii_net:,.2f} Cr")
+        print(f"   ✓ DII Net (BSE): ₹{dii_net:,.2f} Cr")
+
+        sb.table("fii_dii_activity").upsert({
+            "activity_date": TODAY_STR,
+            "fii_cash_net":  fii_net,
+            "dii_cash_net":  dii_net,
+            "source":        "BSE",
+            "updated_at":    datetime.now(IST).isoformat(),
+        }, on_conflict="activity_date").execute()
+
+        print(f"   ✓ FII/DII saved from BSE fallback.\n")
+
+    except Exception as e2:
+        print(f"   ⚠️  Both NSE and BSE failed: {e2}")
+        print(f"   FII/DII will need manual entry for today.\n")
+
+
+# ════════════════════════════════════════════════════
+# MAIN — Smart dispatch based on RUN_MODE
+# ════════════════════════════════════════════════════
 if __name__ == "__main__":
     try:
-        # Fetch Nifty 500 list first
-        nifty500_symbols = fetch_nifty500_symbols()
-        print()
+        if RUN_MODE == "intraday":
+            # Quick update — CMP + index levels only
+            print("⚡ INTRADAY MODE — CMP + Index Levels only\n")
+            fetch_cmp_for_open_trades()
+            fetch_index_levels()
 
-        # Run all steps
-        cmp_map      = fetch_cmp_for_open_trades()
-        index_levels = fetch_index_levels()
-        save_portfolio_snapshot(cmp_map, index_levels)
-        calculate_market_breadth(nifty500_symbols, index_levels)
+        elif RUN_MODE == "fii_dii":
+            # FII/DII fetch only
+            print("🏦 FII/DII MODE — Fetching institutional flow data\n")
+            fetch_fii_dii()
 
-        print("=" * 58)
-        print("✅ Pipeline complete!")
-        print(f"   Date: {TODAY_STR}")
-        print(f"   Time: {datetime.now(IST).strftime('%I:%M %p IST')}")
-        print(f"   Universe: {len(nifty500_symbols)} Nifty 500 stocks")
-        print("=" * 58 + "\n")
+        else:
+            # Full EOD run
+            print("🌙 FULL EOD MODE — All steps\n")
+            symbols = fetch_nifty500_symbols()
+            fetch_cmp_for_open_trades()
+            index_levels = fetch_index_levels()
+            save_portfolio_snapshot({}, index_levels)
+            calculate_market_breadth(symbols, index_levels)
+
+        print("="*58)
+        print(f"✅ {RUN_MODE.upper()} complete!")
+        print(f"   {NOW_IST.strftime('%d %b %Y · %I:%M %p IST')}")
+        print("="*58 + "\n")
 
     except Exception as e:
         print(f"\n❌ Pipeline failed: {e}")
-        import traceback
-        traceback.print_exc()
+        import traceback; traceback.print_exc()
         sys.exit(1)
