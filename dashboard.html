@@ -939,15 +939,18 @@ canvas.tc{display:block;width:100%;height:100%}
   <!-- ── Row 5: Monthly % Change in Indices ── -->
   <div class="card">
     <div class="ch">
-      <span class="ct">Monthly % Change in Key Indices · MTD</span>
+      <span class="ct">Key Indices — Live Prices &amp; Day Change</span>
       <div class="ch-r"><span class="chip" id="idx-chip">—</span></div>
     </div>
     <table class="idx-table">
       <thead><tr>
-        <th>Index</th><th class="r">Level</th>
-        <th class="r">MTD Chg</th><th class="r">MTD %</th>
-        <th class="r">1M High</th><th class="r">1M Low</th>
-        <th class="r" style="width:110px">Bar</th>
+        <th>Index</th>
+        <th class="r">Level</th>
+        <th class="r">Day Chg</th>
+        <th class="r">Day %</th>
+        <th class="r">52W High</th>
+        <th class="r">52W Low</th>
+        <th class="r" style="width:120px">Bar</th>
       </tr></thead>
       <tbody id="idx-tbody"></tbody>
     </table>
@@ -2091,43 +2094,117 @@ const monthlyG=[
     </div>`).join('');
 })();
 
-/* ── Monthly % Change in Indices ── */
-const idxData=[
-  {name:'NIFTY 50',sub:'Large Cap',lvl:'24,612',chg:'+312',pct:1.28,hi:'24,890',lo:'23,680',pos:true},
-  {name:'SENSEX',sub:'BSE Large Cap',lvl:'81,450',chg:'+980',pct:1.22,hi:'82,100',lo:'78,200',pos:true},
-  {name:'NIFTY 500',sub:'Broad Market',lvl:'22,840',chg:'+860',pct:3.91,hi:'23,100',lo:'21,200',pos:true},
-  {name:'NIFTY MIDCAP 150',sub:'Mid Cap',lvl:'17,891',chg:'+580',pct:3.35,hi:'18,200',lo:'16,800',pos:true},
-  {name:'NIFTY SMALLCAP 250',sub:'Small Cap',lvl:'14,220',chg:'+180',pct:1.28,hi:'14,500',lo:'13,600',pos:true},
-  {name:'NIFTY IT',sub:'Information Tech',lvl:'39,880',chg:'+1,840',pct:4.84,hi:'40,200',lo:'36,800',pos:true},
-  {name:'NIFTY BANK',sub:'Banking',lvl:'52,340',chg:'-196',pct:-0.37,hi:'53,800',lo:'51,200',pos:false},
-  {name:'NIFTY PHARMA',sub:'Pharmaceuticals',lvl:'18,340',chg:'+320',pct:1.78,hi:'18,600',lo:'17,400',pos:true},
-  {name:'NIFTY AUTO',sub:'Automobiles',lvl:'22,140',chg:'+240',pct:1.09,hi:'22,800',lo:'21,200',pos:true},
-  {name:'NIFTY PSU BANK',sub:'PSU Banking',lvl:'6,142',chg:'-182',pct:-2.88,hi:'6,580',lo:'5,960',pos:false},
-  {name:'NIFTY METAL',sub:'Metals & Mining',lvl:'8,640',chg:'-380',pct:-4.21,hi:'9,200',lo:'8,480',pos:false},
-  {name:'NIFTY REALTY',sub:'Real Estate',lvl:'1,124',chg:'+28',pct:2.56,hi:'1,160',lo:'1,060',pos:true},
+/* ── Monthly % Change in Indices — LIVE ── */
+const IDX_SYMBOLS = [
+  { name:'NIFTY 50',        sub:'Large Cap',        sym:'^NSEI'       },
+  { name:'SENSEX',          sub:'BSE Large Cap',     sym:'^BSESN'      },
+  { name:'NIFTY 500',       sub:'Broad Market',      sym:'^CRSLDX'     },
+  { name:'NIFTY MIDCAP 150',sub:'Mid Cap',           sym:'^NSEMDCP50'  },
+  { name:'NIFTY IT',        sub:'Information Tech',  sym:'^CNXIT'      },
+  { name:'NIFTY BANK',      sub:'Banking',           sym:'^NSEBANK'    },
+  { name:'NIFTY PHARMA',    sub:'Pharmaceuticals',   sym:'^CNXPHARMA'  },
+  { name:'NIFTY AUTO',      sub:'Automobiles',       sym:'^CNXAUTO'    },
+  { name:'NIFTY PSU BANK',  sub:'PSU Banking',       sym:'^CNXPSUBANK' },
+  { name:'NIFTY METAL',     sub:'Metals & Mining',   sym:'^CNXMETAL'   },
+  { name:'NIFTY REALTY',    sub:'Real Estate',       sym:'^CNXREALTY'  },
+  { name:'NIFTY FMCG',      sub:'FMCG',              sym:'^CNXFMCG'    },
 ];
-(function buildIdxTable(){
-  const tb=document.getElementById('idx-tbody');if(!tb)return;
-  const maxAbsPct=Math.max(...idxData.map(d=>Math.abs(d.pct)));
-  tb.innerHTML=idxData.map(d=>{
-    const barW=Math.round((Math.abs(d.pct)/maxAbsPct)*76);
-    const barCol=d.pos?'linear-gradient(90deg,#1ab880,var(--green))':'linear-gradient(90deg,var(--red),#c03050)';
-    return`<tr>
-      <td><div class="idx-name">${d.name}</div><div class="idx-sub2">${d.sub}</div></td>
-      <td class="r" style="font-weight:700;color:var(--white);font-family:var(--fm)">${d.lvl}</td>
-      <td class="r" style="font-family:var(--fm)"><span style="color:${d.pos?'var(--green)':'var(--red)'};font-weight:600">${d.chg>0?'+':''}${d.chg}</span></td>
-      <td class="r"><span class="idx-pct ${d.pos?'g':'r'}">${d.pos?'+':''}${d.pct}%</span></td>
-      <td class="r" style="color:var(--green);font-family:var(--fm)">${d.hi}</td>
-      <td class="r" style="color:var(--red);font-family:var(--fm)">${d.lo}</td>
-      <td class="r">
-        <div class="idx-bar">
-          <div class="idx-track"><div class="idx-fill" style="width:${barW}%;background:${barCol}"></div></div>
-          <span style="font-size:10px;color:${d.pos?'var(--green)':'var(--red)'};font-family:var(--fm);font-weight:700;width:36px;text-align:right">${d.pos?'+':''}${d.pct}%</span>
-        </div>
-      </td>
-    </tr>`;
-  }).join('');
-})();
+
+async function buildIdxTableLive() {
+  const tb = document.getElementById('idx-tbody');
+  if(!tb) return;
+
+  // Show loading state
+  tb.innerHTML = `<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:20px;font-size:12px">
+    Fetching live index data...</td></tr>`;
+
+  try {
+    const syms = IDX_SYMBOLS.map(s => s.sym).join(',');
+    const url  = `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${encodeURIComponent(syms)}&fields=regularMarketPrice,regularMarketChangePercent,regularMarketChange,fiftyTwoWeekHigh,fiftyTwoWeekLow&corsDomain=finance.yahoo.com`;
+
+    const res  = await fetch(url);
+    if(!res.ok) throw new Error('HTTP ' + res.status);
+    const json = await res.json();
+    const quotes = json?.quoteResponse?.result || [];
+
+    // Map by symbol
+    const qMap = {};
+    quotes.forEach(q => { qMap[q.symbol] = q; });
+
+    const rows = IDX_SYMBOLS.map(item => {
+      const q = qMap[item.sym];
+      if(!q || !q.regularMarketPrice) return null;
+
+      const price   = q.regularMarketPrice;
+      const chgAmt  = q.regularMarketChange || 0;
+      const chgPct  = q.regularMarketChangePercent || 0;
+      const hi52    = q.fiftyTwoWeekHigh;
+      const lo52    = q.fiftyTwoWeekLow;
+      const pos     = chgPct >= 0;
+
+      const fmtNum  = (n) => n ? n.toLocaleString('en-IN', {maximumFractionDigits:0}) : '—';
+      const fmtChg  = (n) => (n >= 0 ? '+' : '') + n.toLocaleString('en-IN', {maximumFractionDigits:0});
+      const fmtPct  = (n) => (n >= 0 ? '+' : '') + Math.abs(n).toFixed(2) + '%';
+
+      return {
+        name: item.name, sub: item.sub,
+        lvl:  fmtNum(price),
+        chg:  fmtChg(chgAmt),
+        pct:  chgPct,
+        pctStr: fmtPct(chgPct),
+        hi:   fmtNum(hi52),
+        lo:   fmtNum(lo52),
+        pos,
+      };
+    }).filter(Boolean);
+
+    if(rows.length === 0) throw new Error('No data returned');
+
+    const maxAbsPct = Math.max(...rows.map(d => Math.abs(d.pct)), 1);
+
+    tb.innerHTML = rows.map(d => {
+      const barW   = Math.round((Math.abs(d.pct) / maxAbsPct) * 76);
+      const barCol = d.pos
+        ? 'linear-gradient(90deg,#1ab880,var(--green))'
+        : 'linear-gradient(90deg,var(--red),#c03050)';
+      const col    = d.pos ? 'var(--green)' : 'var(--red)';
+      return `<tr>
+        <td><div class="idx-name">${d.name}</div><div class="idx-sub2">${d.sub}</div></td>
+        <td class="r" style="font-weight:700;color:var(--white);font-family:var(--fm)">${d.lvl}</td>
+        <td class="r" style="font-family:var(--fm)">
+          <span style="color:${col};font-weight:600">${d.chg}</span>
+        </td>
+        <td class="r"><span class="idx-pct ${d.pos?'g':'r'}">${d.pctStr}</span></td>
+        <td class="r" style="color:var(--green);font-family:var(--fm)">${d.hi}</td>
+        <td class="r" style="color:var(--red);font-family:var(--fm)">${d.lo}</td>
+        <td class="r">
+          <div class="idx-bar">
+            <div class="idx-track">
+              <div class="idx-fill" style="width:${barW}%;background:${barCol}"></div>
+            </div>
+            <span style="font-size:10px;color:${col};font-family:var(--fm);
+              font-weight:700;width:40px;text-align:right">${d.pctStr}</span>
+          </div>
+        </td>
+      </tr>`;
+    }).join('');
+
+    // Update chip
+    const chip = document.getElementById('idx-chip');
+    if(chip) chip.textContent = `Live · ${new Date().toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'})}`;
+
+  } catch(err) {
+    console.warn('Index table fetch failed:', err.message);
+    tb.innerHTML = `<tr><td colspan="7" style="text-align:center;color:var(--muted);
+      padding:20px;font-size:12px">
+      Live data unavailable. Data will refresh on next load.<br>
+      <span style="font-size:10px">${err.message}</span>
+    </td></tr>`;
+  }
+}
+
+// Call immediately when page loads
+buildIdxTableLive();
 
 /* ═══════════════════════════════════════════════
    MARKET BREADTH — LIVE FROM SUPABASE
