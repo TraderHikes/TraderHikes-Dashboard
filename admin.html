@@ -952,6 +952,7 @@ async function initApp() {
   document.querySelectorAll('input[type="date"]').forEach(el => {
     if (!el.value) el.value = today;
   });
+  initPositionSizeCalc();
   await loadOpenTrades();
   await loadOpenTradesForSelect();
   await loadStudents();
@@ -1021,17 +1022,18 @@ function calcPositionSize() {
   }
 }
 
-// Attach listeners after DOM is ready
-document.addEventListener('DOMContentLoaded', () => {
+// Attach listeners — called from initApp after DOM is ready
+function initPositionSizeCalc() {
   ['nt-entry-price','nt-quantity','nt-sl','nt-capital'].forEach(id => {
     const el = document.getElementById(id);
     if(el) {
       el.addEventListener('input',  calcPositionSize);
       el.addEventListener('change', calcPositionSize);
-      el.addEventListener('keyup',  calcPositionSize);
     }
   });
-});
+}
+
+// Also keep oninput on elements as backup (belt + suspenders)
 
 // ════════════════════════════════════════════
 // PYRAMID (ADD ENTRY) FUNCTIONS
