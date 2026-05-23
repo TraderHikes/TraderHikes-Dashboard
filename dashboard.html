@@ -2052,40 +2052,114 @@ async function renderOpen(){
     const bars = gen(avgEntry * 0.97, 60, trend, 0.018);
     if(t.cmp && bars.length > 0) bars[bars.length-1].c = t.cmp;
 
+    // ── Calculated fields ──────────────────────────
+    const posValue    = avgEntry * remQty;                          // position value ₹
+    const reward      = t.cmp ? (t.cmp - avgEntry) : 0;           // unrealised gain per share
+    const riskPerSh   = avgEntry - t.sl_price;                     // risk per share
+    const rrRatio     = riskPerSh > 0 ? (reward / riskPerSh) : null; // R:R ratio
+    const fromInitial = t.avg_entry_price && t.entry_price && t.avg_entry_price !== t.entry_price
+      ? ((t.avg_entry_price - t.entry_price) / t.entry_price * 100)
+      : null;
+
     const el=document.createElement('div');
     el.className='trade-card';
     el.innerHTML=`
       <div class="chart-col"><canvas class="tc" id="oc_${t.id}" width="400" height="160"></canvas></div>
       <div class="info-col">
-        <div class="trade-top">
-          <div>
-            <div class="tnm">${t.company_name}</div>
-            <div class="tsc">NSE:${t.symbol} · ${t.sector||''}
-              ${t.has_pyramid ? ' · <span style="color:var(--blue-lt);font-size:10px;font-weight:700">PYRAMIDED</span>' : ''}
-              ${t.has_partial_exit ? ' · <span style="color:var(--amber);font-size:10px;font-weight:700">PARTIAL EXIT</span>' : ''}
+
+        <!-- ── Header row ── -->
+        <div class="trade-top" style="margin-bottom:10px">
+          <div style="flex:1">
+            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+              <div class="tnm">${t.company_name}</div>
+              <span class="badge ${bc}" style="font-size:10px">${badgeLabel}</span>
+              ${t.has_pyramid ? '<span style="background:rgba(92,111,251,.15);border:1px solid rgba(92,111,251,.3);color:var(--blue-lt);padding:2px 7px;border-radius:100px;font-size:9px;font-weight:700;letter-spacing:.5px">PYR</span>' : ''}
+              ${t.has_partial_exit ? '<span style="background:var(--amber-dim);border:1px solid var(--amber-bd);color:var(--amber);padding:2px 7px;border-radius:100px;font-size:9px;font-weight:700;letter-spacing:.5px">PARTIAL EXIT</span>' : ''}
             </div>
-            ${t.trade_notes ? `<div style="font-size:11px;color:var(--muted);margin-top:4px;font-style:italic">"${t.trade_notes}"</div>` : ''}
+            <div class="tsc" style="margin-top:3px">NSE:${t.symbol} · ${t.sector||'Capital Goods'}</div>
           </div>
-          <span class="badge ${bc}">${badgeLabel}</span>
+          <!-- Big return % top-right (Valvo style) -->
+          <div style="text-align:right;flex-shrink:0">
+            <div style="font-size:26px;font-weight:800;letter-spacing:-1px;color:${pct!==null?(pct>=0?'var(--green)':'var(--red)'):'var(--muted)'}">
+              ${pct!==null?(pct>=0?'+':'')+pct.toFixed(1)+'%':'—'}
+            </div>
+            <div style="font-size:10px;color:var(--muted);margin-top:1px">
+              ${fromInitial!==null ? `${fromInitial>=0?'+':''}${fromInitial.toFixed(1)}% from initial` : 'return on avg entry'}
+            </div>
+            <div style="font-size:11px;font-weight:700;color:${pnl!==null?(pnl>=0?'var(--green)':'var(--red)'):'var(--muted)'};margin-top:2px">
+              ${pnl!==null?(pnl>=0?'+':'')+'₹'+Math.abs(pnl).toLocaleString('en-IN',{maximumFractionDigits:0}):'—'}
+            </div>
+          </div>
         </div>
-        <div class="mgrid">
-          <div class="mg"><div class="mgl">Avg Entry ₹</div><div class="mgv">${Number(avgEntry).toLocaleString('en-IN')}</div></div>
-          <div class="mg"><div class="mgl">CMP ₹</div><div class="mgv ${t.cmp?(pp?'g':'r'):''}">${t.cmp?Number(t.cmp).toLocaleString('en-IN'):'—'}</div></div>
-          <div class="mg"><div class="mgl">Stop Loss ₹</div><div class="mgv r">${Number(t.sl_price).toLocaleString('en-IN')}</div></div>
-          <div class="mg"><div class="mgl">Rem Qty</div><div class="mgv">${remQty}<span style="color:var(--muted);font-size:10px"> /${t.total_quantity||t.quantity}</span></div></div>
-          <div class="mg"><div class="mgl">Notional P&L</div><div class="mgv ${pnl!==null?(pnl>=0?'g':'r'):''}">${pnl!==null?((pnl>=0?'+':'')+'₹'+Math.abs(pnl).toLocaleString('en-IN',{maximumFractionDigits:0})):'—'}</div></div>
-          <div class="mg"><div class="mgl">Return %</div><div class="mgv ${pct!==null?(pct>=0?'g':'r'):''}">${pct!==null?((pct>=0?'+':'')+pct.toFixed(1)+'%'):'—'}</div></div>
-          <div class="mg"><div class="mgl">Open Risk ₹</div><div class="mgv r">₹${Math.abs(risk).toLocaleString('en-IN',{maximumFractionDigits:0})}</div></div>
-          <div class="mg"><div class="mgl">Risk %</div><div class="mgv a">${riskPct.toFixed(1)}%</div></div>
-          ${t.position_size_pct ? `<div class="mg"><div class="mgl">Position Size</div><div class="mgv b">${t.position_size_pct}%</div></div>` : ''}
-          ${t.capital_at_entry ? `<div class="mg"><div class="mgl">Capital at Entry</div><div class="mgv" style="color:var(--muted)">₹${(t.capital_at_entry/100000).toFixed(1)}L</div></div>` : ''}
+
+        <!-- ── Teaching note ── -->
+        ${t.trade_notes ? `<div style="font-size:11px;color:var(--muted);margin-bottom:10px;font-style:italic;padding:6px 10px;background:rgba(255,255,255,.03);border-radius:6px;border-left:2px solid var(--bdr2)">"${t.trade_notes}"</div>` : ''}
+
+        <!-- ── Row 1: Entry / CMP / SL / Qty ── -->
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:8px">
+          <div style="background:var(--card3);border-radius:8px;padding:8px 10px">
+            <div style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin-bottom:3px">Avg Entry</div>
+            <div style="font-size:15px;font-weight:700;color:var(--white);font-family:var(--fm)">₹${Number(avgEntry).toLocaleString('en-IN')}</div>
+            ${t.entry_price && t.avg_entry_price && t.avg_entry_price !== t.entry_price
+              ? `<div style="font-size:9px;color:var(--muted);margin-top:1px">Init ₹${Number(t.entry_price).toLocaleString('en-IN')}</div>`
+              : ''}
+          </div>
+          <div style="background:var(--card3);border-radius:8px;padding:8px 10px">
+            <div style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin-bottom:3px">CMP</div>
+            <div style="font-size:15px;font-weight:700;font-family:var(--fm);color:${t.cmp?(pp?'var(--green)':'var(--red)'):'var(--muted)'}">
+              ${t.cmp?'₹'+Number(t.cmp).toLocaleString('en-IN'):'—'}
+            </div>
+          </div>
+          <div style="background:var(--card3);border-radius:8px;padding:8px 10px">
+            <div style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin-bottom:3px">Stop Loss</div>
+            <div style="font-size:15px;font-weight:700;color:var(--red);font-family:var(--fm)">₹${Number(t.sl_price).toLocaleString('en-IN')}</div>
+          </div>
+          <div style="background:var(--card3);border-radius:8px;padding:8px 10px">
+            <div style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin-bottom:3px">Qty (Rem/Total)</div>
+            <div style="font-size:15px;font-weight:700;color:var(--white);font-family:var(--fm)">
+              ${remQty}<span style="font-size:11px;color:var(--muted)">/${t.total_quantity||t.quantity}</span>
+            </div>
+          </div>
         </div>
+
+        <!-- ── Row 2: Pos Size / Pos Value / Open Risk / R:R ── -->
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:10px">
+          <div style="background:var(--card3);border-radius:8px;padding:8px 10px">
+            <div style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin-bottom:3px">Position Size</div>
+            <div style="font-size:15px;font-weight:700;color:var(--blue-lt);font-family:var(--fm)">
+              ${t.position_size_pct ? t.position_size_pct+'%' : (t.capital_at_entry ? (posValue/t.capital_at_entry*100).toFixed(1)+'%' : riskPct.toFixed(1)+'%')}
+            </div>
+            <div style="font-size:9px;color:var(--muted);margin-top:1px">of capital</div>
+          </div>
+          <div style="background:var(--card3);border-radius:8px;padding:8px 10px">
+            <div style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin-bottom:3px">Position Value</div>
+            <div style="font-size:15px;font-weight:700;color:var(--white);font-family:var(--fm)">
+              ₹${(posValue/100000).toFixed(2)}L
+            </div>
+            <div style="font-size:9px;color:var(--muted);margin-top:1px">${remQty} × ₹${Number(avgEntry).toLocaleString('en-IN')}</div>
+          </div>
+          <div style="background:var(--card3);border-radius:8px;padding:8px 10px">
+            <div style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin-bottom:3px">Open Risk</div>
+            <div style="font-size:15px;font-weight:700;color:var(--red);font-family:var(--fm)">₹${Math.abs(risk).toLocaleString('en-IN',{maximumFractionDigits:0})}</div>
+            <div style="font-size:9px;color:var(--muted);margin-top:1px">${riskPct.toFixed(1)}% of position</div>
+          </div>
+          <div style="background:var(--card3);border-radius:8px;padding:8px 10px">
+            <div style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin-bottom:3px">R : R Ratio</div>
+            <div style="font-size:15px;font-weight:700;font-family:var(--fm);color:${rrRatio!==null?(rrRatio>=2?'var(--green)':rrRatio>=1?'var(--amber)':'var(--red)'):'var(--muted)'}">
+              ${rrRatio!==null ? (rrRatio>=0?'+':'')+rrRatio.toFixed(2)+'R' : '—'}
+            </div>
+            <div style="font-size:9px;color:var(--muted);margin-top:1px">${rrRatio!==null&&rrRatio>=0?'reward / risk':'below entry'}</div>
+          </div>
+        </div>
+
+        <!-- ── Open Risk bar ── -->
         <div class="rrow">
           <span class="rlbl">Open Risk</span>
           <div class="rt"><div class="rf" style="width:${Math.min(riskPct*12,100)}%;background:${riskPct>6?'var(--red)':riskPct>4?'var(--amber)':'var(--green)'}"></div></div>
           <span style="font-size:11px;font-weight:700;font-family:var(--fm);color:${riskPct>6?'var(--red)':riskPct>4?'var(--amber)':'var(--green)'}">${riskPct.toFixed(1)}%</span>
         </div>
       </div>`;
+    c.appendChild(el);
     c.appendChild(el);
     requestAnimationFrame(()=>{
       const cv=document.getElementById('oc_'+t.id);
