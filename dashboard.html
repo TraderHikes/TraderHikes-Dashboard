@@ -1648,11 +1648,12 @@ async function renderTVChart(tradeId, symbol, entryPrice, slPrice, cmp, entryDat
     const partialExits   = partialRes.data || [];
 
     if(!candles || candles.length < 5) {
+      console.warn('No candles for', symbol, 'count:', candles?.length, 'err:', candleRes.error);
       container.innerHTML = `<div class="tv-loading" style="flex-direction:column;gap:6px">
         <div style="font-size:20px">📊</div>
-        <div style="font-size:11px;color:var(--white)">Run pipeline to load chart</div>
-        <div style="font-size:9px;color:var(--muted)">GitHub → Actions → Run workflow (full_eod)</div>
-        <div style="font-size:10px;color:var(--muted);opacity:.6">${symbol}</div>
+        <div style="font-size:11px;color:var(--white)">Chart data loading...</div>
+        <div style="font-size:9px;color:var(--muted)">Count: ${candles?.length||0} candles found for ${symbol}</div>
+        ${candleRes.error ? `<div style="font-size:9px;color:var(--red)">${JSON.stringify(candleRes.error)}</div>` : ''}
       </div>`;
       return;
     }
@@ -2397,23 +2398,23 @@ async function renderOpen(){
         <div class="tc-metrics">
           <div class="tc-met">
             <div class="tc-met-l">Position Size</div>
-            <div class="tc-met-v" style="color:var(--blue-lt)">${t.position_size_pct ? t.position_size_pct+'%' : (t.capital_at_entry ? (posValue/t.capital_at_entry*100).toFixed(1)+'%' : '—')}</div>
+            <div class="tc-met-v" style="color:var(--blue-lt);font-family:var(--fm)">${t.position_size_pct ? t.position_size_pct+'%' : (t.capital_at_entry ? (posValue/t.capital_at_entry*100).toFixed(1)+'%' : '—')}</div>
             <div style="font-size:8px;color:var(--white);margin-top:1px">\u20B9${(posValue/100000).toFixed(2)}L value</div>
           </div>
           <div class="tc-met">
             <div class="tc-met-l">Qty (Rem / Total)</div>
-            <div class="tc-met-v" style="color:#a78bfa">${remQty}<span style="color:#a78bfa;opacity:.7;font-size:9px"> /${t.total_quantity||t.quantity}</span></div>
+            <div class="tc-met-v" style="color:#a78bfa;font-family:var(--fm)">${remQty}<span style="color:#a78bfa;opacity:.7;font-size:9px"> /${t.total_quantity||t.quantity}</span></div>
             <div style="font-size:8px;color:var(--white);margin-top:1px">${t.entry_date}</div>
           </div>
           <div class="tc-met">
             <div class="tc-met-l">Open Risk</div>
-            <div class="tc-met-v" style="color:var(--red)">\u20B9${Math.abs(risk).toLocaleString('en-IN',{maximumFractionDigits:0})}</div>
+            <div class="tc-met-v" style="color:var(--red);font-family:var(--fm)">\u20B9${Math.abs(risk).toLocaleString('en-IN',{maximumFractionDigits:0})}</div>
             <div style="font-size:8px;color:var(--white);margin-top:1px">${riskPct.toFixed(1)}% of pos</div>
           </div>
           <div class="tc-met">
             <div class="tc-met-l">Notional P&L</div>
-            <div class="tc-met-v" style="color:${pnl!==null?(pnl>=0?'var(--green)':'var(--red)'):'var(--muted)'}">${pnl!==null?(pnl>=0?'+':''+'\u20B9'+Math.abs(pnl).toLocaleString('en-IN',{maximumFractionDigits:0})):'—'}</div>
-            <div style="font-size:8px;color:var(--white);margin-top:1px">${pct!==null?(pct>=0?'+':'')+pct.toFixed(2)+'% return':'—'}</div>
+            <div class="tc-met-v" style="color:${pnl!==null?(pnl>=0?'var(--green)':'var(--red)'):'var(--muted)'};font-family:var(--fm)">${pnl!==null?(pnl>=0?'+\u20B9':'\u20B9')+Math.abs(pnl).toLocaleString('en-IN',{maximumFractionDigits:0}):'—'}</div>
+            <div style="font-size:8px;color:var(--white);margin-top:1px;font-family:var(--fm)">${pct!==null?(pct>=0?'+':'')+pct.toFixed(2)+'% return':'—'}</div>
           </div>
         </div>
 
