@@ -449,18 +449,67 @@ def fetch_fii_dii_fallback():
 
 
 # ════════════════════════════════════════════════════
+# STEP 5b — Fetch OHLC candles for open trades
+# ════════════════════════════════════════════════════
+def fetch_candles_for_open_trades():
+    print("🕯️  Step 5b: Fetching OHLC candles for open trades...")
+
+    trades = sb.table("open_trades").select("id,symbol,entry_date").execute().data
+    if not trades:
+        print("   No open trades. Skipping.\n"); return
+
+    for t in trades:
+        sym = t["symbol"].upper().strip()
+        try:
+            # Fetch 180 days of daily OHLC — enough for any chart view
+            ticker = yf.Ticker(f"{sym}.NS")
+            hist   = ticker.history(period="180d", interval="1d", auto_adjust=True)
+
+            if hist.empty:
+                print(f"   ⚠️  No candle data for {sym}"); continue
+
+            rows = []
+            for dt, row in hist.iterrows():
+                date_str = dt.strftime("%Y-%m-%d")
+                rows.append({
+                    "symbol": sym,
+                    "date":   date_str,
+                    "open":   round(float(row["Open"]),  2),
+                    "high":   round(float(row["High"]),  2),
+                    "low":    round(float(row["Low"]),   2),
+                    "close":  round(float(row["Close"]), 2),
+                    "volume": int(row["Volume"]) if row["Volume"] else 0,
+                })
+
+            # Upsert all rows — update existing, insert new
+            # Supabase upsert in batches of 100
+            batch_size = 100
+            for i in range(0, len(rows), batch_size):
+                sb.table("trade_candles").upsert(
+                    rows[i:i+batch_size],
+                    on_conflict="symbol,date"
+                ).execute()
+
+            print(f"   ✓ {sym}: {len(rows)} candles saved "
+                  f"({rows[0]['date']} → {rows[-1]['date']})")
+
+        except Exception as e:
+            print(f"   ⚠️  {sym}: {e}")
+
+    print()
+
+
+# ════════════════════════════════════════════════════
 # MAIN — Smart dispatch based on RUN_MODE
 # ════════════════════════════════════════════════════
 if __name__ == "__main__":
     try:
         if RUN_MODE == "intraday":
-            # Quick update — CMP + index levels only
             print("⚡ INTRADAY MODE — CMP + Index Levels only\n")
             fetch_cmp_for_open_trades()
             fetch_index_levels()
 
         elif RUN_MODE == "fii_dii":
-            # FII/DII fetch only
             print("🏦 FII/DII MODE — Fetching institutional flow data\n")
             fetch_fii_dii()
 
@@ -472,6 +521,7 @@ if __name__ == "__main__":
             index_levels = fetch_index_levels()
             save_portfolio_snapshot({}, index_levels)
             calculate_market_breadth(symbols, index_levels)
+            fetch_candles_for_open_trades()   # ← new candle step
 
         print("="*58)
         print(f"✅ {RUN_MODE.upper()} complete!")
