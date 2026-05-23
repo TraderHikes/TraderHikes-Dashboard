@@ -1396,9 +1396,11 @@ async function loadPortfolioOverview() {
   const { data: openTrades } = await sb.from('open_trades').select('*');
   let totalDeployed=0, totalPnl=0, totalRisk=0;
   if(openTrades) openTrades.forEach(t => {
-    totalDeployed += t.entry_price * t.quantity;
-    if(t.cmp) totalPnl += (t.cmp - t.entry_price) * t.quantity;
-    totalRisk += Math.max(0, (t.entry_price - t.sl_price) * t.quantity);
+    const ae = t.avg_entry_price || t.entry_price;
+    const rq = t.remaining_qty   || t.quantity;
+    totalDeployed += ae * rq;
+    if(t.cmp) totalPnl += (t.cmp - ae) * rq;
+    totalRisk += Math.max(0, (ae - t.sl_price) * rq);
   });
 
   // 2. Latest portfolio snapshot
@@ -1472,7 +1474,7 @@ async function loadPortfolioOverview() {
     let html = '';
     if(openTrades && openTrades.length>0){
       html = openTrades.map((t,i)=>{
-        const pct = totalCapital>0?(t.entry_price*t.quantity/totalCapital*100).toFixed(1):0;
+        const ae2=t.avg_entry_price||t.entry_price,rq2=t.remaining_qty||t.quantity; const pct = totalCapital>0?(ae2*rq2/totalCapital*100).toFixed(1):0;
         return `<div class="alloc-item">
           <div class="alloc-dot" style="background:${colors[i%colors.length]}"></div>
           <div class="alloc-name">${t.company_name}</div>
@@ -1954,11 +1956,11 @@ async function renderOpen(){
     if(t.cmp) totalPnl += (t.cmp - t.entry_price) * t.quantity;
   });
 
-  const wins   = trades.filter(t=>t.cmp && t.cmp>t.entry_price);
-  const losses  = trades.filter(t=>t.cmp && t.cmp<t.entry_price);
-  const gainSum = wins.reduce((s,t)=>(s+(t.cmp-t.entry_price)*t.quantity),0);
-  const lossSum = losses.reduce((s,t)=>(s+(t.cmp-t.entry_price)*t.quantity),0);
-  const totalRisk = trades.reduce((s,t)=>(s+Math.max(0,(t.entry_price-t.sl_price)*t.quantity)),0);
+  const wins   = trades.filter(t=>t.cmp && t.cmp>(t.avg_entry_price||t.entry_price));
+  const losses  = trades.filter(t=>t.cmp && t.cmp<(t.avg_entry_price||t.entry_price));
+  const gainSum = wins.reduce((s,t)=>{const ae=t.avg_entry_price||t.entry_price,rq=t.remaining_qty||t.quantity;return s+(t.cmp-ae)*rq;},0);
+  const lossSum = losses.reduce((s,t)=>{const ae=t.avg_entry_price||t.entry_price,rq=t.remaining_qty||t.quantity;return s+(t.cmp-ae)*rq;},0);
+  const totalRisk = trades.reduce((s,t)=>{const ae=t.avg_entry_price||t.entry_price,rq=t.remaining_qty||t.quantity;return s+Math.max(0,(ae-t.sl_price)*rq);},0);
   const riskPct = totalDeployed>0?(totalRisk/totalDeployed*100).toFixed(1):0;
 
   // Update open pane heading + strip
@@ -2033,19 +2035,21 @@ async function renderOpen(){
 
   c.innerHTML='';
   trades.forEach(t=>{
-    const pp = t.cmp ? t.cmp > t.entry_price : false;
-    const pnl = t.cmp ? (t.cmp - t.entry_price) * t.quantity : null;
-    const pct = t.cmp ? ((t.cmp - t.entry_price) / t.entry_price * 100) : null;
-    const risk = (t.entry_price - t.sl_price) * t.quantity;
-    const riskPct = ((t.entry_price - t.sl_price) / t.entry_price * 100);
+    // Use avg_entry_price + remaining_qty if pyramided, else fall back to originals
+    const avgEntry = t.avg_entry_price || t.entry_price;
+    const remQty   = t.remaining_qty   || t.quantity;
+    const pp = t.cmp ? t.cmp > avgEntry : false;
+    const pnl = t.cmp ? (t.cmp - avgEntry) * remQty : null;
+    const pct = t.cmp ? ((t.cmp - avgEntry) / avgEntry * 100) : null;
+    const risk = (avgEntry - t.sl_price) * remQty;
+    const riskPct = ((avgEntry - t.sl_price) / avgEntry * 100);
     const badgeMap = { long:'bl', trail_sl:'bt', watch:'bw' };
     const bc = badgeMap[t.status] || 'bw';
     const badgeLabel = t.status.replace('_',' ').replace(/\b\w/g,c=>c.toUpperCase());
 
-    // Generate simulated bars based on entry price (until live API connected)
-    const trend = t.cmp && t.cmp > t.entry_price ? 0.004 : -0.002;
-    const bars = gen(t.entry_price * 0.97, 60, trend, 0.018);
-    // Set final bar close to CMP
+    // Generate simulated bars based on avg entry price
+    const trend = t.cmp && t.cmp > avgEntry ? 0.004 : -0.002;
+    const bars = gen(avgEntry * 0.97, 60, trend, 0.018);
     if(t.cmp && bars.length > 0) bars[bars.length-1].c = t.cmp;
 
     const el=document.createElement('div');
@@ -2056,20 +2060,25 @@ async function renderOpen(){
         <div class="trade-top">
           <div>
             <div class="tnm">${t.company_name}</div>
-            <div class="tsc">NSE:${t.symbol} · ${t.sector||''}</div>
+            <div class="tsc">NSE:${t.symbol} · ${t.sector||''}
+              ${t.has_pyramid ? ' · <span style="color:var(--blue-lt);font-size:10px;font-weight:700">PYRAMIDED</span>' : ''}
+              ${t.has_partial_exit ? ' · <span style="color:var(--amber);font-size:10px;font-weight:700">PARTIAL EXIT</span>' : ''}
+            </div>
             ${t.trade_notes ? `<div style="font-size:11px;color:var(--muted);margin-top:4px;font-style:italic">"${t.trade_notes}"</div>` : ''}
           </div>
           <span class="badge ${bc}">${badgeLabel}</span>
         </div>
         <div class="mgrid">
-          <div class="mg"><div class="mgl">Entry ₹</div><div class="mgv">${Number(t.entry_price).toLocaleString('en-IN')}</div></div>
+          <div class="mg"><div class="mgl">Avg Entry ₹</div><div class="mgv">${Number(avgEntry).toLocaleString('en-IN')}</div></div>
           <div class="mg"><div class="mgl">CMP ₹</div><div class="mgv ${t.cmp?(pp?'g':'r'):''}">${t.cmp?Number(t.cmp).toLocaleString('en-IN'):'—'}</div></div>
           <div class="mg"><div class="mgl">Stop Loss ₹</div><div class="mgv r">${Number(t.sl_price).toLocaleString('en-IN')}</div></div>
-          <div class="mg"><div class="mgl">Qty</div><div class="mgv">${t.quantity}</div></div>
+          <div class="mg"><div class="mgl">Rem Qty</div><div class="mgv">${remQty}<span style="color:var(--muted);font-size:10px"> /${t.total_quantity||t.quantity}</span></div></div>
           <div class="mg"><div class="mgl">Notional P&L</div><div class="mgv ${pnl!==null?(pnl>=0?'g':'r'):''}">${pnl!==null?((pnl>=0?'+':'')+'₹'+Math.abs(pnl).toLocaleString('en-IN',{maximumFractionDigits:0})):'—'}</div></div>
           <div class="mg"><div class="mgl">Return %</div><div class="mgv ${pct!==null?(pct>=0?'g':'r'):''}">${pct!==null?((pct>=0?'+':'')+pct.toFixed(1)+'%'):'—'}</div></div>
           <div class="mg"><div class="mgl">Open Risk ₹</div><div class="mgv r">₹${Math.abs(risk).toLocaleString('en-IN',{maximumFractionDigits:0})}</div></div>
           <div class="mg"><div class="mgl">Risk %</div><div class="mgv a">${riskPct.toFixed(1)}%</div></div>
+          ${t.position_size_pct ? `<div class="mg"><div class="mgl">Position Size</div><div class="mgv b">${t.position_size_pct}%</div></div>` : ''}
+          ${t.capital_at_entry ? `<div class="mg"><div class="mgl">Capital at Entry</div><div class="mgv" style="color:var(--muted)">₹${(t.capital_at_entry/100000).toFixed(1)}L</div></div>` : ''}
         </div>
         <div class="rrow">
           <span class="rlbl">Open Risk</span>
@@ -2083,7 +2092,7 @@ async function renderOpen(){
       if(cv){
         cv.width=cv.offsetWidth||400;
         cv.height=cv.offsetHeight||160;
-        drawOpen(cv,bars,45,t.entry_price,t.sl_price,t.cmp||t.entry_price);
+        drawOpen(cv,bars,45,avgEntry,t.sl_price,t.cmp||avgEntry);
       }
     });
   });
