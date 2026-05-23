@@ -9,6 +9,7 @@
 <title>Market Basecamp — TraderHikes</title>
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://unpkg.com/lightweight-charts@4.1.3/dist/lightweight-charts.standalone.production.js"></script>
 <style>
 :root {
   /* ── BACKGROUNDS (kept dark, slightly warmer) ── */
@@ -314,12 +315,12 @@ body{
 .hm-s3{background:linear-gradient(135deg,rgba(245,166,35,.08),rgba(245,166,35,.02));border-color:rgba(245,166,35,.14)}
 .hm-s2{background:linear-gradient(135deg,rgba(240,82,114,.07),rgba(240,82,114,.02));border-color:rgba(240,82,114,.12)}
 .hm-s1{background:linear-gradient(135deg,rgba(240,82,114,.14),rgba(240,82,114,.05));border-color:rgba(240,82,114,.24)}.hm-s1:hover{box-shadow:0 6px 24px rgba(240,82,114,.1)}
-.trade-card{display:grid;grid-template-columns:240px 1fr;border-bottom:1px solid var(--bdr);min-height:160px;transition:background .15s}
-.trade-card:last-child{border-bottom:none}
-.trade-card:hover{background:rgba(92,111,251,.02)}
-.chart-col{background:var(--bg2);border-right:1px solid var(--bdr);position:relative;overflow:hidden}
+.trade-card{display:flex;flex-direction:column;border:1px solid var(--bdr);border-radius:12px;overflow:hidden;margin-bottom:16px;background:var(--card)}
+.trade-card:hover{border-color:rgba(92,111,251,.25)}
+.chart-col{width:100%;height:240px;background:var(--card);position:relative;overflow:hidden;border-bottom:1px solid var(--bdr);flex-shrink:0}
+.tv-loading{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:11px;color:var(--muted);flex-direction:column;gap:8px}
 canvas.tc{display:block;width:100%;height:100%}
-.info-col{padding:16px 18px;display:flex;flex-direction:column;gap:10px}
+.info-col{padding:16px 20px;display:flex;flex-direction:column;gap:10px}
 .trade-top{display:flex;justify-content:space-between;align-items:flex-start}
 .tnm{font-size:16px;font-weight:800;color:var(--white);letter-spacing:-.3px}
 .tsc{font-size:10px;color:var(--muted);margin-top:2px;font-family:var(--fm)}
@@ -1598,9 +1599,206 @@ function buildMonthlyHeatmapLive(snaps,ytdReturn){
   if(rEl) rEl.textContent='FY '+(curY-1)+'–'+String(curY).slice(2);
 }
 
-/* ══════════════════════════════
-   PORTFOLIO CHART ENGINE
-══════════════════════════════ */
+/* ══════════════════════════════════════════════════
+   TRADINGVIEW LIGHTWEIGHT CHARTS — REAL CANDLESTICKS
+══════════════════════════════════════════════════ */
+const tvCharts = {}; // store chart instances to avoid re-render
+
+async function renderTVChart(tradeId, symbol, entryPrice, slPrice, cmp) {
+  const container = document.getElementById('chart_' + tradeId);
+  if(!container) return;
+
+  // Don't re-render if already done
+  if(tvCharts[tradeId]) return;
+
+  try {
+    // Fetch candle data from Supabase
+    const { data: candles, error } = await sb
+      .from('trade_candles')
+      .select('date,open,high,low,close,volume')
+      .eq('symbol', symbol)
+      .order('date', { ascending: true })
+      .limit(180);
+
+    if(error || !candles || candles.length < 5) {
+      // Fallback: show simulated data notice
+      container.innerHTML = `<div class="tv-loading" style="flex-direction:column;gap:6px">
+        <div style="font-size:20px">📊</div>
+        <div style="font-size:11px;color:var(--muted)">Chart data loads after 4:30 PM pipeline</div>
+        <div style="font-size:10px;color:var(--muted);opacity:.6">${symbol}</div>
+      </div>`;
+      return;
+    }
+
+    // Clear loading state
+    container.innerHTML = '';
+
+    // ── Create TradingView chart ────────────────────
+    const chart = LightweightCharts.createChart(container, {
+      width:  container.offsetWidth  || 800,
+      height: container.offsetHeight || 240,
+      layout: {
+        background: { type: 'solid', color: '#0e1528' },
+        textColor:  '#6478a0',
+        fontSize:   11,
+        fontFamily: "'DM Mono', monospace",
+      },
+      grid: {
+        vertLines:  { color: 'rgba(255,255,255,.04)', style: 1 },
+        horzLines:  { color: 'rgba(255,255,255,.04)', style: 1 },
+      },
+      crosshair: {
+        mode: LightweightCharts.CrosshairMode.Normal,
+        vertLine: { color: 'rgba(255,255,255,.25)', width: 1, style: 1, labelBackgroundColor: '#1a2540' },
+        horzLine: { color: 'rgba(255,255,255,.25)', width: 1, style: 1, labelBackgroundColor: '#1a2540' },
+      },
+      rightPriceScale: {
+        borderColor: 'rgba(255,255,255,.08)',
+        textColor:   '#6478a0',
+        scaleMargins: { top: 0.08, bottom: 0.12 },
+      },
+      timeScale: {
+        borderColor:     'rgba(255,255,255,.08)',
+        timeVisible:     true,
+        secondsVisible:  false,
+        barSpacing:      8,
+        rightOffset:     5,
+        fixLeftEdge:     true,
+        tickMarkFormatter: (time) => {
+          const d = new Date(time * 1000);
+          const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+          return `${d.getDate()} ${months[d.getMonth()]}`;
+        },
+      },
+      handleScale:  { mouseWheel: false, pinch: false },
+      handleScroll: { mouseWheel: false, pressedMouseMove: false },
+    });
+
+    // ── Candlestick series ─────────────────────────
+    const candleSeries = chart.addCandlestickSeries({
+      upColor:          '#2ed8a0',
+      downColor:        '#ff5d7a',
+      borderUpColor:    '#2ed8a0',
+      borderDownColor:  '#ff5d7a',
+      wickUpColor:      'rgba(46,216,160,.6)',
+      wickDownColor:    'rgba(255,93,122,.6)',
+    });
+
+    // Format candle data for TradingView
+    const ohlcData = candles.map(c => ({
+      time:  Math.floor(new Date(c.date).getTime() / 1000),
+      open:  c.open,
+      high:  c.high,
+      low:   c.low,
+      close: c.close,
+    }));
+
+    candleSeries.setData(ohlcData);
+
+    // ── Volume series (bottom) ─────────────────────
+    const volSeries = chart.addHistogramSeries({
+      priceFormat:    { type: 'volume' },
+      priceScaleId:  'volume',
+      color:         'rgba(92,111,251,.25)',
+    });
+    chart.priceScale('volume').applyOptions({
+      scaleMargins: { top: 0.88, bottom: 0 },
+    });
+    const volData = candles.map(c => ({
+      time:  Math.floor(new Date(c.date).getTime() / 1000),
+      value: c.volume || 0,
+      color: c.close >= c.open
+        ? 'rgba(46,216,160,.2)'
+        : 'rgba(255,93,122,.2)',
+    }));
+    volSeries.setData(volData);
+
+    // ── EMA-21 line ────────────────────────────────
+    const ema21Series = chart.addLineSeries({
+      color:       '#2ed8a0',
+      lineWidth:   1.5,
+      lineStyle:   LightweightCharts.LineStyle.Solid,
+      priceLineVisible: false,
+      lastValueVisible: false,
+      crosshairMarkerVisible: false,
+    });
+    // Calculate EMA-21 from close prices
+    const closes   = candles.map(c => c.close);
+    const ema21Vals = calcEMA(closes, 21);
+    const ema21Data = candles
+      .slice(20) // EMA needs at least 21 points
+      .map((c, i) => ({
+        time:  Math.floor(new Date(c.date).getTime() / 1000),
+        value: ema21Vals[i + 20],
+      }));
+    ema21Series.setData(ema21Data);
+
+    // ── Entry price line ───────────────────────────
+    candleSeries.createPriceLine({
+      price:       entryPrice,
+      color:       '#5c6ffb',
+      lineWidth:   1.5,
+      lineStyle:   LightweightCharts.LineStyle.Solid,
+      axisLabelVisible: true,
+      title:       `Entry ₹${entryPrice}`,
+    });
+
+    // ── Stop Loss line ─────────────────────────────
+    candleSeries.createPriceLine({
+      price:       slPrice,
+      color:       '#ff5d7a',
+      lineWidth:   1,
+      lineStyle:   LightweightCharts.LineStyle.Dashed,
+      axisLabelVisible: true,
+      title:       `SL ₹${slPrice}`,
+    });
+
+    // ── CMP line (if different from last candle) ───
+    if(cmp && Math.abs(cmp - candles[candles.length-1].close) > 0.5) {
+      candleSeries.createPriceLine({
+        price:       cmp,
+        color:       'rgba(255,179,64,.8)',
+        lineWidth:   1,
+        lineStyle:   LightweightCharts.LineStyle.Dotted,
+        axisLabelVisible: true,
+        title:       `CMP ₹${cmp}`,
+      });
+    }
+
+    // ── Fit content and store instance ────────────
+    chart.timeScale().fitContent();
+    tvCharts[tradeId] = chart;
+
+    // Responsive resize
+    const ro = new ResizeObserver(() => {
+      if(tvCharts[tradeId]) {
+        tvCharts[tradeId].applyOptions({
+          width: container.offsetWidth,
+        });
+      }
+    });
+    ro.observe(container);
+
+  } catch(err) {
+    console.warn(`Chart error for ${symbol}:`, err);
+    container.innerHTML = `<div class="tv-loading">
+      <div style="color:var(--muted);font-size:11px">Chart unavailable</div>
+    </div>`;
+  }
+}
+
+/* ── EMA Calculator ── */
+function calcEMA(values, period) {
+  const k = 2 / (period + 1);
+  const ema = new Array(values.length).fill(0);
+  ema[0] = values[0];
+  for(let i = 1; i < values.length; i++) {
+    ema[i] = values[i] * k + ema[i-1] * (1 - k);
+  }
+  return ema;
+}
+
+/* ── PORTFOLIO CHART ENGINE ── */
 const DAYS = 90; // default 3M view
 let eqPeriod = 3;
 
@@ -1926,6 +2124,10 @@ async function renderOpen(){
   const c=document.getElementById('ot-container');
   c.innerHTML='<div style="padding:40px;text-align:center;color:var(--muted)">Loading trades...</div>';
 
+  // Destroy existing TV chart instances
+  Object.values(tvCharts).forEach(ch => { try { ch.remove(); } catch(e){} });
+  Object.keys(tvCharts).forEach(k => delete tvCharts[k]);
+
   const { data: trades, error } = await sb
     .from('open_trades')
     .select('*')
@@ -2064,7 +2266,12 @@ async function renderOpen(){
     const el=document.createElement('div');
     el.className='trade-card';
     el.innerHTML=`
-      <div class="chart-col"><canvas class="tc" id="oc_${t.id}" width="400" height="160"></canvas></div>
+      <div class="chart-col" id="chart_${t.id}">
+        <div class="tv-loading">
+          <div style="width:18px;height:18px;border:2px solid rgba(255,255,255,.1);border-top-color:var(--blue);border-radius:50%;animation:spin .7s linear infinite"></div>
+          <span>Loading chart...</span>
+        </div>
+      </div>
       <div class="info-col">
 
         <!-- ── Header row ── -->
@@ -2161,13 +2368,10 @@ async function renderOpen(){
       </div>`;
     c.appendChild(el);
     c.appendChild(el);
-    requestAnimationFrame(()=>{
-      const cv=document.getElementById('oc_'+t.id);
-      if(cv){
-        cv.width=cv.offsetWidth||400;
-        cv.height=cv.offsetHeight||160;
-        drawOpen(cv,bars,45,avgEntry,t.sl_price,t.cmp||avgEntry);
-      }
+
+    // Render TradingView chart after element is in DOM
+    requestAnimationFrame(() => {
+      renderTVChart(t.id, t.symbol, avgEntry, t.sl_price, t.cmp || avgEntry);
     });
   });
 }
