@@ -146,15 +146,19 @@ body{
 .g4{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:16px}
 
 /* ═══ SUMMARY STRIP ═══ */
-.sstrip{display:grid;grid-template-columns:repeat(5,1fr);gap:1px;margin-bottom:20px;background:var(--bdr);border:1px solid var(--bdr);border-radius:14px;overflow:hidden}
-.sc{background:var(--card);padding:16px 20px;transition:background .15s;position:relative;overflow:hidden}
+.sstrip{display:grid;grid-template-columns:repeat(5,1fr);gap:0;margin-bottom:20px;border:1px solid var(--bdr);border-radius:14px;overflow:hidden}
+.sc{background:var(--card);padding:18px 20px;transition:background .15s;position:relative;overflow:hidden;display:flex;flex-direction:column;border-right:1px solid var(--bdr)}
+.sc:last-child{border-right:none}
 .sc:hover{background:var(--card2)}
-.sc::before{content:'';position:absolute;bottom:0;left:0;right:0;height:2px;opacity:0;transition:opacity .2s}
-.sc:hover::before{opacity:1;background:linear-gradient(90deg,transparent,var(--blue),transparent)}
-.scl{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin-bottom:6px;font-weight:600}
-.scv{font-size:22px;font-weight:800;color:var(--white);letter-spacing:-.5px;font-family:var(--f)}
+.scl{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px;font-weight:600}
+.scv{font-size:24px;font-weight:800;color:var(--white);letter-spacing:-.6px;font-family:var(--fm);line-height:1;margin-bottom:4px}
 .scv.g{color:var(--green)}.scv.r{color:var(--red)}.scv.a{color:var(--amber)}.scv.b{color:var(--blue-lt)}.scv.c{color:var(--cyan)}.scv.gold{color:var(--gold)}
-.scs{font-size:11px;color:var(--muted);margin-top:4px}
+.scs{font-size:11px;color:var(--muted);margin-bottom:10px;flex:1}
+.sc-badge{display:inline-flex;align-items:center;gap:4px;font-size:10px;font-weight:700;padding:3px 9px;border-radius:100px;margin-top:auto;width:fit-content}
+.sc-badge.up{background:var(--green-dim);color:var(--green);border:1px solid var(--green-bd)}
+.sc-badge.dn{background:var(--red-dim);color:var(--red);border:1px solid var(--red-bd)}
+.sc-badge.info{background:var(--card2);color:var(--muted);border:1px solid var(--bdr)}
+.sc-badge.cyan{background:var(--cyan-dim);color:var(--cyan);border:1px solid rgba(46,232,220,.28)}
 
 /* ═══ SECTION HEAD ═══ */
 .sh{display:flex;align-items:baseline;gap:12px;margin-bottom:18px}
@@ -1071,11 +1075,36 @@ canvas.tc{display:block;width:100%;height:100%}
 <div class="pane" id="pane-open">
   <div class="sh"><div class="st">Open Positions</div><div class="sb" id="open-sub">Loading...</div></div>
   <div class="sstrip">
-    <div class="sc"><div class="scl">Deployed</div><div class="scv" id="os-deployed">—</div><div class="scs" id="os-positions">—</div></div>
-    <div class="sc"><div class="scl">Day's P&L</div><div class="scv" id="os-daypnl">—</div><div class="scs" id="os-daypnl-sub">vs yesterday's close</div></div>
-    <div class="sc"><div class="scl">Net Open P&L</div><div class="scv" id="os-netpnl">—</div><div class="scs" id="os-netpct">—</div></div>
-    <div class="sc"><div class="scl">Open Risk</div><div class="scv r" id="os-risk">—</div><div class="scs" id="os-riskpct">—</div></div>
-    <div class="sc"><div class="scl">Cash Margin</div><div class="scv c" id="os-cash" style="font-size:28px">—</div><div class="scs" id="os-cashpct">of total capital</div></div>
+    <div class="sc">
+      <div class="scl">Deployed</div>
+      <div class="scv" id="os-deployed">—</div>
+      <div class="scs" id="os-positions">—</div>
+      <div class="sc-badge info" id="os-deployed-badge">—</div>
+    </div>
+    <div class="sc">
+      <div class="scl">Day's P&amp;L</div>
+      <div class="scv" id="os-daypnl">—</div>
+      <div class="scs">Change from prev session</div>
+      <div class="sc-badge" id="os-daypnl-badge">—</div>
+    </div>
+    <div class="sc">
+      <div class="scl">Net Open P&amp;L</div>
+      <div class="scv" id="os-netpnl">—</div>
+      <div class="scs">Unrealised on open trades</div>
+      <div class="sc-badge" id="os-netpnl-badge">—</div>
+    </div>
+    <div class="sc">
+      <div class="scl">Open Risk</div>
+      <div class="scv r" id="os-risk">—</div>
+      <div class="scs">If all SLs hit simultaneously</div>
+      <div class="sc-badge dn" id="os-riskpct">—</div>
+    </div>
+    <div class="sc">
+      <div class="scl">Cash Margin</div>
+      <div class="scv c" id="os-cash">—</div>
+      <div class="scs">Free capital for new trades</div>
+      <div class="sc-badge cyan" id="os-cashpct">—</div>
+    </div>
   </div>
   <div class="card">
     <div class="ch"><span class="ct">Active Positions — Annotated Charts</span><div class="ch-r"><div class="legend-row"><span class="li"><span style="color:var(--blue-lt);font-size:13px">▲</span>Entry</span><span class="li"><span style="display:inline-block;width:14px;height:1.5px;background:var(--red);border-top:1.5px dashed var(--red)"></span>Stop Loss</span><span class="li"><span style="display:inline-block;width:14px;height:2px;background:var(--cyan)"></span>EMA-21</span></div><span class="chip">60-day daily</span></div></div>
@@ -2262,8 +2291,26 @@ async function renderOpen(){
   // ── Deployed ──────────────────────────────────
   setT('os-deployed', fmtL(totalDeployed));
   setT('os-positions', `${trades.length} position${trades.length!==1?'s':''}`);
+  setT('os-deployed-badge', `▲ ${(totalDeployed/totalDeployed*100).toFixed(0)}% of portfolio`);
 
-  // ── Day's P&L ─────────────────────────────────
+  // ── Net Open P&L badge ────────────────────────
+  const netPct = totalDeployed > 0 ? (totalPnl/totalDeployed*100) : 0;
+  setT('os-netpnl', (totalPnl>=0?'+':'')+fmt(totalPnl), totalPnl>=0?'var(--green)':'var(--red)');
+  setT('os-netpct', ''); // subtitle handled by HTML
+  const netBadge = document.getElementById('os-netpnl-badge');
+  if(netBadge){
+    netBadge.textContent = (netPct>=0?'▲ +':'▼ ')+Math.abs(netPct).toFixed(1)+'% return on deployed';
+    netBadge.className = 'sc-badge ' + (totalPnl>=0?'up':'dn');
+  }
+
+  // ── Open Risk badge ───────────────────────────
+  setT('os-risk', fmt(totalRisk));
+  const riskPctDeployed = totalDeployed > 0 ? (totalRisk/totalDeployed*100) : 0;
+  const riskBadge = document.getElementById('os-riskpct');
+  if(riskBadge){
+    riskBadge.textContent = '▼ '+riskPctDeployed.toFixed(1)+'% of deployed';
+    riskBadge.className = 'sc-badge dn';
+  }
   // Compare the two most RECENT snapshots that are consecutive trading days
   // Also filter out old dummy data by only using snapshots from last 7 days
   const sevenDaysAgo = new Date();
@@ -2277,34 +2324,47 @@ async function renderOpen(){
     .limit(2)
     .then(({ data: snaps }) => {
       const dayChgEl  = document.getElementById('os-daypnl');
-      const daySubEl  = document.getElementById('os-daypnl-sub');
+      const dayBadge  = document.getElementById('os-daypnl-badge');
       if(snaps && snaps.length >= 2) {
         const dayChg = snaps[0].portfolio_value - snaps[1].portfolio_value;
+        const dayPct = snaps[1].portfolio_value > 0
+          ? (dayChg / snaps[1].portfolio_value * 100) : 0;
         if(dayChgEl){
           dayChgEl.textContent = (dayChg>=0?'+':'')+fmt(dayChg);
           dayChgEl.style.color = dayChg>=0?'var(--green)':'var(--red)';
         }
-        // Just show "Change from prev day" — no date label
-        if(daySubEl) daySubEl.textContent = 'change from prev session';
+        if(dayBadge){
+          dayBadge.textContent = (dayChg>=0?'\u25b2 +':'\u25bc ')+Math.abs(dayPct).toFixed(2)+'% from prev session';
+          dayBadge.className = 'sc-badge ' + (dayChg>=0?'up':'dn');
+        }
       } else {
-        // Only one snapshot this week — show today's unrealised P&L
         if(dayChgEl){
           dayChgEl.textContent = (totalPnl>=0?'+':'')+fmt(totalPnl);
           dayChgEl.style.color = totalPnl>=0?'var(--green)':'var(--red)';
         }
-        if(daySubEl) daySubEl.textContent = 'unrealised open P&L';
+        if(dayBadge){ dayBadge.textContent = 'Unrealised open P&L'; dayBadge.className = 'sc-badge info'; }
       }
     });
 
   // ── Net Open P&L ──────────────────────────────
+  const netPct = totalDeployed > 0 ? (totalPnl/totalDeployed*100) : 0;
   setT('os-netpnl', (totalPnl>=0?'+':'')+fmt(totalPnl), totalPnl>=0?'var(--green)':'var(--red)');
-  setT('os-netpct', totalDeployed>0?(totalPnl/totalDeployed*100).toFixed(1)+'% return':'—');
+  const netBadge = document.getElementById('os-netpnl-badge');
+  if(netBadge){
+    netBadge.textContent = (totalPnl>=0?'\u25b2 +':'\u25bc ')+Math.abs(netPct).toFixed(1)+'% return on deployed';
+    netBadge.className = 'sc-badge ' + (totalPnl>=0?'up':'dn');
+  }
 
   // ── Open Risk ─────────────────────────────────
   setT('os-risk', fmt(totalRisk));
-  setT('os-riskpct', riskPct+'% of deployed');
+  const riskPctDeployed = totalDeployed > 0 ? (totalRisk/totalDeployed*100) : 0;
+  const riskBadge = document.getElementById('os-riskpct');
+  if(riskBadge){
+    riskBadge.textContent = '\u25bc '+riskPctDeployed.toFixed(1)+'% of deployed';
+    riskBadge.className = 'sc-badge dn';
+  }
 
-  // ── Cash Margin % only ────────────────────────
+  // ── Cash Margin ───────────────────────────────
   sb.from('portfolio_snapshots')
     .select('total_capital, cash_available')
     .order('snapshot_date', { ascending: false })
@@ -2313,14 +2373,13 @@ async function renderOpen(){
       const totalCap  = snap?.total_capital || (totalDeployed * (1/0.11));
       const cashAvail = snap?.cash_available || Math.max(0, totalCap - totalDeployed);
       const cashPct   = totalCap > 0 ? (cashAvail/totalCap*100).toFixed(1) : 0;
-      // Show % only — amount removed as requested
       setT('os-cash', cashPct + '%', 'var(--cyan)');
-      setT('os-cashpct', 'of total capital');
-
-      // Also update Portfolio Overview header capital
+      const cashBadge = document.getElementById('os-cashpct');
+      if(cashBadge){ cashBadge.textContent = '\u25b2 '+cashPct+'% of capital'; }
       const hdrCap = document.getElementById('hdr-capital');
-      if(hdrCap) hdrCap.textContent = '₹'+(totalCap/100000).toFixed(2)+'L';
+      if(hdrCap) hdrCap.textContent = '\u20b9'+(totalCap/100000).toFixed(2)+'L';
     });
+
 
   // Update header
   setT('hdr-deployed', fmtL(totalDeployed));
