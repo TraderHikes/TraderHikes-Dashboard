@@ -2359,22 +2359,14 @@ async function renderOpen(){
       }
     });
 
-  // ── Net Open P&L ──────────────────────────────
-  const netPct = totalDeployed > 0 ? (totalPnl/totalDeployed*100) : 0;
-  setT('os-netpnl', (totalPnl>=0?'+':'')+fmt(totalPnl), totalPnl>=0?'var(--green)':'var(--red)');
-  const netBadge = document.getElementById('os-netpnl-badge');
-  if(netBadge){
-    netBadge.textContent = (totalPnl>=0?'\u25b2 +':'\u25bc ')+Math.abs(netPct).toFixed(1)+'% return on deployed';
-    netBadge.className = 'sc-badge ' + (totalPnl>=0?'up':'dn');
-  }
 
   // ── Open Risk ─────────────────────────────────
   setT('os-risk', fmt(totalRisk));
-  const riskPctDeployed = totalDeployed > 0 ? (totalRisk/totalDeployed*100) : 0;
-  const riskBadge = document.getElementById('os-riskpct');
-  if(riskBadge){
-    riskBadge.textContent = '\u25bc '+riskPctDeployed.toFixed(1)+'% of deployed';
-    riskBadge.className = 'sc-badge dn';
+  const riskBadgeEl = document.getElementById('os-riskpct');
+  if(riskBadgeEl){
+    const rp = totalDeployed > 0 ? (totalRisk/totalDeployed*100).toFixed(1) : 0;
+    riskBadgeEl.textContent = '\u25bc '+rp+'% of deployed';
+    riskBadgeEl.className = 'sc-badge dn';
   }
 
   // ── Cash Margin ───────────────────────────────
