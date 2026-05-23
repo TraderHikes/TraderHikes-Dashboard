@@ -1928,8 +1928,7 @@ function drawEquityCurve(){
   const vMin=Math.min(...allV)*.995,vMax=Math.max(...allV)*1.005;
   const PL=12,PR=16,PT=14,PB=28;
   const cW=W-PL-PR,cH=220-PT-PB;
-  const n=dd.length;
-  const xc=i=>PL+i*(cW/(n-1));
+  const xc=i=>PL+i*(cW/(dd.length-1));
   const yp=v=>PT+cH*(1-(v-vMin)/(vMax-vMin));
 
   // Grid
@@ -2016,7 +2015,7 @@ function drawDrawdown(liveSeries){
   const PL=12,PR=12,PT=14,PB=24;
   const cW=W-PL-PR,cH=160-PT-PB;
   const vMin=Math.min(...dd)*1.1,vMax=0.5;
-  const xc=i=>PL+i*(cW/(n-1));
+  const xc=i=>PL+i*(cW/(dd.length-1));
   const yp=v=>PT+cH*(1-(v-vMin)/(vMax-vMin));
 
   // zero line
@@ -2026,7 +2025,7 @@ function drawDrawdown(liveSeries){
   // area fill
   ctx.beginPath();ctx.moveTo(xc(0),yp(0));
   dd.forEach((v,i)=>ctx.lineTo(xc(i),yp(v)));
-  ctx.lineTo(xc(n-1),yp(0));ctx.closePath();
+  ctx.lineTo(xc(dd.length-1),yp(0));ctx.closePath();
   const dg=ctx.createLinearGradient(0,yp(vMin),0,yp(0));
   dg.addColorStop(0,'rgba(240,82,114,.3)');dg.addColorStop(1,'rgba(240,82,114,.04)');
   ctx.fillStyle=dg;ctx.fill();
