@@ -325,7 +325,7 @@ canvas.tc{display:block;width:100%;height:100%}
 .info-col{padding:12px 14px;display:flex;flex-direction:column;gap:0}
 .trade-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px}
 .tnm{font-size:13px;font-weight:800;color:var(--white);letter-spacing:-.2px;line-height:1.2}
-.tsc{font-size:9px;color:var(--muted);margin-top:2px;font-family:var(--fm);letter-spacing:.2px}
+.tsc{font-size:9px;margin-top:2px;font-family:var(--fm);letter-spacing:.2px}
 .badge{display:inline-block;padding:3px 8px;border-radius:100px;font-size:9px;font-weight:700;letter-spacing:.2px}
 .bl{background:var(--blue-dim);color:var(--blue-lt);border:1px solid var(--bdr3)}
 .bw{background:var(--amber-dim);color:var(--amber);border:1px solid var(--amber-bd)}
@@ -1625,23 +1625,29 @@ function buildMonthlyHeatmapLive(snaps,ytdReturn){
 ══════════════════════════════════════════════════ */
 const tvCharts = {}; // store chart instances to avoid re-render
 
-async function renderTVChart(tradeId, symbol, entryPrice, slPrice, cmp) {
+async function renderTVChart(tradeId, symbol, entryPrice, slPrice, cmp, entryDate, hasPyramid, hasPartial) {
   const container = document.getElementById('chart_' + tradeId);
   if(!container) return;
-
-  // Don't re-render if already done
   if(tvCharts[tradeId]) return;
 
   try {
-    // Fetch candle data from Supabase
-    const { data: candles, error } = await sb
-      .from('trade_candles')
-      .select('date,open,high,low,close,volume')
-      .eq('symbol', symbol)
-      .order('date', { ascending: true })
-      .limit(180);
+    // Fetch candle data + pyramid entries + partial exits in parallel
+    const [candleRes, pyramidRes, partialRes] = await Promise.all([
+      sb.from('trade_candles').select('date,open,high,low,close,volume')
+        .eq('symbol', symbol).order('date', { ascending: true }).limit(180),
+      hasPyramid
+        ? sb.from('trade_entries').select('entry_date,entry_price').eq('open_trade_id', tradeId)
+        : Promise.resolve({ data: [] }),
+      hasPartial
+        ? sb.from('partial_exits').select('exit_date,exit_price').eq('open_trade_id', tradeId)
+        : Promise.resolve({ data: [] }),
+    ]);
 
-    if(error || !candles || candles.length < 5) {
+    const candles       = candleRes.data;
+    const pyramidEntries = pyramidRes.data || [];
+    const partialExits   = partialRes.data || [];
+
+    if(!candles || candles.length < 5) {
       // Fallback: show simulated data notice
       container.innerHTML = `<div class="tv-loading" style="flex-direction:column;gap:6px">
         <div style="font-size:20px">📊</div>
@@ -1754,39 +1760,97 @@ async function renderTVChart(tradeId, symbol, entryPrice, slPrice, cmp) {
       }));
     ema21Series.setData(ema21Data);
 
-    // ── Entry price line ───────────────────────────
+    // ── Entry price line — clean, no text label ─────
     candleSeries.createPriceLine({
-      price:       entryPrice,
-      color:       '#5c6ffb',
-      lineWidth:   1.5,
-      lineStyle:   LightweightCharts.LineStyle.Solid,
+      price:            entryPrice,
+      color:            '#5c6ffb',
+      lineWidth:        1.5,
+      lineStyle:        LightweightCharts.LineStyle.Solid,
       axisLabelVisible: true,
-      title:       `Entry ₹${entryPrice}`,
+      title:            '',   // no text on chart
     });
 
-    // ── Stop Loss line ─────────────────────────────
+    // ── Stop Loss line — clean dashed, no text ──────
     candleSeries.createPriceLine({
-      price:       slPrice,
-      color:       '#ff5d7a',
-      lineWidth:   1,
-      lineStyle:   LightweightCharts.LineStyle.Dashed,
+      price:            slPrice,
+      color:            '#ff5d7a',
+      lineWidth:        1,
+      lineStyle:        LightweightCharts.LineStyle.Dashed,
       axisLabelVisible: true,
-      title:       `SL ₹${slPrice}`,
+      title:            '',   // no text on chart
     });
 
-    // ── CMP line (if different from last candle) ───
+    // ── CMP line (if different from last candle) ────
     if(cmp && Math.abs(cmp - candles[candles.length-1].close) > 0.5) {
       candleSeries.createPriceLine({
-        price:       cmp,
-        color:       'rgba(255,179,64,.8)',
-        lineWidth:   1,
-        lineStyle:   LightweightCharts.LineStyle.Dotted,
-        axisLabelVisible: true,
-        title:       `CMP ₹${cmp}`,
+        price:            cmp,
+        color:            'rgba(255,179,64,.6)',
+        lineWidth:        1,
+        lineStyle:        LightweightCharts.LineStyle.Dotted,
+        axisLabelVisible: false,  // don't clutter right axis
+        title:            '',
       });
     }
 
-    // ── Fit to last 90 candles (3 months) so annotations are visible ──
+    // ── Entry/Pyramid arrows as chart markers ──────
+    const markers = [];
+
+    // Initial entry arrow (blue, up)
+    if(t.entry_date) {
+      const entryTime = Math.floor(new Date(t.entry_date).getTime() / 1000);
+      // Find closest candle time
+      const closest = ohlcData.reduce((prev, curr) =>
+        Math.abs(curr.time - entryTime) < Math.abs(prev.time - entryTime) ? curr : prev
+      );
+      markers.push({
+        time:     closest.time,
+        position: 'belowBar',
+        color:    '#5c6ffb',
+        shape:    'arrowUp',
+        text:     'Entry',
+        size:     1.5,
+      });
+    }
+
+    // Pyramid entries (blue, smaller arrow)
+    if(t.has_pyramid && pyramidEntries && pyramidEntries.length > 0) {
+      pyramidEntries.forEach(pe => {
+        const peTime = Math.floor(new Date(pe.entry_date).getTime() / 1000);
+        const closest = ohlcData.reduce((prev, curr) =>
+          Math.abs(curr.time - peTime) < Math.abs(prev.time - peTime) ? curr : prev
+        );
+        markers.push({
+          time:     closest.time,
+          position: 'belowBar',
+          color:    '#8fa3ff',
+          shape:    'arrowUp',
+          text:     'Add',
+          size:     1,
+        });
+      });
+    }
+
+    // Partial exits (amber, down arrow)
+    if(t.has_partial_exit && partialExits && partialExits.length > 0) {
+      partialExits.forEach(px => {
+        const pxTime = Math.floor(new Date(px.exit_date).getTime() / 1000);
+        const closest = ohlcData.reduce((prev, curr) =>
+          Math.abs(curr.time - pxTime) < Math.abs(prev.time - pxTime) ? curr : prev
+        );
+        markers.push({
+          time:     closest.time,
+          position: 'aboveBar',
+          color:    '#ffb340',
+          shape:    'arrowDown',
+          text:     'Partial',
+          size:     1,
+        });
+      });
+    }
+
+    // Sort markers by time (required by TW)
+    markers.sort((a, b) => a.time - b.time);
+    if(markers.length > 0) candleSeries.setMarkers(markers);
     const totalCandles = ohlcData.length;
     const showFrom = Math.max(0, totalCandles - 90);
     chart.timeScale().setVisibleRange({
@@ -2281,13 +2345,16 @@ async function renderOpen(){
     if(t.cmp && bars.length > 0) bars[bars.length-1].c = t.cmp;
 
     // ── Calculated fields ──────────────────────────
-    const posValue    = avgEntry * remQty;                          // position value ₹
-    const reward      = t.cmp ? (t.cmp - avgEntry) : 0;           // unrealised gain per share
-    const riskPerSh   = avgEntry - t.sl_price;                     // risk per share
-    const rrRatio     = riskPerSh > 0 ? (reward / riskPerSh) : null; // R:R ratio
+    const posValue    = avgEntry * remQty;
+    const reward      = t.cmp ? (t.cmp - avgEntry) : 0;
+    const riskPerSh   = avgEntry - t.sl_price;
+    const rrRatio     = riskPerSh > 0 ? (reward / riskPerSh) : null;
     const fromInitial = t.avg_entry_price && t.entry_price && t.avg_entry_price !== t.entry_price
       ? ((t.avg_entry_price - t.entry_price) / t.entry_price * 100)
       : null;
+    const holdingDays = t.entry_date
+      ? Math.max(1, Math.round((Date.now() - new Date(t.entry_date).getTime()) / 86400000))
+      : 1;
 
     const el=document.createElement('div');
     el.className='trade-card';
@@ -2321,9 +2388,9 @@ async function renderOpen(){
           </div>
         </div>
 
-        ${t.trade_notes ? `<div style="font-size:9px;color:var(--muted);font-style:italic;padding:3px 7px;background:rgba(255,255,255,.02);border-radius:4px;border-left:2px solid var(--bdr2);margin:4px 0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">"${t.trade_notes}"</div>` : ''}
+        ${t.trade_notes ? `<div style="font-size:9px;color:var(--white);opacity:.75;font-style:italic;padding:3px 7px;background:rgba(255,255,255,.02);border-radius:4px;border-left:2px solid var(--bdr2);margin:4px 0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">"${t.trade_notes}"</div>` : ''}
 
-        <div style="display:flex;justify-content:space-between;font-size:9px;color:var(--muted);padding:5px 0;border-top:1px solid var(--bdr);border-bottom:1px solid var(--bdr);margin:4px 0">
+        <div style="display:flex;justify-content:space-between;font-size:9px;color:var(--white);padding:5px 0;border-top:1px solid var(--bdr);border-bottom:1px solid var(--bdr);margin:4px 0">
           <span>Entry <b style="color:var(--white);font-family:var(--fm)">\u20B9${Number(t.entry_price).toLocaleString('en-IN')}</b></span>
           ${t.avg_entry_price && t.avg_entry_price !== t.entry_price ? `<span>Avg <b style="color:var(--blue-lt);font-family:var(--fm)">\u20B9${Number(avgEntry).toLocaleString('en-IN')}</b></span>` : ''}
           <span>CMP <b style="color:${pp?'var(--green)':'var(--red)'};font-family:var(--fm)">${t.cmp?'\u20B9'+Number(t.cmp).toLocaleString('en-IN'):'—'}</b></span>
@@ -2334,43 +2401,55 @@ async function renderOpen(){
           <div class="tc-met">
             <div class="tc-met-l">Position Size</div>
             <div class="tc-met-v" style="color:var(--blue-lt)">${t.position_size_pct ? t.position_size_pct+'%' : (t.capital_at_entry ? (posValue/t.capital_at_entry*100).toFixed(1)+'%' : '—')}</div>
-            <div style="font-size:8px;color:var(--muted);margin-top:1px">\u20B9${(posValue/100000).toFixed(2)}L value</div>
+            <div style="font-size:8px;color:var(--white);margin-top:1px">\u20B9${(posValue/100000).toFixed(2)}L value</div>
           </div>
           <div class="tc-met">
             <div class="tc-met-l">Qty (Rem / Total)</div>
-            <div class="tc-met-v">${remQty}<span style="color:var(--muted);font-size:9px"> /${t.total_quantity||t.quantity}</span></div>
-            <div style="font-size:8px;color:var(--muted);margin-top:1px">${t.entry_date}</div>
+            <div class="tc-met-v">${remQty}<span style="color:var(--white);font-size:9px"> /${t.total_quantity||t.quantity}</span></div>
+            <div style="font-size:8px;color:var(--white);margin-top:1px">${t.entry_date}</div>
           </div>
           <div class="tc-met">
             <div class="tc-met-l">Open Risk</div>
             <div class="tc-met-v" style="color:var(--red)">\u20B9${Math.abs(risk).toLocaleString('en-IN',{maximumFractionDigits:0})}</div>
-            <div style="font-size:8px;color:var(--muted);margin-top:1px">${riskPct.toFixed(1)}% of pos</div>
+            <div style="font-size:8px;color:var(--white);margin-top:1px">${riskPct.toFixed(1)}% of pos</div>
           </div>
           <div class="tc-met">
             <div class="tc-met-l">R:R Ratio</div>
             <div class="tc-met-v" style="color:${rrRatio!==null?(rrRatio>=2?'var(--green)':rrRatio>=1?'var(--amber)':'var(--red)'):'var(--muted)'}">${rrRatio!==null?(rrRatio>=0?'+':'')+rrRatio.toFixed(2)+'R':'—'}</div>
-            <div style="font-size:8px;color:var(--muted);margin-top:1px">${rrRatio!==null&&rrRatio>=0?'reward/risk':'at SL'}</div>
+            <div style="font-size:8px;color:var(--white);margin-top:1px">${rrRatio!==null&&rrRatio>=0?'reward/risk':'at SL'}</div>
           </div>
         </div>
 
-        <div class="tc-riskbar">
-          <span style="font-size:8px;color:var(--muted);min-width:48px">Open Risk</span>
-          <div class="tc-riskbar-track">
-            <div class="tc-riskbar-fill" style="width:${Math.min(riskPct*12,100)}%;background:${riskPct>6?'var(--red)':riskPct>4?'var(--amber)':'var(--green)'}"></div>
+        <!-- Holding Period + Legend (replaces risk bar) -->
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-top:8px;padding-top:6px;border-top:1px solid var(--bdr)">
+          <div style="display:flex;align-items:center;gap:5px">
+            <span style="font-size:8px;color:var(--white);text-transform:uppercase;letter-spacing:.5px;min-width:44px">Held ${holdingDays}d</span>
+            <div style="display:flex;gap:2px;align-items:center">
+              ${Array.from({length:Math.min(Math.ceil(holdingDays/7),16)}, (_,i) =>
+                '<div style="width:5px;height:5px;border-radius:1px;background:var(--blue-lt);opacity:'+(1-(i/Math.min(Math.ceil(holdingDays/7),16))*0.5)+'"></div>'
+              ).join('')}
+            </div>
           </div>
-          <span style="font-size:9px;font-weight:700;font-family:var(--fm);color:${riskPct>6?'var(--red)':riskPct>4?'var(--amber)':'var(--green)'};min-width:28px;text-align:right">${riskPct.toFixed(1)}%</span>
+          <div style="display:flex;align-items:center;gap:8px">
+            <span style="display:flex;align-items:center;gap:3px;font-size:8px;color:var(--white)">
+              <span style="display:inline-block;width:12px;height:2px;background:#5c6ffb;border-radius:1px"></span>Entry
+            </span>
+            <span style="display:flex;align-items:center;gap:3px;font-size:8px;color:var(--white)">
+              <span style="display:inline-block;width:12px;height:0;border-top:2px dashed #ff5d7a"></span>SL
+            </span>
+            <span style="display:flex;align-items:center;gap:3px;font-size:8px;color:var(--white)">
+              <span style="display:inline-block;width:12px;height:1px;background:var(--green);border-radius:1px"></span>EMA21
+            </span>
+          </div>
         </div>
       </div>`;
     c.appendChild(el);
 
     requestAnimationFrame(() => {
-      renderTVChart(t.id, t.symbol, avgEntry, t.sl_price, t.cmp || avgEntry);
+      renderTVChart(t.id, t.symbol, avgEntry, t.sl_price, t.cmp || avgEntry,
+        t.entry_date, t.has_pyramid, t.has_partial_exit);
     });
 
-    // Render TradingView chart after element is in DOM
-    requestAnimationFrame(() => {
-      renderTVChart(t.id, t.symbol, avgEntry, t.sl_price, t.cmp || avgEntry);
-    });
   });
 }
 
