@@ -315,15 +315,36 @@ body{
 .hm-s3{background:linear-gradient(135deg,rgba(245,166,35,.08),rgba(245,166,35,.02));border-color:rgba(245,166,35,.14)}
 .hm-s2{background:linear-gradient(135deg,rgba(240,82,114,.07),rgba(240,82,114,.02));border-color:rgba(240,82,114,.12)}
 .hm-s1{background:linear-gradient(135deg,rgba(240,82,114,.14),rgba(240,82,114,.05));border-color:rgba(240,82,114,.24)}.hm-s1:hover{box-shadow:0 6px 24px rgba(240,82,114,.1)}
-.trade-card{display:flex;flex-direction:column;border:1px solid var(--bdr);border-radius:12px;overflow:hidden;margin-bottom:16px;background:var(--card)}
-.trade-card:hover{border-color:rgba(92,111,251,.25)}
-.chart-col{width:100%;height:240px;background:var(--card);position:relative;overflow:hidden;border-bottom:1px solid var(--bdr);flex-shrink:0}
-.tv-loading{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:11px;color:var(--muted);flex-direction:column;gap:8px}
+/* ── Valvo-style trade grid ── */
+.trades-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;padding:4px 0}
+.trade-card{display:flex;flex-direction:column;border:1px solid var(--bdr);border-radius:12px;overflow:hidden;background:var(--card);transition:border-color .15s,transform .12s}
+.trade-card:hover{border-color:rgba(92,111,251,.3);transform:translateY(-1px)}
+.chart-col{width:100%;height:180px;background:var(--card);position:relative;overflow:hidden;flex-shrink:0}
+.tv-loading{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:11px;color:var(--muted);flex-direction:column;gap:6px}
 canvas.tc{display:block;width:100%;height:100%}
-.info-col{padding:16px 20px;display:flex;flex-direction:column;gap:10px}
-.trade-top{display:flex;justify-content:space-between;align-items:flex-start}
-.tnm{font-size:16px;font-weight:800;color:var(--white);letter-spacing:-.3px}
-.tsc{font-size:10px;color:var(--muted);margin-top:2px;font-family:var(--fm)}
+.info-col{padding:12px 14px;display:flex;flex-direction:column;gap:0}
+.trade-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px}
+.tnm{font-size:13px;font-weight:800;color:var(--white);letter-spacing:-.2px;line-height:1.2}
+.tsc{font-size:9px;color:var(--muted);margin-top:2px;font-family:var(--fm);letter-spacing:.2px}
+.badge{display:inline-block;padding:3px 8px;border-radius:100px;font-size:9px;font-weight:700;letter-spacing:.2px}
+.bl{background:var(--blue-dim);color:var(--blue-lt);border:1px solid var(--bdr3)}
+.bw{background:var(--amber-dim);color:var(--amber);border:1px solid var(--amber-bd)}
+.bt{background:var(--cyan-dim);color:var(--cyan);border:1px solid rgba(0,212,200,.28)}
+.br{background:var(--red-dim);color:var(--red);border:1px solid var(--red-bd)}
+.bwin{background:var(--green-dim);color:var(--green);border:1px solid var(--green-bd)}
+.bloss{background:var(--red-dim);color:var(--red);border:1px solid var(--red-bd)}
+/* Compact metrics strip inside card */
+.tc-metrics{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:8px}
+.tc-met{background:var(--card2);border-radius:6px;padding:6px 8px}
+.tc-met-l{font-size:8px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px}
+.tc-met-v{font-size:12px;font-weight:700;font-family:var(--fm);color:var(--white)}
+/* Risk bar compact */
+.tc-riskbar{margin-top:8px;display:flex;align-items:center;gap:6px}
+.tc-riskbar-track{flex:1;height:3px;background:var(--card2);border-radius:2px;overflow:hidden}
+.tc-riskbar-fill{height:100%;border-radius:2px}
+/* Mobile: 2 columns → 1 column */
+@media(max-width:900px){.trades-grid{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:580px){.trades-grid{grid-template-columns:1fr}}
 .badge{display:inline-block;padding:4px 11px;border-radius:100px;font-size:10px;font-weight:700;letter-spacing:.2px}
 .bl{background:var(--blue-dim);color:var(--blue-lt);border:1px solid var(--bdr3)}
 .bw{background:var(--amber-dim);color:var(--amber);border:1px solid var(--amber-bd)}
@@ -1058,7 +1079,7 @@ canvas.tc{display:block;width:100%;height:100%}
   </div>
   <div class="card">
     <div class="ch"><span class="ct">Active Positions — Annotated Charts</span><div class="ch-r"><div class="legend-row"><span class="li"><span style="color:var(--blue-lt);font-size:13px">▲</span>Entry</span><span class="li"><span style="display:inline-block;width:14px;height:1.5px;background:var(--red);border-top:1.5px dashed var(--red)"></span>Stop Loss</span><span class="li"><span style="display:inline-block;width:14px;height:2px;background:var(--cyan)"></span>EMA-21</span></div><span class="chip">60-day daily</span></div></div>
-    <div id="ot-container"></div>
+    <div id="ot-container" class="trades-grid"></div>
   </div>
 </div>
 
@@ -1635,8 +1656,8 @@ async function renderTVChart(tradeId, symbol, entryPrice, slPrice, cmp) {
 
     // ── Create TradingView chart ────────────────────
     const chart = LightweightCharts.createChart(container, {
-      width:  container.offsetWidth  || 800,
-      height: container.offsetHeight || 240,
+      width:  container.offsetWidth  || 400,
+      height: container.offsetHeight || 180,
       layout: {
         background: { type: 'solid', color: '#0e1528' },
         textColor:  '#6478a0',
@@ -1765,8 +1786,13 @@ async function renderTVChart(tradeId, symbol, entryPrice, slPrice, cmp) {
       });
     }
 
-    // ── Fit content and store instance ────────────
-    chart.timeScale().fitContent();
+    // ── Fit to last 90 candles (3 months) so annotations are visible ──
+    const totalCandles = ohlcData.length;
+    const showFrom = Math.max(0, totalCandles - 90);
+    chart.timeScale().setVisibleRange({
+      from: ohlcData[showFrom].time,
+      to:   ohlcData[totalCandles - 1].time,
+    });
     tvCharts[tradeId] = chart;
 
     // Responsive resize
@@ -2268,106 +2294,78 @@ async function renderOpen(){
     el.innerHTML=`
       <div class="chart-col" id="chart_${t.id}">
         <div class="tv-loading">
-          <div style="width:18px;height:18px;border:2px solid rgba(255,255,255,.1);border-top-color:var(--blue);border-radius:50%;animation:spin .7s linear infinite"></div>
-          <span>Loading chart...</span>
+          <div style="width:14px;height:14px;border:2px solid rgba(255,255,255,.1);border-top-color:var(--blue);border-radius:50%;animation:spin .7s linear infinite"></div>
+          <span style="font-size:10px;color:var(--muted)">Loading chart...</span>
         </div>
       </div>
       <div class="info-col">
-
-        <!-- ── Header row ── -->
-        <div class="trade-top" style="margin-bottom:10px">
-          <div style="flex:1">
-            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-              <div class="tnm">${t.company_name}</div>
-              <span class="badge ${bc}" style="font-size:10px">${badgeLabel}</span>
-              ${t.has_pyramid ? '<span style="background:rgba(92,111,251,.15);border:1px solid rgba(92,111,251,.3);color:var(--blue-lt);padding:2px 8px;border-radius:100px;font-size:10px;font-weight:700;letter-spacing:.3px">Pyramided</span>' : ''}
-              ${t.has_partial_exit ? '<span style="background:var(--amber-dim);border:1px solid var(--amber-bd);color:var(--amber);padding:2px 8px;border-radius:100px;font-size:10px;font-weight:700;letter-spacing:.3px">Reduced</span>' : ''}
+        <div class="trade-top">
+          <div style="flex:1;min-width:0">
+            <div style="display:flex;align-items:center;gap:4px;flex-wrap:wrap;margin-bottom:2px">
+              <span class="tnm">${t.symbol}</span>
+              <span class="badge ${bc}" style="font-size:8px;padding:2px 6px">${badgeLabel}</span>
+              ${t.has_pyramid ? '<span style="background:rgba(92,111,251,.15);border:1px solid rgba(92,111,251,.3);color:var(--blue-lt);padding:2px 5px;border-radius:100px;font-size:8px;font-weight:700">Pyramided</span>' : ''}
+              ${t.has_partial_exit ? '<span style="background:var(--amber-dim);border:1px solid var(--amber-bd);color:var(--amber);padding:2px 5px;border-radius:100px;font-size:8px;font-weight:700">Reduced</span>' : ''}
             </div>
-            <div class="tsc" style="margin-top:3px">NSE:${t.symbol} · ${t.sector||'Capital Goods'}</div>
+            <div style="font-size:9px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${t.company_name}</div>
+            <div style="font-size:8px;color:var(--muted);margin-top:1px;opacity:.7">${t.sector||''} ${t.chart_pattern?'· '+t.chart_pattern:''}</div>
           </div>
-          <!-- Big return % top-right (Valvo style) -->
-          <div style="text-align:right;flex-shrink:0">
-            <div style="font-size:26px;font-weight:800;letter-spacing:-1px;color:${pct!==null?(pct>=0?'var(--green)':'var(--red)'):'var(--muted)'}">
+          <div style="text-align:right;flex-shrink:0;margin-left:8px">
+            <div style="font-size:20px;font-weight:800;letter-spacing:-.5px;line-height:1;color:${pct!==null?(pct>=0?'var(--green)':'var(--red)'):'var(--muted)'}">
               ${pct!==null?(pct>=0?'+':'')+pct.toFixed(1)+'%':'—'}
             </div>
-            <div style="font-size:10px;color:var(--muted);margin-top:1px">
-              ${fromInitial!==null ? `${fromInitial>=0?'+':''}${fromInitial.toFixed(1)}% from initial` : 'return on avg entry'}
+            <div style="font-size:9px;color:${pnl!==null?(pnl>=0?'var(--green)':'var(--red)'):'var(--muted)'};margin-top:1px;font-family:var(--fm)">
+              ${pnl!==null?(pnl>=0?'+':'')+'\u20B9'+Math.abs(pnl).toLocaleString('en-IN',{maximumFractionDigits:0}):'—'}
             </div>
-            <div style="font-size:11px;font-weight:700;color:${pnl!==null?(pnl>=0?'var(--green)':'var(--red)'):'var(--muted)'};margin-top:2px">
-              ${pnl!==null?(pnl>=0?'+':'')+'₹'+Math.abs(pnl).toLocaleString('en-IN',{maximumFractionDigits:0}):'—'}
-            </div>
+            ${rrRatio!==null?`<div style="font-size:9px;font-weight:700;color:${rrRatio>=2?'var(--green)':rrRatio>=1?'var(--amber)':'var(--red)'};margin-top:1px">${(rrRatio>=0?'+':'')+rrRatio.toFixed(1)}R</div>`:''}
           </div>
         </div>
 
-        <!-- ── Teaching note ── -->
-        ${t.trade_notes ? `<div style="font-size:11px;color:var(--muted);margin-bottom:10px;font-style:italic;padding:6px 10px;background:rgba(255,255,255,.03);border-radius:6px;border-left:2px solid var(--bdr2)">"${t.trade_notes}"</div>` : ''}
+        ${t.trade_notes ? `<div style="font-size:9px;color:var(--muted);font-style:italic;padding:3px 7px;background:rgba(255,255,255,.02);border-radius:4px;border-left:2px solid var(--bdr2);margin:4px 0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">"${t.trade_notes}"</div>` : ''}
 
-        <!-- ── Row 1: Entry / CMP / SL / Qty ── -->
-        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:8px">
-          <div style="background:var(--card3);border-radius:8px;padding:8px 10px">
-            <div style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin-bottom:3px">Avg Entry</div>
-            <div style="font-size:15px;font-weight:700;color:var(--white);font-family:var(--fm)">₹${Number(avgEntry).toLocaleString('en-IN')}</div>
-            ${t.entry_price && t.avg_entry_price && t.avg_entry_price !== t.entry_price
-              ? `<div style="font-size:9px;color:var(--muted);margin-top:1px">Init ₹${Number(t.entry_price).toLocaleString('en-IN')}</div>`
-              : ''}
+        <div style="display:flex;justify-content:space-between;font-size:9px;color:var(--muted);padding:5px 0;border-top:1px solid var(--bdr);border-bottom:1px solid var(--bdr);margin:4px 0">
+          <span>Entry <b style="color:var(--white);font-family:var(--fm)">\u20B9${Number(t.entry_price).toLocaleString('en-IN')}</b></span>
+          ${t.avg_entry_price && t.avg_entry_price !== t.entry_price ? `<span>Avg <b style="color:var(--blue-lt);font-family:var(--fm)">\u20B9${Number(avgEntry).toLocaleString('en-IN')}</b></span>` : ''}
+          <span>CMP <b style="color:${pp?'var(--green)':'var(--red)'};font-family:var(--fm)">${t.cmp?'\u20B9'+Number(t.cmp).toLocaleString('en-IN'):'—'}</b></span>
+          <span>SL <b style="color:var(--red);font-family:var(--fm)">\u20B9${Number(t.sl_price).toLocaleString('en-IN')}</b></span>
+        </div>
+
+        <div class="tc-metrics">
+          <div class="tc-met">
+            <div class="tc-met-l">Position Size</div>
+            <div class="tc-met-v" style="color:var(--blue-lt)">${t.position_size_pct ? t.position_size_pct+'%' : (t.capital_at_entry ? (posValue/t.capital_at_entry*100).toFixed(1)+'%' : '—')}</div>
+            <div style="font-size:8px;color:var(--muted);margin-top:1px">\u20B9${(posValue/100000).toFixed(2)}L value</div>
           </div>
-          <div style="background:var(--card3);border-radius:8px;padding:8px 10px">
-            <div style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin-bottom:3px">CMP</div>
-            <div style="font-size:15px;font-weight:700;font-family:var(--fm);color:${t.cmp?(pp?'var(--green)':'var(--red)'):'var(--muted)'}">
-              ${t.cmp?'₹'+Number(t.cmp).toLocaleString('en-IN'):'—'}
-            </div>
+          <div class="tc-met">
+            <div class="tc-met-l">Qty (Rem / Total)</div>
+            <div class="tc-met-v">${remQty}<span style="color:var(--muted);font-size:9px"> /${t.total_quantity||t.quantity}</span></div>
+            <div style="font-size:8px;color:var(--muted);margin-top:1px">${t.entry_date}</div>
           </div>
-          <div style="background:var(--card3);border-radius:8px;padding:8px 10px">
-            <div style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin-bottom:3px">Stop Loss</div>
-            <div style="font-size:15px;font-weight:700;color:var(--red);font-family:var(--fm)">₹${Number(t.sl_price).toLocaleString('en-IN')}</div>
+          <div class="tc-met">
+            <div class="tc-met-l">Open Risk</div>
+            <div class="tc-met-v" style="color:var(--red)">\u20B9${Math.abs(risk).toLocaleString('en-IN',{maximumFractionDigits:0})}</div>
+            <div style="font-size:8px;color:var(--muted);margin-top:1px">${riskPct.toFixed(1)}% of pos</div>
           </div>
-          <div style="background:var(--card3);border-radius:8px;padding:8px 10px">
-            <div style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin-bottom:3px">Qty (Rem/Total)</div>
-            <div style="font-size:15px;font-weight:700;color:var(--white);font-family:var(--fm)">
-              ${remQty}<span style="font-size:11px;color:var(--muted)">/${t.total_quantity||t.quantity}</span>
-            </div>
+          <div class="tc-met">
+            <div class="tc-met-l">R:R Ratio</div>
+            <div class="tc-met-v" style="color:${rrRatio!==null?(rrRatio>=2?'var(--green)':rrRatio>=1?'var(--amber)':'var(--red)'):'var(--muted)'}">${rrRatio!==null?(rrRatio>=0?'+':'')+rrRatio.toFixed(2)+'R':'—'}</div>
+            <div style="font-size:8px;color:var(--muted);margin-top:1px">${rrRatio!==null&&rrRatio>=0?'reward/risk':'at SL'}</div>
           </div>
         </div>
 
-        <!-- ── Row 2: Pos Size / Pos Value / Open Risk / R:R ── -->
-        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:10px">
-          <div style="background:var(--card3);border-radius:8px;padding:8px 10px">
-            <div style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin-bottom:3px">Position Size</div>
-            <div style="font-size:15px;font-weight:700;color:var(--blue-lt);font-family:var(--fm)">
-              ${t.position_size_pct ? t.position_size_pct+'%' : (t.capital_at_entry ? (posValue/t.capital_at_entry*100).toFixed(1)+'%' : riskPct.toFixed(1)+'%')}
-            </div>
-            <div style="font-size:9px;color:var(--muted);margin-top:1px">of capital</div>
+        <div class="tc-riskbar">
+          <span style="font-size:8px;color:var(--muted);min-width:48px">Open Risk</span>
+          <div class="tc-riskbar-track">
+            <div class="tc-riskbar-fill" style="width:${Math.min(riskPct*12,100)}%;background:${riskPct>6?'var(--red)':riskPct>4?'var(--amber)':'var(--green)'}"></div>
           </div>
-          <div style="background:var(--card3);border-radius:8px;padding:8px 10px">
-            <div style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin-bottom:3px">Position Value</div>
-            <div style="font-size:15px;font-weight:700;color:var(--white);font-family:var(--fm)">
-              ₹${(posValue/100000).toFixed(2)}L
-            </div>
-            <div style="font-size:9px;color:var(--muted);margin-top:1px">${remQty} × ₹${Number(avgEntry).toLocaleString('en-IN')}</div>
-          </div>
-          <div style="background:var(--card3);border-radius:8px;padding:8px 10px">
-            <div style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin-bottom:3px">Open Risk</div>
-            <div style="font-size:15px;font-weight:700;color:var(--red);font-family:var(--fm)">₹${Math.abs(risk).toLocaleString('en-IN',{maximumFractionDigits:0})}</div>
-            <div style="font-size:9px;color:var(--muted);margin-top:1px">${riskPct.toFixed(1)}% of position</div>
-          </div>
-          <div style="background:var(--card3);border-radius:8px;padding:8px 10px">
-            <div style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin-bottom:3px">R : R Ratio</div>
-            <div style="font-size:15px;font-weight:700;font-family:var(--fm);color:${rrRatio!==null?(rrRatio>=2?'var(--green)':rrRatio>=1?'var(--amber)':'var(--red)'):'var(--muted)'}">
-              ${rrRatio!==null ? (rrRatio>=0?'+':'')+rrRatio.toFixed(2)+'R' : '—'}
-            </div>
-            <div style="font-size:9px;color:var(--muted);margin-top:1px">${rrRatio!==null&&rrRatio>=0?'reward / risk':'below entry'}</div>
-          </div>
-        </div>
-
-        <!-- ── Open Risk bar ── -->
-        <div class="rrow">
-          <span class="rlbl">Open Risk</span>
-          <div class="rt"><div class="rf" style="width:${Math.min(riskPct*12,100)}%;background:${riskPct>6?'var(--red)':riskPct>4?'var(--amber)':'var(--green)'}"></div></div>
-          <span style="font-size:11px;font-weight:700;font-family:var(--fm);color:${riskPct>6?'var(--red)':riskPct>4?'var(--amber)':'var(--green)'}">${riskPct.toFixed(1)}%</span>
+          <span style="font-size:9px;font-weight:700;font-family:var(--fm);color:${riskPct>6?'var(--red)':riskPct>4?'var(--amber)':'var(--green)'};min-width:28px;text-align:right">${riskPct.toFixed(1)}%</span>
         </div>
       </div>`;
     c.appendChild(el);
-    c.appendChild(el);
+
+    requestAnimationFrame(() => {
+      renderTVChart(t.id, t.symbol, avgEntry, t.sl_price, t.cmp || avgEntry);
+    });
 
     // Render TradingView chart after element is in DOM
     requestAnimationFrame(() => {
