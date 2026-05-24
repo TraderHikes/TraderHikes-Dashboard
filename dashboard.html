@@ -2720,54 +2720,6 @@ async function renderClosed(){
   }
 }
 
-  const { data: trades, error } = await sb
-    .from('closed_trades')
-    .select('*')
-    .order('exit_date', { ascending: false });
-
-  if (error || !trades || trades.length === 0) {
-    c.innerHTML='<div style="padding:40px;text-align:center;color:var(--muted)">No closed trades yet. Trades will appear here once you close a position from the admin panel.</div>';
-    const cb = document.getElementById('badge-closed');
-    if(cb) cb.textContent = '0';
-    // Clear the summary strip
-    ['cs-pnl','cs-wins','cs-losses','cs-wr','cs-pf'].forEach(id=>{
-      const e=document.getElementById(id); if(e){e.textContent='—'; e.style.color='';}
-    });
-    const setT0=(id,v)=>{const e=document.getElementById(id);if(e)e.textContent=v;};
-    setT0('cs-pnl-sub','No closed trades');
-    setT0('cs-wins-sub','—');
-    setT0('cs-losses-sub','—');
-    setT0('cs-wr-sub','—');
-    return;
-  }
-
-  // Update nav badge with real count
-  const cb = document.getElementById('badge-closed');
-  if(cb) cb.textContent = trades.length;
-
-  const fmt2 = (n) => '₹' + Math.abs(n).toLocaleString('en-IN',{maximumFractionDigits:0});
-  const setT2 = (id,v,col) => { const e=document.getElementById(id); if(e){e.textContent=v; if(col)e.style.color=col;} };
-
-  const wins   = trades.filter(t => t.realised_pnl > 0);
-  const losses  = trades.filter(t => t.realised_pnl <= 0);
-  const totalPnl = trades.reduce((s,t) => s + (t.realised_pnl||0), 0);
-  const avgWin  = wins.length ? wins.reduce((s,t)=>s+(t.return_pct||0),0)/wins.length : 0;
-  const avgLoss = losses.length ? losses.reduce((s,t)=>s+(t.return_pct||0),0)/losses.length : 0;
-  const grossWin  = wins.reduce((s,t)=>s+(t.realised_pnl||0),0);
-  const grossLoss = Math.abs(losses.reduce((s,t)=>s+(t.realised_pnl||0),0));
-  const pf = grossLoss > 0 ? (grossWin/grossLoss).toFixed(2) : '∞';
-  const winRate = trades.length ? Math.round((wins.length/trades.length)*100) : 0;
-
-  // Update closed pane strip with IDs
-  setT2('cs-pnl', (totalPnl>=0?'+':'')+fmt2(totalPnl), totalPnl>=0?'var(--green)':'var(--red)');
-  setT2('cs-pnl-sub', trades.length+' closed trade'+(trades.length!==1?'s':''));
-  setT2('cs-wins', wins.length, 'var(--green)');
-  setT2('cs-wins-sub', 'Avg +'+(avgWin.toFixed(1))+'%');
-  setT2('cs-losses', losses.length, losses.length>0?'var(--red)':'var(--muted)');
-  setT2('cs-losses-sub', losses.length>0?'Avg '+avgLoss.toFixed(1)+'%':'No losses');
-  setT2('cs-wr', winRate+'%', 'var(--blue-lt)');
-  setT2('cs-wr-sub', wins.length+'/'+trades.length);
-  setT2('cs-pf', pf+'×', parseFloat(pf)>=2?'var(--green)':parseFloat(pf)>=1?'var(--amber)':'var(--red)');
 
 /* ─ RENDER RS ─ */
 function renderRS(){document.getElementById('rs-tbody').innerHTML=rsD.map(s=>{const pips=Array.from({length:10},(_,i)=>`<div class="rs-pip ${i<Math.round(s.rs/10)?(s.rs>=90?'elite':'on'):''}"></div>`).join('');const spark=s.sp.map(v=>`<div class="sp" style="height:${v}%;background:${v>70?'var(--green)':v>50?'var(--blue)':'var(--amber)'}"></div>`).join('');const vc=s.vol==='high'?'vh':s.vol==='med'?'vm':'vn';const vl=s.vol==='high'?`+${s.vc}% 🔥`:`+${s.vc}%`;return`<tr><td style="color:var(--muted);font-weight:700;font-family:var(--fm)">${s.r}</td><td><div class="sname">${s.name}</div><div class="ssec">NSE:${s.sym} · ${s.sec}</div></td><td class="r" style="font-weight:700;color:var(--white)">${s.cmp.toLocaleString('en-IN')}</td><td class="r" style="color:var(--muted)">${s.hi52.toLocaleString('en-IN')}</td><td class="r" style="color:var(--red);font-weight:600">${s.fh}%</td><td><div class="rs-wrap">${pips}<span class="rs-num ${s.rs>=90?'elite':''}">${s.rs}</span></div></td><td class="r"><span class="ema-tag ${s.e21?'et-on':'et-off'}">${s.e21?'✓ Above':'✗ Below'}</span></td><td class="r"><span class="ema-tag ${s.e50?'et-on':'et-off'}">${s.e50?'✓ Above':'✗ Below'}</span></td><td class="r"><span class="ema-tag ${s.e200?'et-on':'et-near'}">${s.e200?'✓ Above':'≈ Near'}</span></td><td><span class="vol-tag ${vc}">${vl}</span></td><td><span class="setup">${s.setup}</span></td><td><div class="spark">${spark}</div></td><td><span class="wl-s ${s.wl?'on':''}" onclick="this.classList.toggle('on')">★</span></td></tr>`;}).join('');}
