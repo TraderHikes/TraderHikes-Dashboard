@@ -527,7 +527,7 @@ canvas.tc{display:block;width:100%;height:100%}
     </div>
   </div>
   <div class="hdr-meta">
-    <div class="regime-pill"><div class="rp-dot"></div>Bull Phase · 74/100</div>
+    <div class="regime-pill" id="hdr-regime-pill"><div class="rp-dot" id="hdr-regime-dot"></div><span id="hdr-regime-text">Market Score</span></div>
     <div class="hdr-sep"></div>
     <div class="hdr-stat"><div class="hdr-stat-l">Total Capital</div><div class="hdr-stat-v" id="hdr-capital">—</div></div>
     <div class="hdr-sep"></div>
@@ -1041,9 +1041,17 @@ canvas.tc{display:block;width:100%;height:100%}
     </div>
   </div>
 
-  <!-- ── Row 3: Market Regime Score ── -->
+  <!-- ── Row 3: Market Score ── -->
   <div class="card">
-    <div class="ch"><span class="ct">Market Regime Score</span><span class="chip" id="regime-chip">Composite · Live</span></div>
+    <div class="ch">
+      <span class="ct">Market Score</span>
+      <span id="regime-chip" style="font-size:10px;font-weight:700;padding:4px 12px;
+        border-radius:100px;background:rgba(139,92,246,.15);
+        border:1px solid rgba(139,92,246,.4);color:#c4b5fd;
+        box-shadow:0 0 10px rgba(139,92,246,.2);letter-spacing:.3px">
+        ✦ AI Powered
+      </span>
+    </div>
     <div class="regime-body">
       <div class="rm-top">
         <div class="rm-num" id="regime-score">—</div>
@@ -1060,35 +1068,10 @@ canvas.tc{display:block;width:100%;height:100%}
         <span class="rn">Neutral (40–60)</span>
         <span class="rg">Bullish (&gt;60)</span>
       </div>
-      <div class="rm-stats">
-        <div class="rms"><div class="rmsl">Adv / Dec</div><div class="rmsv" id="rs-ad">—</div></div>
-        <div class="rms"><div class="rmsl">52W Highs</div><div class="rmsv" id="rs-highs" style="color:var(--green)">—</div></div>
-        <div class="rms"><div class="rmsl">52W Lows</div><div class="rmsv" id="rs-lows" style="color:var(--red)">—</div></div>
-        <div class="rms"><div class="rmsl">Above 50 EMA</div><div class="rmsv" id="rs-50ema">—</div></div>
-        <div class="rms"><div class="rmsl">India VIX</div><div class="rmsv" id="rs-vix">—</div></div>
-        <div class="rms"><div class="rmsl">A/D Ratio</div><div class="rmsv" id="rs-adr">—</div></div>
-      </div>
     </div>
   </div>
 
-  <!-- ── Row 4: Breadth gauges by Index ── -->
-  <div class="card">
-    <div class="ch">
-      <span class="ct">Breadth by EMA — Full Nifty 500</span>
-      <span class="chip" id="breadth-updated-chip">—</span>
-    </div>
-    <div class="gauge-wrap" id="breadth-gauge-wrap">
-      <div class="gr"><div class="gl">Above 21 EMA</div><div class="gt"><div class="gf" id="gf-21" style="width:0%"></div></div><div class="gp" id="gp-21">—</div></div>
-      <div class="gr"><div class="gl">Above 50 EMA</div><div class="gt"><div class="gf" id="gf-50" style="width:0%"></div></div><div class="gp" id="gp-50">—</div></div>
-      <div class="gr"><div class="gl">Above 200 EMA</div><div class="gt"><div class="gf" id="gf-200" style="width:0%"></div></div><div class="gp" id="gp-200">—</div></div>
-      <div class="gr"><div class="gl">Advancing</div><div class="gt"><div class="gf" id="gf-adv" style="width:0%"></div></div><div class="gp" id="gp-adv">—</div></div>
-      <div class="gr"><div class="gl">Declining</div><div class="gt"><div class="gf" id="gf-dec" style="width:0%;background:linear-gradient(90deg,#b03050,var(--red))"></div></div><div class="gp r" id="gp-dec">—</div></div>
-      <div class="gr"><div class="gl">New 52W High</div><div class="gt"><div class="gf" id="gf-hh" style="width:0%;background:linear-gradient(90deg,#16a87a,var(--green))"></div></div><div class="gp" id="gp-hh">—</div></div>
-      <div class="gr"><div class="gl">New 52W Low</div><div class="gt"><div class="gf" id="gf-ll" style="width:0%;background:linear-gradient(90deg,#b03050,var(--red))"></div></div><div class="gp r" id="gp-ll">—</div></div>
-    </div>
-  </div>
-
-  <!-- ── Row 5: Monthly % Change in Indices ── -->
+  <!-- ── Row 4: Monthly % Change in Indices ── -->
   <div class="card">
     <div class="ch">
       <span class="ct">Key Indices — Live Prices &amp; Day Change</span>
@@ -3607,14 +3590,16 @@ async function loadMarketBreadth() {
   const needle = document.getElementById('regime-needle');
   if(needle) needle.style.left = Math.min(Math.max(regimeScore, 2), 96) + '%';
 
-  // Regime stat cells
-  setText('rs-ad', `${adv.toLocaleString('en-IN')}/${dec.toLocaleString('en-IN')}`,
-    isBullAD?'var(--green)':'var(--red)');
-  setText('rs-highs', highs, 'var(--green)');
-  setText('rs-lows',  lows,  'var(--red)');
-  setText('rs-50ema', score50.toFixed(1)+'%',
-    score50>=65?'var(--green)':score50>=45?'var(--amber)':'var(--red)');
-  setText('rs-adr', adr,
+  // ── Update header pill with live score ──────────────────
+  const pillText = document.getElementById('hdr-regime-text');
+  const pillDot  = document.getElementById('hdr-regime-dot');
+  const pillWrap = document.getElementById('hdr-regime-pill');
+  if(pillText) pillText.textContent = regimeLabel + ' · ' + regimeScore + '/100';
+  if(pillDot)  pillDot.style.background = regimeCol;
+  if(pillWrap) pillWrap.style.borderColor = regimeCol.replace(')', ',.4)').replace('var(','rgba(').replace('--green','46,216,160').replace('--amber','255,179,64').replace('--red','255,93,122');
+
+  // Regime stat cells (kept for JS reference, elements removed from HTML)
+  if(document.getElementById('rs-adr')) setText('rs-adr', adr,
     parseFloat(adr)>=1.5?'var(--green)':parseFloat(adr)>=1?'var(--amber)':'var(--red)');
 
   // ── Updated chip ─────────────────────────────
