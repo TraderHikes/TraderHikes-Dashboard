@@ -790,7 +790,37 @@ canvas.tc{display:block;width:100%;height:100%}
       <div class="bcard-desc" id="b21-desc">Loading...</div>
       <div class="prog"><div class="pfill" id="b21-bar" style="width:0%"></div></div>
       <div class="sb-strip" id="sbs21"></div>
-      <div class="bcard-foot"><span id="b21-stocks">—</span><span id="b21-signal" style="font-weight:700">—</span></div>
+      <div class="bcard-foot" style="align-items:center">
+        <span style="font-size:9px;font-weight:700;padding:2px 8px;border-radius:100px;
+          background:var(--card3);border:1px solid var(--bdr2);color:var(--muted);
+          letter-spacing:.3px">Short Term</span>
+        <span id="b21-signal" style="font-weight:700">—</span>
+      </div>
+      <!-- History toggle button -->
+      <button onclick="toggleEmaHistory('21')"
+        id="btn-ema-21"
+        style="width:100%;margin-top:10px;padding:6px 12px;background:var(--card3);
+          border:1px solid var(--bdr);border-radius:6px;color:var(--muted);
+          font-size:10px;font-weight:600;cursor:pointer;font-family:var(--fm);
+          letter-spacing:.3px;transition:all .15s">
+        ▼ Show 12-Month History
+      </button>
+      <!-- Collapsible history panel -->
+      <div id="ema-history-21" style="display:none;margin-top:6px;
+        max-height:240px;overflow-y:auto;border-radius:6px;
+        border:1px solid var(--bdr);background:var(--card2)">
+        <table style="width:100%;border-collapse:collapse;font-size:10px">
+          <thead><tr style="background:var(--card3);position:sticky;top:0;z-index:1">
+            <th style="padding:6px 10px;text-align:left;color:var(--muted);font-weight:600">Date</th>
+            <th style="padding:6px 10px;text-align:right;color:var(--muted);font-weight:600">% Above</th>
+            <th style="padding:6px 10px;text-align:right;color:var(--muted);font-weight:600">Stocks</th>
+            <th style="padding:6px 10px;text-align:right;color:var(--muted);font-weight:600">Signal</th>
+          </tr></thead>
+          <tbody id="ema-hist-body-21">
+            <tr><td colspan="4" style="text-align:center;padding:14px;color:var(--muted)">Loading...</td></tr>
+          </tbody>
+        </table>
+      </div>
     </div>
 
     <div class="bcard" id="bc-50">
@@ -799,7 +829,37 @@ canvas.tc{display:block;width:100%;height:100%}
       <div class="bcard-desc" id="b50-desc">Loading...</div>
       <div class="prog"><div class="pfill" id="b50-bar" style="width:0%"></div></div>
       <div class="sb-strip" id="sbs50"></div>
-      <div class="bcard-foot"><span id="b50-stocks">—</span><span id="b50-signal" style="font-weight:700">—</span></div>
+      <div class="bcard-foot" style="align-items:center">
+        <span style="font-size:9px;font-weight:700;padding:2px 8px;border-radius:100px;
+          background:var(--card3);border:1px solid var(--bdr2);color:var(--muted);
+          letter-spacing:.3px">Medium Term</span>
+        <span id="b50-signal" style="font-weight:700">—</span>
+      </div>
+      <!-- History toggle button -->
+      <button onclick="toggleEmaHistory('50')"
+        id="btn-ema-50"
+        style="width:100%;margin-top:10px;padding:6px 12px;background:var(--card3);
+          border:1px solid var(--bdr);border-radius:6px;color:var(--muted);
+          font-size:10px;font-weight:600;cursor:pointer;font-family:var(--fm);
+          letter-spacing:.3px;transition:all .15s">
+        ▼ Show 12-Month History
+      </button>
+      <!-- Collapsible history panel -->
+      <div id="ema-history-50" style="display:none;margin-top:6px;
+        max-height:240px;overflow-y:auto;border-radius:6px;
+        border:1px solid var(--bdr);background:var(--card2)">
+        <table style="width:100%;border-collapse:collapse;font-size:10px">
+          <thead><tr style="background:var(--card3);position:sticky;top:0;z-index:1">
+            <th style="padding:6px 10px;text-align:left;color:var(--muted);font-weight:600">Date</th>
+            <th style="padding:6px 10px;text-align:right;color:var(--muted);font-weight:600">% Above</th>
+            <th style="padding:6px 10px;text-align:right;color:var(--muted);font-weight:600">Stocks</th>
+            <th style="padding:6px 10px;text-align:right;color:var(--muted);font-weight:600">Signal</th>
+          </tr></thead>
+          <tbody id="ema-hist-body-50">
+            <tr><td colspan="4" style="text-align:center;padding:14px;color:var(--muted)">Loading...</td></tr>
+          </tbody>
+        </table>
+      </div>
     </div>
 
     <div class="bcard" id="bc-200">
@@ -808,7 +868,37 @@ canvas.tc{display:block;width:100%;height:100%}
       <div class="bcard-desc" id="b200-desc">Loading...</div>
       <div class="prog"><div class="pfill" id="b200-bar" style="width:0%"></div></div>
       <div class="sb-strip" id="sbs200"></div>
-      <div class="bcard-foot"><span id="b200-stocks">—</span><span id="b200-signal" style="font-weight:700">—</span></div>
+      <div class="bcard-foot" style="align-items:center">
+        <span style="font-size:9px;font-weight:700;padding:2px 8px;border-radius:100px;
+          background:var(--card3);border:1px solid var(--bdr2);color:var(--muted);
+          letter-spacing:.3px">Long Term</span>
+        <span id="b200-signal" style="font-weight:700">—</span>
+      </div>
+      <!-- History toggle button -->
+      <button onclick="toggleEmaHistory('200')"
+        id="btn-ema-200"
+        style="width:100%;margin-top:10px;padding:6px 12px;background:var(--card3);
+          border:1px solid var(--bdr);border-radius:6px;color:var(--muted);
+          font-size:10px;font-weight:600;cursor:pointer;font-family:var(--fm);
+          letter-spacing:.3px;transition:all .15s">
+        ▼ Show 12-Month History
+      </button>
+      <!-- Collapsible history panel -->
+      <div id="ema-history-200" style="display:none;margin-top:6px;
+        max-height:240px;overflow-y:auto;border-radius:6px;
+        border:1px solid var(--bdr);background:var(--card2)">
+        <table style="width:100%;border-collapse:collapse;font-size:10px">
+          <thead><tr style="background:var(--card3);position:sticky;top:0;z-index:1">
+            <th style="padding:6px 10px;text-align:left;color:var(--muted);font-weight:600">Date</th>
+            <th style="padding:6px 10px;text-align:right;color:var(--muted);font-weight:600">% Above</th>
+            <th style="padding:6px 10px;text-align:right;color:var(--muted);font-weight:600">Stocks</th>
+            <th style="padding:6px 10px;text-align:right;color:var(--muted);font-weight:600">Signal</th>
+          </tr></thead>
+          <tbody id="ema-hist-body-200">
+            <tr><td colspan="4" style="text-align:center;padding:14px;color:var(--muted)">Loading...</td></tr>
+          </tbody>
+        </table>
+      </div>
     </div>
 
   </div>
