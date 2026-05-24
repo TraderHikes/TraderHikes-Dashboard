@@ -943,12 +943,30 @@ canvas.tc{display:block;width:100%;height:100%}
           </div>
         </div>
       </div>
-      <!-- 5-day A/D trend from Supabase -->
-      <div style="padding:12px 20px;border-top:1px solid var(--bdr)">
-        <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;font-weight:600;margin-bottom:10px">5-Day A/D Trend</div>
-        <div style="display:flex;gap:8px;align-items:flex-end;height:50px" id="ad-trend"></div>
-        <div style="display:flex;justify-content:space-between;font-size:9px;color:var(--muted);margin-top:5px;font-family:var(--fm)" id="ad-trend-labels">
-          <span>—</span><span>—</span><span>—</span><span>—</span><span>Today</span>
+      <!-- A/D History (collapsible, replaces 5-day trend) -->
+      <div style="padding:10px 20px;border-top:1px solid var(--bdr)">
+        <button onclick="toggleADHistory()" id="btn-ad-history"
+          style="width:100%;padding:6px 12px;background:var(--card3);
+            border:1px solid var(--bdr);border-radius:6px;color:var(--muted);
+            font-size:10px;font-weight:600;cursor:pointer;font-family:var(--fm);
+            letter-spacing:.3px;transition:all .15s">
+          ▼ Show 12-Month A/D History
+        </button>
+        <div id="ad-history-panel" style="display:none;margin-top:6px;
+          max-height:240px;overflow-y:auto;border-radius:6px;
+          border:1px solid var(--bdr);background:var(--card2)">
+          <table style="width:100%;border-collapse:collapse;font-size:10px">
+            <thead><tr style="background:var(--card3);position:sticky;top:0;z-index:1">
+              <th style="padding:6px 10px;text-align:left;color:var(--muted);font-weight:600">Date</th>
+              <th style="padding:6px 10px;text-align:right;color:var(--green);font-weight:600">Advancing</th>
+              <th style="padding:6px 10px;text-align:right;color:var(--red);font-weight:600">Declining</th>
+              <th style="padding:6px 10px;text-align:right;color:var(--muted);font-weight:600">A/D Ratio</th>
+              <th style="padding:6px 10px;text-align:right;color:var(--muted);font-weight:600">Signal</th>
+            </tr></thead>
+            <tbody id="ad-hist-body">
+              <tr><td colspan="5" style="text-align:center;padding:14px;color:var(--muted)">Loading...</td></tr>
+            </tbody>
+          </table>
         </div>
       </div>
     </div>
@@ -957,45 +975,42 @@ canvas.tc{display:block;width:100%;height:100%}
     <div class="card">
       <div class="ch">
         <span class="ct">52-Week High / Low Breakouts</span>
-        <div class="ch-r">
-          <span class="chip">Nifty 500</span>
-          <span id="hl-net-label" style="font-size:11px;font-weight:700;color:var(--green)">—</span>
+        <div class="ch-r"><span class="chip">Nifty 500</span></div>
+      </div>
+      <!-- 3-column: Highs / Lows / Net -->
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;border-bottom:1px solid var(--bdr)">
+        <div style="padding:16px 18px;border-right:1px solid var(--bdr)">
+          <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;font-weight:600;margin-bottom:6px">New 52W Highs</div>
+          <div class="hl-count g" id="hl-highs-count">—</div>
+          <div class="hl-sub">today · Nifty 500</div>
+        </div>
+        <div style="padding:16px 18px;border-right:1px solid var(--bdr)">
+          <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;font-weight:600;margin-bottom:6px">New 52W Lows</div>
+          <div class="hl-count r" id="hl-lows-count">—</div>
+          <div class="hl-sub">today · Nifty 500</div>
+        </div>
+        <div style="padding:16px 18px">
+          <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;font-weight:600;margin-bottom:6px">Net Highs − Lows</div>
+          <div class="hl-count" id="brd-net-hl" style="color:var(--white)">—</div>
+          <div class="hl-sub" id="hl-net-label">Breadth signal</div>
         </div>
       </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;border-bottom:1px solid var(--bdr)">
-        <div style="padding:14px 20px;border-right:1px solid var(--bdr);display:flex;align-items:center;gap:12px">
-          <div>
-            <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;font-weight:600;margin-bottom:4px">New 52W Highs</div>
-            <div class="hl-count g" id="hl-highs-count">—</div>
-            <div class="hl-sub">today · Nifty 500</div>
-          </div>
-          <div style="width:48px;height:48px;border-radius:12px;background:var(--green-dim);border:1px solid var(--green-bd);display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0">🚀</div>
-        </div>
-        <div style="padding:14px 20px;display:flex;align-items:center;gap:12px">
-          <div>
-            <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;font-weight:600;margin-bottom:4px">New 52W Lows</div>
-            <div class="hl-count r" id="hl-lows-count">—</div>
-            <div class="hl-sub">today · Nifty 500</div>
-          </div>
-          <div style="width:48px;height:48px;border-radius:12px;background:var(--red-dim);border:1px solid var(--red-bd);display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0">📉</div>
-        </div>
-      </div>
-      <!-- VIX + Nifty context -->
+      <!-- India VIX + Nifty 50 + Sensex -->
       <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--bdr)">
-        <div style="background:var(--card2);padding:14px 18px">
+        <div style="background:var(--card2);padding:12px 18px">
           <div class="pcl">India VIX</div>
           <div class="pcv" id="brd-vix" style="color:var(--white)">—</div>
           <div class="pcs" id="brd-vix-sub">—</div>
         </div>
-        <div style="background:var(--card2);padding:14px 18px">
+        <div style="background:var(--card2);padding:12px 18px">
           <div class="pcl">Nifty 50</div>
           <div class="pcv b" id="brd-nifty50">—</div>
           <div class="pcs">Today's close</div>
         </div>
-        <div style="background:var(--card2);padding:14px 18px">
-          <div class="pcl">Net Highs − Lows</div>
-          <div class="pcv" id="brd-net-hl">—</div>
-          <div class="pcs">Breadth signal</div>
+        <div style="background:var(--card2);padding:12px 18px">
+          <div class="pcl">Sensex</div>
+          <div class="pcv" id="brd-sensex" style="color:var(--blue-lt)">—</div>
+          <div class="pcs">Today's close</div>
         </div>
       </div>
     </div>
@@ -2836,6 +2851,88 @@ async function renderClosed(){
 /* ─ RENDER RS ─ */
 function renderRS(){document.getElementById('rs-tbody').innerHTML=rsD.map(s=>{const pips=Array.from({length:10},(_,i)=>`<div class="rs-pip ${i<Math.round(s.rs/10)?(s.rs>=90?'elite':'on'):''}"></div>`).join('');const spark=s.sp.map(v=>`<div class="sp" style="height:${v}%;background:${v>70?'var(--green)':v>50?'var(--blue)':'var(--amber)'}"></div>`).join('');const vc=s.vol==='high'?'vh':s.vol==='med'?'vm':'vn';const vl=s.vol==='high'?`+${s.vc}% 🔥`:`+${s.vc}%`;return`<tr><td style="color:var(--muted);font-weight:700;font-family:var(--fm)">${s.r}</td><td><div class="sname">${s.name}</div><div class="ssec">NSE:${s.sym} · ${s.sec}</div></td><td class="r" style="font-weight:700;color:var(--white)">${s.cmp.toLocaleString('en-IN')}</td><td class="r" style="color:var(--muted)">${s.hi52.toLocaleString('en-IN')}</td><td class="r" style="color:var(--red);font-weight:600">${s.fh}%</td><td><div class="rs-wrap">${pips}<span class="rs-num ${s.rs>=90?'elite':''}">${s.rs}</span></div></td><td class="r"><span class="ema-tag ${s.e21?'et-on':'et-off'}">${s.e21?'✓ Above':'✗ Below'}</span></td><td class="r"><span class="ema-tag ${s.e50?'et-on':'et-off'}">${s.e50?'✓ Above':'✗ Below'}</span></td><td class="r"><span class="ema-tag ${s.e200?'et-on':'et-near'}">${s.e200?'✓ Above':'≈ Near'}</span></td><td><span class="vol-tag ${vc}">${vl}</span></td><td><span class="setup">${s.setup}</span></td><td><div class="spark">${spark}</div></td><td><span class="wl-s ${s.wl?'on':''}" onclick="this.classList.toggle('on')">★</span></td></tr>`;}).join('');}
 
+/* ── A/D HISTORY TOGGLE ── */
+let adHistoryLoaded = false;
+
+async function toggleADHistory() {
+  const panel = document.getElementById('ad-history-panel');
+  const btn   = document.getElementById('btn-ad-history');
+  if(!panel || !btn) return;
+  const isOpen = panel.style.display !== 'none';
+  if(isOpen) {
+    panel.style.display = 'none';
+    btn.innerHTML = '▼ Show 12-Month A/D History';
+    btn.style.color = 'var(--muted)';
+  } else {
+    panel.style.display = 'block';
+    btn.innerHTML = '▲ Hide A/D History';
+    btn.style.color = 'var(--text2)';
+    if(!adHistoryLoaded) {
+      await loadADHistory();
+      adHistoryLoaded = true;
+    }
+  }
+}
+
+async function loadADHistory() {
+  const tbody = document.getElementById('ad-hist-body');
+  if(!tbody) return;
+  try {
+    const { data: rows } = await sb.from('market_breadth')
+      .select('snapshot_date,advancing,declining,total_stocks')
+      .order('snapshot_date', {ascending: false})
+      .limit(90);
+
+    if(!rows || rows.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:14px;color:var(--muted)">No history yet.</td></tr>';
+      return;
+    }
+
+    const validRows = rows.filter(r => (r.total_stocks || 0) >= 450);
+
+    tbody.innerHTML = validRows.map((r, i) => {
+      const adv   = r.advancing || 0;
+      const dec   = r.declining || 0;
+      const ratio = dec > 0 ? (adv/dec).toFixed(2) : '∞';
+      const isBull = adv > dec;
+      const bgRow  = i === 0 ? 'background:rgba(255,255,255,.04);' : '';
+      const ratioCol = parseFloat(ratio) >= 1.5 ? 'var(--green)'
+                     : parseFloat(ratio) >= 1   ? 'var(--amber)' : 'var(--red)';
+      const sig    = parseFloat(ratio) >= 1.5 ? 'Bullish'
+                   : parseFloat(ratio) >= 1   ? 'Neutral' : 'Bearish';
+      const sigCol = parseFloat(ratio) >= 1.5 ? 'var(--green-dim)'
+                   : parseFloat(ratio) >= 1   ? 'var(--amber-dim)' : 'var(--red-dim)';
+      const dt     = new Date(r.snapshot_date).toLocaleDateString('en-IN', {day:'numeric',month:'short',year:'2-digit'});
+
+      // Mini bar showing adv vs dec split
+      const advPct = r.total_stocks > 0 ? (adv/r.total_stocks*100) : 50;
+
+      return `<tr style="border-bottom:1px solid var(--bdr);${bgRow}">
+        <td style="padding:6px 10px;color:${i===0?'var(--white)':'var(--text2)'};font-size:10px;white-space:nowrap">
+          ${i===0?'<b>Today</b> &nbsp;':''}${dt}
+        </td>
+        <td style="padding:6px 10px;text-align:right;color:var(--green);font-family:var(--fm);font-weight:700">${adv}</td>
+        <td style="padding:6px 10px;text-align:right;color:var(--red);font-family:var(--fm);font-weight:700">${dec}</td>
+        <td style="padding:6px 10px;text-align:right">
+          <div style="display:flex;align-items:center;justify-content:flex-end;gap:6px">
+            <div style="width:60px;height:5px;background:var(--card3);border-radius:3px;overflow:hidden;display:flex">
+              <div style="width:${advPct}%;background:var(--green)"></div>
+              <div style="flex:1;background:var(--red)"></div>
+            </div>
+            <span style="font-family:var(--fm);font-weight:700;color:${ratioCol};min-width:28px;text-align:right">${ratio}</span>
+          </div>
+        </td>
+        <td style="padding:6px 10px;text-align:right">
+          <span style="font-size:9px;font-weight:700;padding:2px 7px;border-radius:100px;
+            background:${sigCol};color:${ratioCol}">${sig}</span>
+        </td>
+      </tr>`;
+    }).join('');
+  } catch(e) {
+    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:12px;color:var(--muted)">Error loading history.</td></tr>';
+  }
+}
+
 /* ── EMA HISTORY TOGGLE ── */
 const emaHistoryLoaded = {};
 
@@ -2931,7 +3028,7 @@ async function loadEmaHistory(emaId) {
 /* ── A/D 5-day trend ── */
 const adTrend=[{a:1180,d:667},{a:1050,d:797},{a:1320,d:527},{a:980,d:867},{a:1240,d:607}];
 (function buildADTrend(){
-  const el=document.getElementById('ad-trend');if(!el)return;
+  const el=document.getElementById('ad-trend');if(!el||true)return; // replaced by collapsible history
   const maxTotal=Math.max(...adTrend.map(d=>d.a+d.d));
   el.innerHTML=adTrend.map((d,i)=>{
     const h=Math.round(((d.a)/(maxTotal))*46)+4;
@@ -3273,8 +3370,8 @@ async function loadMarketBreadth() {
   if(decPill) decPill.className = 'ad-ratio-pill ' + (!isBullAD?'arp-bear':'arp-bull');
 
   // ── 5-Day A/D Trend ──────────────────────────
-  const trendEl = document.getElementById('ad-trend');
-  const labelsEl = document.getElementById('ad-trend-labels');
+  const trendEl = null; // replaced by collapsible A/D history
+  const labelsEl = null;
   if(trendEl && rows.length > 0){
     const rev = [...rows].reverse(); // oldest first
     const maxTotal = Math.max(...rev.map(r => (r.advancing||0)+(r.declining||0)), 1);
@@ -3316,8 +3413,15 @@ async function loadMarketBreadth() {
     setText('rs-vix', vix.toFixed(2), vixCol);
   }
   if(d.nifty50_close){
-    setText('brd-nifty50', d.nifty50_close.toLocaleString('en-IN'), 'var(--blue-lt)');
+    setText('brd-nifty50', d.nifty50_close.toLocaleString('en-IN',{maximumFractionDigits:0}), 'var(--blue-lt)');
   }
+
+  // ── Sensex from index_levels ──────────────────
+  sb.from('index_levels').select('sensex').order('snapshot_date',{ascending:false}).limit(1).single()
+    .then(({data:idx}) => {
+      if(idx?.sensex) setText('brd-sensex',
+        idx.sensex.toLocaleString('en-IN',{maximumFractionDigits:0}), 'var(--blue-lt)');
+    });
 
   // ── Gauge bars ───────────────────────────────
   const setGauge = (suffix, pct, isRed=false) => {
