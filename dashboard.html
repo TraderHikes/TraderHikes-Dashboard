@@ -1295,10 +1295,11 @@ canvas.tc{display:block;width:100%;height:100%}
 .sb-trs{font-size:9px;font-weight:700;font-family:var(--fm);text-align:right}
 .sba-sb{background:rgba(46,216,160,.15);color:#2ed8a0}.sba-b{background:rgba(46,232,220,.15);color:#2ee8dc}
 .sba-n{background:rgba(255,179,64,.15);color:#ffb340}.sba-br{background:rgba(255,140,66,.15);color:#ff8c42}.sba-sd{background:rgba(255,93,122,.15);color:#ff5d7a}
-.sb-bdg{display:inline-block;padding:3px 9px;border-radius:4px;font-size:9px;font-weight:700;letter-spacing:.06em;margin-bottom:6px}
+.sb-bdg{display:inline-block;padding:3px 9px;border-radius:4px;font-size:9px;font-weight:700;letter-spacing:.06em}
+/* Panel */
 .sb-ov{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:500;opacity:0;pointer-events:none;transition:opacity .25s}
 .sb-ov.open{opacity:1;pointer-events:all}
-.sb-pan{position:fixed;top:0;right:0;width:min(460px,96vw);height:100vh;background:var(--bg2);border-left:1px solid var(--bdr2);z-index:501;overflow-y:auto;transform:translateX(100%);transition:transform .3s cubic-bezier(.4,0,.2,1);display:flex;flex-direction:column}
+.sb-pan{position:fixed;top:0;right:0;width:min(520px,96vw);height:100vh;background:var(--bg2);border-left:1px solid var(--bdr2);z-index:501;overflow-y:auto;transform:translateX(100%);transition:transform .3s cubic-bezier(.4,0,.2,1);display:flex;flex-direction:column}
 .sb-pan.open{transform:translateX(0)}
 .sb-pph{padding:18px 20px 14px;border-bottom:1px solid var(--bdr);position:sticky;top:0;background:var(--bg2);z-index:10}
 .sb-pcl{position:absolute;top:14px;right:14px;width:26px;height:26px;border-radius:50%;background:var(--card);border:1px solid var(--bdr);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:12px;color:var(--muted);transition:all .15s}
@@ -1310,18 +1311,21 @@ canvas.tc{display:block;width:100%;height:100%}
 .sb-pch.pos{background:var(--green-dim);color:var(--green)}.sb-pch.neg{background:var(--red-dim);color:var(--red)}
 .sb-pb{padding:18px 20px;flex:1;display:flex;flex-direction:column;gap:18px}
 .sb-pl{font-size:10px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);margin-bottom:8px;padding-bottom:5px;border-bottom:1px solid var(--bdr)}
+/* Gauge */
 .sb-gr{display:flex;align-items:center;gap:14px}
 .sb-sbig{font-size:42px;font-weight:900;font-family:var(--fm);line-height:1}
 .sb-grt{flex:1}
 .sb-gtk{width:100%;height:7px;background:rgba(255,255,255,.06);border-radius:4px;overflow:hidden;margin-bottom:5px}
 .sb-gfil{height:100%;border-radius:4px;transition:width .7s}
-.sb-gtk{display:flex;justify-content:space-between;font-size:8px;color:var(--muted)}
+.sb-gticks{display:flex;justify-content:space-between;font-size:8px;color:var(--muted)}
+/* EMA cards */
 .sb-eg{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
 .sb-ec{background:var(--card2);border-radius:8px;padding:10px;text-align:center;border:1px solid var(--bdr)}
 .sb-ep{font-size:18px;font-weight:800;font-family:var(--fm);margin-bottom:3px}
 .sb-en{font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
 .sb-ebt{width:100%;height:3px;background:rgba(255,255,255,.06);border-radius:2px;margin-top:6px;overflow:hidden}
 .sb-ebf{height:100%;border-radius:2px}
+/* A/D */
 .sb-ab{display:flex;align-items:center;gap:14px;background:var(--card2);border-radius:8px;padding:12px 14px;border:1px solid var(--bdr)}
 .sb-an{font-size:22px;font-weight:900;font-family:var(--fm);min-width:48px}
 .sb-abs{flex:1}
@@ -1330,14 +1334,17 @@ canvas.tc{display:block;width:100%;height:100%}
 .sb-at{flex:1;height:4px;background:rgba(255,255,255,.05);border-radius:2px;overflow:hidden}
 .sb-af{height:100%;border-radius:2px}
 .sb-av{font-size:9px;font-family:var(--fm);width:24px;text-align:right}
+/* 52W */
 .sb-wg{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .sb-wc{background:var(--card2);border-radius:8px;padding:11px 13px;border:1px solid var(--bdr)}
 .sb-wv{font-size:19px;font-weight:800;font-family:var(--fm);margin-bottom:2px}
 .sb-wl{font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
+/* RS */
 .sb-rg{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
 .sb-rc{background:var(--card2);border-radius:8px;padding:10px;text-align:center;border:1px solid var(--bdr)}
 .sb-rv{font-size:16px;font-weight:800;font-family:var(--fm);margin-bottom:2px}
 .sb-rl{font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
+/* Score breakdown */
 .sb-bx{background:var(--card2);border-radius:8px;padding:13px 14px;display:flex;flex-direction:column;gap:7px;border:1px solid var(--bdr)}
 .sb-br2{display:flex;align-items:center;gap:8px}
 .sb-bl{width:108px;font-size:9px;color:var(--muted);flex-shrink:0}
@@ -1345,6 +1352,13 @@ canvas.tc{display:block;width:100%;height:100%}
 .sb-bf{height:100%;border-radius:2px}
 .sb-bv{width:22px;font-size:9px;font-family:var(--fm);text-align:right}
 .sb-bw{width:28px;font-size:8px;color:var(--muted)}
+/* Stock list */
+.sb-stocks-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(84px,1fr));gap:5px}
+.sb-stock-chip{background:var(--card3);border:1px solid var(--bdr);border-radius:6px;padding:5px 8px;font-family:var(--fm);font-size:10px;font-weight:700;color:var(--text2);cursor:default;transition:border-color .15s}
+.sb-stock-chip:hover{border-color:var(--blue-lt);color:var(--white)}
+.sb-stock-name{font-size:8px;color:var(--muted);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sb-stocks-loading{font-size:11px;color:var(--muted);padding:8px 0}
+/* Table */
 .sb-tw{padding:6px 24px 28px;overflow-x:auto}
 .sb-tb{width:100%;border-collapse:collapse;font-size:11px}
 .sb-tb th{padding:7px 10px;text-align:left;font-size:9px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:600;border-bottom:1px solid var(--bdr);cursor:pointer;user-select:none;white-space:nowrap;font-family:var(--f)}
@@ -1377,28 +1391,24 @@ canvas.tc{display:block;width:100%;height:100%}
     <select class="sb-sort-sel" id="sb-sort">
       <option value="score_desc">Regime Score ↓</option>
       <option value="score_asc">Regime Score ↑</option>
-      <option value="rs1m">RS 1M ↓</option>
       <option value="ema200">200 EMA% ↓</option>
       <option value="name">Name A–Z</option>
     </select>
   </div>
   <span class="sb-updated" id="sb-updated"></span>
 </div>
-
 <div class="sb-terrain">
   <div class="sb-terrain-lbl">⛰ SECTOR TERRAIN MAP — click any tile for full detail</div>
   <div class="sb-grid" id="sb-grid">
     <div class="sb-ld" style="grid-column:1/-1"><div class="sb-sp"></div><div>Loading sector data…</div></div>
   </div>
 </div>
-
 <div class="sb-tw">
   <div class="sb-terrain-lbl" style="margin-bottom:12px">📊 SECTOR COMPARISON TABLE</div>
   <div id="sb-tbl"></div>
 </div>
 </div>
 
-<!-- Overlay + Panel (outside pane, fixed) -->
 <div class="sb-ov" id="sb-ov" onclick="SB.close()"></div>
 <div class="sb-pan" id="sb-pan">
   <div class="sb-pph">
@@ -1488,14 +1498,14 @@ function sw(id,el){
 ══════════════════════════════════════════════════ */
 const SB = (() => {
   let all=[], fil=[], filt='all', srt='score_desc', actTile=null, loaded=false;
-  const rC = l=>({'STRONG BULL':'rc-sb','BULL':'rc-b','NEUTRAL':'rc-n','BEAR':'rc-br','STRONG BEAR':'rc-sd'}[l]||'rc-n');
-  const bC = l=>({'STRONG BULL':'sba-sb','BULL':'sba-b','NEUTRAL':'sba-n','BEAR':'sba-br','STRONG BEAR':'sba-sd'}[l]||'sba-n');
-  const sC = s=>s>=80?'#2ed8a0':s>=60?'#2ee8dc':s>=40?'#ffb340':s>=20?'#ff8c42':'#ff5d7a';
-  const eC = p=>p>=70?'#2ed8a0':p>=50?'#2ee8dc':p>=30?'#ffb340':'#ff5d7a';
-  const rS = v=>v>2?'pos-rs':v<-2?'neg-rs':'neu-rs';
-  const sg = v=>v>0?'+':'';
-  const f1 = v=>v==null?'—':parseFloat(v).toFixed(1);
-  const f0 = v=>v==null?'—':Math.round(v);
+  const rC=l=>({'STRONG BULL':'rc-sb','BULL':'rc-b','NEUTRAL':'rc-n','BEAR':'rc-br','STRONG BEAR':'rc-sd'}[l]||'rc-n');
+  const bC=l=>({'STRONG BULL':'sba-sb','BULL':'sba-b','NEUTRAL':'sba-n','BEAR':'sba-br','STRONG BEAR':'sba-sd'}[l]||'sba-n');
+  const sC=s=>s>=80?'#2ed8a0':s>=60?'#2ee8dc':s>=40?'#ffb340':s>=20?'#ff8c42':'#ff5d7a';
+  const eC=p=>p>=70?'#2ed8a0':p>=50?'#2ee8dc':p>=30?'#ffb340':'#ff5d7a';
+  const rS=v=>v>2?'pos-rs':v<-2?'neg-rs':'neu-rs';
+  const sg=v=>v>0?'+':'';
+  const f1=v=>v==null?'—':parseFloat(v).toFixed(1);
+  const f0=v=>v==null?'—':Math.round(v);
 
   async function load(){
     if(loaded)return; loaded=true;
@@ -1518,7 +1528,6 @@ const SB = (() => {
     else if(filt==='bull') d=d.filter(r=>r.regime_score>=60);
     else if(filt==='bear') d=d.filter(r=>r.regime_score<40);
     if(srt==='score_asc') d.sort((a,b)=>a.regime_score-b.regime_score);
-    else if(srt==='rs1m') d.sort((a,b)=>b.rs_1m-a.rs_1m);
     else if(srt==='ema200') d.sort((a,b)=>b.pct_above_200ema-a.pct_above_200ema);
     else if(srt==='name') d.sort((a,b)=>a.sector_name.localeCompare(b.sector_name));
     else d.sort((a,b)=>b.regime_score-a.regime_score);
@@ -1535,40 +1544,61 @@ const SB = (() => {
       return `<div class="sb-tile ${rc}${act}" onclick="SB.open('${s.sector_key}')">
         <div class="sb-th"><div class="sb-tname">${s.sector_name}</div><div class="sb-tcat">${s.category==='largecap'?'LC':'MS'}</div></div>
         <div class="sb-srow"><div class="sb-snum" style="color:${col}">${f0(s.regime_score)}</div><div class="sb-strk"><div class="sb-sfil" style="width:${s.regime_score}%;background:${col}"></div></div></div>
-        <span class="sb-bdg ${bc}" style="display:inline-block">${s.regime_label}</span>
+        <span class="sb-bdg ${bc}" style="display:inline-block;margin-bottom:6px">${s.regime_label}</span>
         <div class="sb-er">${[['21E',s.pct_above_21ema],['50E',s.pct_above_50ema],['200E',s.pct_above_200ema]].map(([l,v])=>`<div class="sb-ei"><div class="sb-ev" style="color:${eC(v)}">${f0(v)}%</div><span class="sb-el">${l}</span></div>`).join('')}</div>
-        <div class="sb-trs ${rS(s.rs_1m)}">RS 1M: ${sg(s.rs_1m)}${f1(s.rs_1m)}%</div>
       </div>`;
     }).join('');
   }
 
   function renderTable(){
     const wrap=document.getElementById('sb-tbl');
-    if(!wrap)return;
-    if(!fil.length){wrap.innerHTML='';return;}
+    if(!wrap||!fil.length){if(wrap)wrap.innerHTML='';return;}
     const h=(k,l)=>`<th class="${srt===k?'sb-srt':''}" onclick="SB.sort('${k}')">${l} ${srt===k?'▼':'⇅'}</th>`;
     wrap.innerHTML=`<table class="sb-tb"><thead><tr>
-      <th class="sb-rk">#</th><th>Sector</th>${h('score_desc','Score')}<th>Regime</th>
-      ${h('ema200','200E%')}<th>50E%</th><th>21E%</th><th>A/D</th>
-      <th>52WH%</th><th>52WL%</th>${h('rs1m','RS 1M')}<th>RS 3M</th><th>RS 6M</th>
+      <th class="sb-rk">#</th>
+      <th>Sector</th>
+      ${h('score_desc','Score')}
+      <th>Regime</th>
+      ${h('ema200','200 EMA%')}
+      <th>50 EMA%</th>
+      <th>21 EMA%</th>
+      <th>Stocks</th>
     </tr></thead><tbody>${fil.map((s,i)=>{
       const col=sC(s.regime_score),bc=bC(s.regime_label);
       const cat=s.category==='largecap'?'<span class="c-lc">LC</span>':'<span class="c-ms">MS</span>';
       return `<tr onclick="SB.open('${s.sector_key}')">
-        <td class="sb-rk">${i+1}</td><td class="sb-nm">${s.sector_name}${cat}</td>
+        <td class="sb-rk">${i+1}</td>
+        <td class="sb-nm">${s.sector_name}${cat}</td>
         <td><div class="sb-sw"><span class="sb-sn" style="color:${col}">${f0(s.regime_score)}</span><div class="sb-sk"><div class="sb-sf" style="width:${s.regime_score}%;background:${col}"></div></div></div></td>
         <td><span class="sb-bdg ${bc}">${s.regime_label}</span></td>
         <td style="color:${eC(s.pct_above_200ema)}">${f1(s.pct_above_200ema)}%</td>
         <td style="color:${eC(s.pct_above_50ema)}">${f1(s.pct_above_50ema)}%</td>
         <td style="color:${eC(s.pct_above_21ema)}">${f1(s.pct_above_21ema)}%</td>
-        <td>${f1(s.ad_ratio)}</td>
-        <td style="color:${eC(s.pct_near_52w_high)}">${f1(s.pct_near_52w_high)}%</td>
-        <td style="color:#ff8c42">${f1(s.pct_near_52w_low)}%</td>
-        <td class="${rS(s.rs_1m)}">${sg(s.rs_1m)}${f1(s.rs_1m)}%</td>
-        <td class="${rS(s.rs_3m)}">${sg(s.rs_3m)}${f1(s.rs_3m)}%</td>
-        <td class="${rS(s.rs_6m)}">${sg(s.rs_6m)}${f1(s.rs_6m)}%</td>
+        <td style="color:var(--muted)">${s.total_stocks||'—'}</td>
       </tr>`;
     }).join('')}</tbody></table>`;
+  }
+
+  async function loadStockList(sectorKey, containerEl){
+    containerEl.innerHTML='<div class="sb-stocks-loading">Loading constituents…</div>';
+    try{
+      const {data,error}=await sb.from('sector_stocks')
+        .select('symbol,company_name')
+        .eq('sector_key',sectorKey)
+        .order('symbol');
+      if(error||!data||!data.length){
+        containerEl.innerHTML='<div class="sb-stocks-loading">No constituent data yet. Run pipeline to populate.</div>';
+        return;
+      }
+      containerEl.innerHTML=`<div class="sb-stocks-grid">${data.map(s=>`
+        <div class="sb-stock-chip">
+          <div>${s.symbol}</div>
+          <div class="sb-stock-name">${s.company_name?s.company_name.replace(' Ltd.','').replace(' Limited','').replace(' Industries','').replace(' Corporation',''):'—'}</div>
+        </div>`).join('')}</div>
+        <div style="margin-top:8px;font-size:9px;color:var(--muted)">${data.length} stocks · Updated daily from NSE</div>`;
+    }catch(e){
+      containerEl.innerHTML='<div class="sb-stocks-loading">Could not load constituents.</div>';
+    }
   }
 
   function open(key){
@@ -1578,7 +1608,7 @@ const SB = (() => {
     const pnm=document.getElementById('sb-pnm');if(pnm)pnm.textContent=s.sector_name.toUpperCase();
     const pix=document.getElementById('sb-pix');
     const pch=document.getElementById('sb-pch');
-    if(pix) pix.textContent=s.index_level?'\u20b9'+parseFloat(s.index_level).toLocaleString('en-IN'):'Index: N/A';
+    if(pix) pix.textContent=s.index_level?'\u20b9'+parseFloat(s.index_level).toLocaleString('en-IN'):'';
     if(pch&&s.index_change_pct!=null){
       const chg=parseFloat(s.index_change_pct);
       pch.textContent=(chg>=0?'+':'')+chg.toFixed(2)+'%';
@@ -1595,7 +1625,7 @@ const SB = (() => {
           <div class="sb-grt">
             <div style="font-size:9px;color:var(--muted);margin-bottom:5px">Score / 100 &middot; ${s.total_stocks||0} stocks</div>
             <div class="sb-gtk"><div class="sb-gfil" style="width:${s.regime_score}%;background:${col}"></div></div>
-            <div class="sb-gtk"><span>0</span><span>BEAR</span><span>NEUTRAL</span><span>BULL</span><span>100</span></div>
+            <div class="sb-gticks"><span>0</span><span>BEAR</span><span>NEUTRAL</span><span>BULL</span><span>100</span></div>
           </div>
         </div>
         <div style="margin-top:10px"><span class="sb-bdg ${bc}" style="font-size:11px;padding:5px 14px">${s.regime_label}</span></div>
@@ -1617,11 +1647,17 @@ const SB = (() => {
       </div>
       <div><div class="sb-pl">Relative Strength vs Nifty 500</div>
         <div class="sb-rg">${[['1 Month','rs_1m'],['3 Months','rs_3m'],['6 Months','rs_6m']].map(([l,k])=>`<div class="sb-rc"><div class="sb-rv ${rS(s[k])}">${sg(s[k])}${f1(s[k])}%</div><div class="sb-rl">${l}</div></div>`).join('')}</div>
-        <div style="font-size:9px;color:var(--muted);margin-top:8px">+ve = outperforming Nifty 500 &nbsp;&middot;&nbsp; &minus;ve = underperforming</div>
+        <div style="font-size:9px;color:var(--muted);margin-top:8px">+ve = outperforming Nifty 500</div>
       </div>
       <div><div class="sb-pl">Score Breakdown</div>
         <div class="sb-bx">${[['200 EMA Breadth',s.pct_above_200ema,0.30,'var(--blue-lt)'],['50 EMA Breadth',s.pct_above_50ema,0.25,'#2ee8dc'],['21 EMA Breadth',s.pct_above_21ema,0.20,'var(--green)'],['52W High %',s.pct_near_52w_high,0.15,'var(--amber)'],['A/D Ratio',Math.min(100,(s.ad_ratio/2)*100),0.10,'#ff8c42']].map(([l,v,wt,c])=>`<div class="sb-br2"><div class="sb-bl">${l}</div><div class="sb-bk"><div class="sb-bf" style="width:${v}%;background:${c}"></div></div><div class="sb-bv" style="color:${c}">${Math.round(v*wt)}</div><div class="sb-bw">${Math.round(wt*100)}%</div></div>`).join('')}</div>
+      </div>
+      <div id="sb-stock-section">
+        <div class="sb-pl">Constituent Stocks</div>
+        <div id="sb-stock-list"><div class="sb-stocks-loading">Loading…</div></div>
       </div>`;
+    // Load stock list async after panel renders
+    loadStockList(key, document.getElementById('sb-stock-list'));
     document.getElementById('sb-ov').classList.add('open');
     document.getElementById('sb-pan').classList.add('open');
   }
