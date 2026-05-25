@@ -511,35 +511,6 @@ canvas.tc{display:block;width:100%;height:100%}
 
 @media(max-width:1100px){.port-stats{grid-template-columns:repeat(2,1fr)}.g2,.g3,.gauge-wrap,.heatmap-grid{grid-template-columns:1fr}.sstrip{grid-template-columns:repeat(3,1fr)}.alloc-row{grid-template-columns:1fr}.monthly-grid{grid-template-columns:repeat(6,1fr)}.perf-grid{grid-template-columns:repeat(2,1fr)}}
 @media(max-width:720px){.trade-card{grid-template-columns:1fr}.chart-col{height:140px}.mgrid{grid-template-columns:repeat(2,1fr)}.sstrip{grid-template-columns:1fr 1fr}}
-
-/* ── MOBILE: Closed Trades + Open Positions strips → 3×2 grid ── */
-@media(max-width:768px){
-  #ct-strip,#os-sstrip{grid-template-columns:repeat(3,1fr)!important;border-radius:10px}
-  #ct-strip .sc,#os-sstrip .sc{border-right:1px solid var(--bdr);border-bottom:1px solid var(--bdr);padding:12px 10px}
-  #ct-strip .sc:nth-child(3n),#os-sstrip .sc:nth-child(3n){border-right:none}
-  #ct-strip .sc:nth-child(4),#ct-strip .sc:nth-child(5),#ct-strip .sc:nth-child(6),
-  #os-sstrip .sc:nth-child(4),#os-sstrip .sc:nth-child(5),#os-sstrip .sc:nth-child(6){border-bottom:none}
-  #ct-strip .scl,#os-sstrip .scl{font-size:9px}
-  #ct-strip .scv,#os-sstrip .scv{font-size:15px;letter-spacing:-.5px}
-  #ct-strip .scs,#os-sstrip .scs{font-size:9px}
-  #ct-strip .sc-badge,#os-sstrip .sc-badge{font-size:9px;padding:2px 6px;margin-top:5px}
-  .nav{padding:0 8px;-webkit-overflow-scrolling:touch;scrollbar-width:none}
-  .nav::-webkit-scrollbar{display:none}
-  .ntab{padding:10px 11px;font-size:11px;white-space:nowrap;flex-shrink:0}
-  .wrap{padding:14px 12px}
-  .hdr{padding:0 14px;height:auto;min-height:52px}
-  .htime,.live-pill{display:none}
-  .btn-set{padding:5px 10px;font-size:10px}
-  .g2,.g3{grid-template-columns:1fr}
-  .sb-grid{grid-template-columns:repeat(2,1fr);gap:8px}
-  .sb-pan{width:100%;border-left:none}
-}
-@media(max-width:480px){
-  #ct-strip .scv,#os-sstrip .scv{font-size:13px}
-  #ct-strip .sc,#os-sstrip .sc{padding:10px 8px}
-  .ntab{padding:9px 10px;font-size:10px}
-  .hdr-meta{display:none}
-}
 </style>
 </head>
 <body>
@@ -1256,13 +1227,11 @@ canvas.tc{display:block;width:100%;height:100%}
 ══════════════════════════════════════ -->
 <div class="pane" id="pane-closed">
   <div class="sh"><div class="st">Trade Journal</div><div class="sb">Full journey — Entry → Partial Exits → Final Exit · Realised P&L</div></div>
-  <div class="sstrip" id="ct-strip" style="grid-template-columns:repeat(6,1fr);margin-bottom:20px">
+  <div class="sstrip" id="ct-strip" style="margin-bottom:20px">
     <div class="sc"><div class="scl">Total Realised P&L</div><div class="scv" id="cs-pnl">—</div><div class="scs">All closed trades</div><div class="sc-badge info" id="cs-pnl-badge">—</div></div>
     <div class="sc"><div class="scl">Win Rate</div><div class="scv" id="cs-wr">—</div><div class="scs" id="cs-wr-sub">—</div><div class="sc-badge info" id="cs-wr-badge">—</div></div>
-    <div class="sc"><div class="scl">Profit Factor</div><div class="scv" id="cs-pf">—</div><div class="scs">Gross win / gross loss</div><div class="sc-badge info" id="cs-pf-badge">—</div></div>
-    <div class="sc"><div class="scl">Avg Return</div><div class="scv" id="cs-avg">—</div><div class="scs">Per closed trade</div><div class="sc-badge info">Per trade avg</div></div>
-    <div class="sc"><div class="scl">Max Profit</div><div class="scv g" id="cs-best">—</div><div class="scs" id="cs-best-sym">Best trade</div><div class="sc-badge up" id="cs-best-badge">—</div></div>
-    <div class="sc"><div class="scl">Max Loss</div><div class="scv r" id="cs-worst">—</div><div class="scs" id="cs-worst-sym">Worst trade</div><div class="sc-badge dn" id="cs-worst-badge">—</div></div>
+    <div class="sc"><div class="scl">Profit Factor</div><div class="scv" id="cs-pf">—</div><div class="scs">Gross win / loss</div><div class="sc-badge info" id="cs-pf-badge">—</div></div>
+    <div class="sc"><div class="scl">Avg Return</div><div class="scv" id="cs-avg">—</div><div class="scs">Per closed trade</div><div class="sc-badge info">Per trade</div></div>
   </div>
   <div id="ct-container"></div>
 </div>
@@ -2734,46 +2703,28 @@ async function renderClosed(){
   const grossL  = Math.abs(losses.reduce((s,t)=>s+(t.realised_pnl||0),0));
   const pf      = grossL>0?(grossW/grossL).toFixed(2):'∞';
 
-  const best  = trades.length ? trades.reduce((b,t)=>(t.return_pct||0)>(b.return_pct||0)?t:b,trades[0]) : null;
-  const worst = trades.length ? trades.reduce((b,t)=>(t.return_pct||0)<(b.return_pct||0)?t:b,trades[0]) : null;
-  const avgRet = trades.length ? (trades.reduce((s,t)=>s+(t.return_pct||0),0)/trades.length).toFixed(1) : null;
-
-  // Box 1 — Total Realised P&L
-  const pnlEl=document.getElementById('cs-pnl');
-  if(pnlEl){pnlEl.textContent=(totalPnl>=0?'+':'')+'₹'+Math.abs(totalPnl).toLocaleString('en-IN',{maximumFractionDigits:0});pnlEl.className='scv '+(totalPnl>=0?'g':'r');}
-  const pnlBdg=document.getElementById('cs-pnl-badge');
-  if(pnlBdg){pnlBdg.textContent=(totalPnl>=0?'▲':'▼')+' All time';pnlBdg.className='sc-badge '+(totalPnl>=0?'up':'dn');}
-  const pnlScs=document.querySelector('#ct-strip .sc:nth-child(1) .scs');
-  if(pnlScs) pnlScs.textContent=trades.length+' closed trade'+(trades.length!==1?'s':'');
-  // Box 2 — Win Rate
-  const wrEl=document.getElementById('cs-wr');
-  if(wrEl){wrEl.textContent=winRate+'%';wrEl.className='scv '+(winRate>=50?'g':'r');}
-  const wrSub=document.getElementById('cs-wr-sub');
-  if(wrSub) wrSub.textContent=wins.length+'W · '+losses.length+'L';
-  const wrBdg=document.getElementById('cs-wr-badge');
-  if(wrBdg){wrBdg.textContent=wins.length+' of '+trades.length+' trades';wrBdg.className='sc-badge '+(winRate>=50?'up':'dn');}
-  // Box 3 — Profit Factor
-  const pfEl=document.getElementById('cs-pf');
-  if(pfEl){pfEl.textContent=pf;pfEl.className='scv '+(pf>=1?'g':'r');}
-  const pfBdg=document.getElementById('cs-pf-badge');
-  if(pfBdg){pfBdg.textContent=(pf>=1.5?'Strong':pf>=1?'Positive':'Negative');pfBdg.className='sc-badge '+(pf>=1.5?'up':pf>=1?'info':'dn');}
-  // Box 4 — Avg Return
-  const avgEl=document.getElementById('cs-avg');
-  if(avgEl){avgEl.textContent=avgRet===null?'—':(parseFloat(avgRet)>=0?'+':'')+avgRet+'%';avgEl.className='scv '+(avgRet&&parseFloat(avgRet)>=0?'g':'r');}
-  // Box 5 — Max Profit
-  const bestEl=document.getElementById('cs-best');
-  if(bestEl) bestEl.textContent=best?'+'+(best.return_pct||0).toFixed(1)+'%':'—';
-  const bestSym=document.getElementById('cs-best-sym');
-  if(bestSym) bestSym.textContent=best?best.symbol:'Best trade';
-  const bestBdg=document.getElementById('cs-best-badge');
-  if(bestBdg) bestBdg.textContent=best?'▲ '+best.symbol:'—';
-  // Box 6 — Max Loss
-  const worstEl=document.getElementById('cs-worst');
-  if(worstEl) worstEl.textContent=worst?(worst.return_pct||0).toFixed(1)+'%':'—';
-  const worstSym=document.getElementById('cs-worst-sym');
-  if(worstSym) worstSym.textContent=worst?worst.symbol:'Worst trade';
-  const worstBdg=document.getElementById('cs-worst-badge');
-  if(worstBdg) worstBdg.textContent=worst?'▼ '+worst.symbol:'—';
+  const sstrip = document.getElementById('ct-strip');
+  if(sstrip) sstrip.innerHTML=`
+    <div class="sc"><div class="scl">Total Realised P&L</div>
+      <div class="scv ${totalPnl>=0?'g':'r'}">${totalPnl>=0?'+':''}₹${Math.abs(totalPnl).toLocaleString('en-IN',{maximumFractionDigits:0})}</div>
+      <div class="scs">${trades.length} closed trade${trades.length!==1?'s':''}</div>
+      <div class="sc-badge ${totalPnl>=0?'up':'dn'}">${totalPnl>=0?'▲':'▼'} All time</div>
+    </div>
+    <div class="sc"><div class="scl">Win Rate</div>
+      <div class="scv ${winRate>=50?'g':'r'}">${winRate}%</div>
+      <div class="scs">${wins.length}W · ${losses.length}L</div>
+      <div class="sc-badge ${winRate>=50?'up':'dn'}">${wins.length} of ${trades.length} trades</div>
+    </div>
+    <div class="sc"><div class="scl">Profit Factor</div>
+      <div class="scv ${pf>=1?'g':'r'}">${pf}</div>
+      <div class="scs">Gross win / gross loss</div>
+      <div class="sc-badge ${pf>=1.5?'up':pf>=1?'info':'dn'}">${pf>=1.5?'Strong':pf>=1?'Positive':'Negative'}</div>
+    </div>
+    <div class="sc"><div class="scl">Avg Return</div>
+      <div class="scv">${trades.length>0?((trades.reduce((s,t)=>s+(t.return_pct||0),0)/trades.length).toFixed(1)):'—'}%</div>
+      <div class="scs">Per closed trade</div>
+      <div class="sc-badge info">Per trade avg</div>
+    </div>`;
 
   // ── Trade cards ──────────────────────────────────
   c.innerHTML = '';
@@ -2816,12 +2767,20 @@ async function renderClosed(){
           </div>
           <div style="font-size:11px;color:var(--muted)">${t.company_name||''} · ${t.sector||''}</div>
         </div>
-        <div style="text-align:right">
-          <div style="font-size:22px;font-weight:800;letter-spacing:-.5px;color:${pnlCol}">
+        <div style="
+          background:${isWin
+            ?'linear-gradient(135deg,rgba(26,184,128,.18),rgba(0,230,118,.08))'
+            :'linear-gradient(135deg,rgba(255,93,122,.18),rgba(192,48,80,.08))'};
+          border:1px solid ${isWin?'var(--green-bd)':'var(--red-bd)'};
+          border-radius:10px;padding:10px 16px;text-align:right;
+          box-shadow:0 0 16px ${isWin?'rgba(0,230,118,.1)':'rgba(255,93,122,.1)'};
+          min-width:140px">
+          <div style="font-size:22px;font-weight:900;letter-spacing:-.5px;font-family:var(--fm);color:${pnlCol}">
             ${totalPnlT>=0?'+':''}₹${Math.abs(totalPnlT).toLocaleString('en-IN',{maximumFractionDigits:0})}
           </div>
-          <div style="font-size:11px;font-weight:700;color:${pnlCol}">
-            ${t.return_pct>=0?'+':''}${Number(t.return_pct).toFixed(2)}% · ${t.holding_days||0}d held
+          <div style="font-size:11px;font-weight:700;color:${pnlCol};margin-top:2px">
+            ${t.return_pct>=0?'+':''}${Number(t.return_pct).toFixed(2)}%
+            <span style="color:var(--muted);font-weight:400"> · ${t.holding_days||0}d held</span>
           </div>
         </div>
       </div>
@@ -2886,19 +2845,10 @@ async function renderClosed(){
           </span>
         </div>
 
-        <!-- Divider + Total -->
-        <div style="border-top:1px solid var(--bdr);margin-top:8px;padding-top:8px;
-          display:flex;justify-content:space-between;align-items:center">
-          <div>
-            ${t.trade_notes?`<div style="font-size:9px;color:var(--muted);font-style:italic">"${t.trade_notes}"</div>`:''}
-          </div>
-          <div style="text-align:right">
-            <div style="font-size:9px;color:var(--muted);margin-bottom:2px">Total Realised P&L</div>
-            <div style="font-size:16px;font-weight:800;color:${pnlCol};font-family:var(--fm)">
-              ${totalPnlT>=0?'+':''}₹${Math.abs(totalPnlT).toLocaleString('en-IN',{maximumFractionDigits:0})}
-            </div>
-          </div>
-        </div>
+        <!-- Divider + Notes only (P&L already shown in header badge) -->
+        ${t.trade_notes?`<div style="border-top:1px solid var(--bdr);margin-top:8px;padding-top:8px">
+          <div style="font-size:9px;color:var(--muted);font-style:italic">"${t.trade_notes}"</div>
+        </div>`:''+'<div style="margin-top:4px"></div>'}
       </div>`;
 
     grid.appendChild(card);
