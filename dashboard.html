@@ -132,7 +132,24 @@ body{overflow-x:hidden;
 .nav{display:flex;padding:0 28px;background:var(--bg2);border-bottom:1px solid var(--bdr);position:sticky;top:62px;z-index:190;gap:0;overflow-x:auto}
 .ntab{padding:15px 20px;font-size:13px;font-weight:500;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px;transition:all .18s;display:flex;align-items:center;gap:7px;white-space:nowrap;flex-shrink:0}
 .ntab:hover{color:var(--text2)}
-.ntab.active{color:var(--white);border-bottom-color:var(--blue);font-weight:700}
+.ntab.active{
+  color:var(--white);
+  font-weight:700;
+  border-bottom:none;
+  background:linear-gradient(180deg,rgba(92,111,251,.13) 0%,rgba(92,111,251,.04) 100%);
+  position:relative;
+  box-shadow:inset 0 1px 0 rgba(92,111,251,.5), 0 2px 12px rgba(92,111,251,.15);
+  border-radius:0;
+}
+.ntab.active::after{
+  content:'';
+  position:absolute;
+  bottom:0;left:0;right:0;
+  height:2px;
+  background:linear-gradient(90deg,transparent,var(--blue),var(--blue-lt),var(--blue),transparent);
+  box-shadow:0 0 8px var(--blue);
+  border-radius:2px 2px 0 0;
+}
 .nbadge{background:var(--card3);border:1px solid var(--bdr);border-radius:100px;padding:1px 8px;font-size:10px;color:var(--muted);font-family:var(--fm)}
 .ntab.active .nbadge{background:var(--blue-dim);border-color:var(--bdr3);color:var(--blue-lt)}
 
@@ -558,7 +575,7 @@ canvas.tc{display:block;width:100%;height:100%}
     border-bottom:2px solid transparent;border-right:1px solid var(--bdr);white-space:nowrap;
     overflow:hidden;text-overflow:ellipsis}
   .ntab:nth-child(3n){border-right:none}
-  .ntab.active{border-bottom-color:var(--blue)}
+  .ntab.active{background:rgba(92,111,251,.15);color:var(--white)}
   .nbadge{font-size:8px;padding:1px 4px}
   /* Wrap */
   .wrap{padding:12px 10px}
@@ -637,12 +654,12 @@ canvas.tc{display:block;width:100%;height:100%}
 
 <!-- NAV -->
 <nav class="nav">
-  <div class="ntab active" onclick="sw('portfolio',this)">🏠 Portfolio</div>
-  <div class="ntab" onclick="sw('breadth',this)">📊 Breadth</div>
-  <div class="ntab" onclick="sw('sectoral',this)">⛰ Sectoral</div>
+  <div class="ntab active" onclick="sw('portfolio',this)">Portfolio Overview</div>
+  <div class="ntab" onclick="sw('breadth',this)">Market Breadth</div>
+  <div class="ntab" onclick="sw('sectoral',this)">Sectoral Analysis</div>
   <div class="ntab" onclick="sw('open',this)">Open Trades <span class="nbadge" id="badge-open">—</span></div>
   <div class="ntab" onclick="sw('closed',this)">Closed Trades <span class="nbadge" id="badge-closed">—</span></div>
-  <div class="ntab" onclick="sw('filter',this)">✦ Filter</div>
+  <div class="ntab" onclick="sw('filter',this)">Stock Filter</div>
 </nav>
 
 <div class="wrap">
