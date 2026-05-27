@@ -682,28 +682,28 @@ canvas.tc{display:block;width:100%;height:100%}
   <!-- 4 Big Stat Cards -->
   <div class="port-stats">
     <div class="pstat ps-blue">
-      <div class="pstat-icon pi-blue">💼</div>
+      <div class="pstat-icon pi-blue">₹</div>
       <div class="pstat-label">Amount Invested</div>
       <div class="pstat-value" id="port-invested" style="color:var(--white)">—</div>
       <div class="pstat-sub" id="port-invested-sub">Loading...</div>
-      <div class="pstat-delta pd-up" id="port-invested-pct">—</div>
+      <div class="pstat-delta pd-up" id="port-invested-pct" style="display:none"></div>
     </div>
     <div class="pstat ps-green">
-      <div class="pstat-icon pi-green">📈</div>
+      <div class="pstat-icon pi-green">+</div>
       <div class="pstat-label">Notional P&L (Open)</div>
       <div class="pstat-value" id="port-pnl" style="color:var(--green)">—</div>
       <div class="pstat-sub">Unrealised gain on open trades</div>
       <div class="pstat-delta pd-up" id="port-pnl-pct">—</div>
     </div>
     <div class="pstat ps-cyan">
-      <div class="pstat-icon pi-cyan">💰</div>
+      <div class="pstat-icon pi-cyan">✦</div>
       <div class="pstat-label">Cash Margin Available</div>
       <div class="pstat-value" id="port-cash" style="color:var(--cyan)">—</div>
       <div class="pstat-sub">Free capital for new trades</div>
       <div class="pstat-delta pd-up" id="port-cash-pct">—</div>
     </div>
     <div class="pstat ps-red">
-      <div class="pstat-icon pi-red">🛡️</div>
+      <div class="pstat-icon pi-red">⚡</div>
       <div class="pstat-label">Open Risk (Max Loss)</div>
       <div class="pstat-value" id="port-risk" style="color:var(--red)">—</div>
       <div class="pstat-sub">If all SLs hit simultaneously</div>
@@ -2018,7 +2018,7 @@ async function loadPortfolioOverview() {
 
   setText('port-invested', fmtL(totalDeployed));
   setText('port-invested-sub', `Across ${openTrades?.length||0} open position${openTrades?.length!==1?'s':''}`);
-  setText('port-invested-pct', `▲ ${deployedPct}% of ${fmtL(totalCapital)} capital`);
+  setText('port-invested-pct', '');  // removed — shows as % of wrong capital
 
   const pnlEl = document.getElementById('port-pnl');
   if(pnlEl){ pnlEl.textContent=(totalPnl>=0?'+':'')+fmt(totalPnl); pnlEl.style.color=totalPnl>=0?'var(--green)':'var(--red)'; }
@@ -2027,7 +2027,9 @@ async function loadPortfolioOverview() {
   setText('port-cash', fmtL(cashAvail));
   setText('port-cash-pct', `▲ ${cashPct}% of total capital`);
   setText('port-risk', fmt(totalRisk));
-  setText('port-risk-pct', `▼ ${riskPct}% of total capital`);
+  const riskOfDeployed = totalDeployed>0 ? (totalRisk/totalDeployed*100).toFixed(1) : 0;
+  const riskOfCapital  = totalCapital>0  ? (totalRisk/totalCapital*100).toFixed(1)  : 0;
+  setText('port-risk-pct', `▼ ${riskOfDeployed}% of deployed · ${riskOfCapital}% of capital`);
 
   // Header
   const hdrCap = document.getElementById('hdr-capital');
