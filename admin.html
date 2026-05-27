@@ -1766,10 +1766,13 @@ async function saveCoreFields() {
   } else {
     const msg = '✓ ' + document.getElementById('edit-symbol').value + ' updated — SL: ₹' + sl.toLocaleString('en-IN');
     showEditAlert(msg, 'success');
+    // Auto-clear after 4 seconds
+    setTimeout(() => {
+      const a = document.getElementById('edit-modal-alert-wrap');
+      if (a) a.innerHTML = '';
+    }, 4000);
     toast(msg, 'success');
-    // Scroll alert into view
-    const alertEl = document.getElementById('edit-modal-alert-wrap');
-    if (alertEl) alertEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+
   }
   await loadOpenTrades();
   await loadOpenTradesForSelect();
@@ -2133,7 +2136,6 @@ function cancelClosedEdit() {
 
     <!-- Modal Body -->
     <div style="padding:24px 28px;flex:1;display:flex;flex-direction:column;gap:20px;max-width:900px;width:100%;margin:0 auto">
-      <div id="edit-modal-alert-wrap"></div>
 
       <!-- ── Section 1: Core Trade Fields ── -->
       <div style="background:#111827;border:1px solid #1e2d3d;border-radius:12px;overflow:hidden">
@@ -2167,8 +2169,11 @@ function cancelClosedEdit() {
         <div style="padding:0 18px 18px">
           <div class="form-group"><label class="form-label">Teaching Notes</label><input class="form-input" id="edit-notes" type="text" placeholder="Notes about this trade…"></div>
         </div>
-        <div style="padding:0 18px 18px;display:flex;justify-content:flex-end">
-          <button class="btn btn-primary" onclick="saveCoreFields()">Save Core Fields</button>
+        <div style="padding:0 18px 18px">
+          <div id="edit-modal-alert-wrap" style="margin-bottom:10px"></div>
+          <div style="display:flex;justify-content:flex-end">
+            <button class="btn btn-primary" onclick="saveCoreFields()">Save Core Fields</button>
+          </div>
         </div>
       </div>
 
