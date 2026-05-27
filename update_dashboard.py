@@ -505,6 +505,83 @@ def fetch_sector_breadth(sector_map):
 # ════════════════════════════════════════════════════════════
 # MAIN
 # ════════════════════════════════════════════════════════════
+# ════════════════════════════════════════════════════════════
+# WATCHLIST ENRICHMENT
+# Runs daily — enriches each watchlist stock with:
+#   CMP, RS 1M/3M/6M vs Nifty500, EMA positions, sector score
+# ════════════════════════════════════════════════════════════
+def enrich_watchlist():
+    print("📋 Enriching watchlist...")
+    try:
+        resp = sb.table("watchlist").select("*").eq("is_active", True).execute()
+        stocks = resp.data or []
+        if not stocks:
+            print("   No active watchlist stocks\n"); return
+
+        # Nifty 500 baseline for RS calculation
+        n500 = get_close_series("^CRSLDX", period="6mo")
+        n500_1m = float((n500.iloc[-1]/n500.iloc[-22]-1)*100) if len(n500)>=22 else 0
+        n500_3m = float((n500.iloc[-1]/n500.iloc[-66]-1)*100) if len(n500)>=66 else 0
+        n500_6m = float((n500.iloc[-1]/n500.iloc[-126]-1)*100) if len(n500)>=126 else 0
+
+        # Sector regime scores for badge
+        sector_map = {}
+        try:
+            sb_resp = sb.table("sector_breadth").select("sector_key,regime_score,regime_label") \
+                .order("date", desc=True).limit(20).execute()
+            for r in (sb_resp.data or []):
+                if r["sector_key"] not in sector_map:
+                    sector_map[r["sector_key"]] = (r["regime_score"], r["regime_label"])
+        except: pass
+
+        for s in stocks:
+            sym = s["symbol"].strip().upper()
+            try:
+                tk = yf.Ticker(f"{sym}.NS")
+                hist = tk.history(period="1y", interval="1d", auto_adjust=True)
+                if hist.empty or len(hist) < 50:
+                    print(f"   ⚠️  {sym}: not enough data"); continue
+
+                cl = hist["Close"].dropna()
+                cmp = round(float(cl.iloc[-1]), 2)
+
+                # RS vs Nifty 500
+                rs_1m = round(float((cl.iloc[-1]/cl.iloc[-22]-1)*100) - n500_1m, 2) if len(cl)>=22 else 0
+                rs_3m = round(float((cl.iloc[-1]/cl.iloc[-66]-1)*100) - n500_3m, 2) if len(cl)>=66 else 0
+                rs_6m = round(float((cl.iloc[-1]/cl.iloc[-126]-1)*100) - n500_6m, 2) if len(cl)>=126 else 0
+
+                # EMA positions
+                ema21  = float(compute_ema(cl,21).iloc[-1])
+                ema50  = float(compute_ema(cl,50).iloc[-1])
+                ema200 = float(compute_ema(cl,200).iloc[-1])
+
+                # Sector score
+                sk = s.get("sector_key") or ""
+                sec_score, sec_label = sector_map.get(sk, (None, None))
+
+                sb.table("watchlist").update({
+                    "cmp":          cmp,
+                    "rs_1m":        rs_1m,
+                    "rs_3m":        rs_3m,
+                    "rs_6m":        rs_6m,
+                    "above_21ema":  cmp > ema21,
+                    "above_50ema":  cmp > ema50,
+                    "above_200ema": cmp > ema200,
+                    "sector_score": sec_score,
+                    "sector_label": sec_label,
+                    "updated_at":   NOW_IST.isoformat(),
+                }).eq("symbol", sym).execute()
+                print(f"   ✓ {sym}: ₹{cmp} | RS1M:{rs_1m:+.1f}% | "
+                      f"{'▲' if cmp>ema21 else '▼'}21 "
+                      f"{'▲' if cmp>ema50 else '▼'}50 "
+                      f"{'▲' if cmp>ema200 else '▼'}200")
+            except Exception as e:
+                print(f"   ⚠️  {sym}: {e}")
+
+        print(f"   ✓ {len(stocks)} watchlist stocks enriched\n")
+    except Exception as e:
+        print(f"   ❌ Watchlist enrichment failed: {e}\n")
+
 if __name__ == "__main__":
     try:
         if RUN_MODE == "intraday":
@@ -529,6 +606,8 @@ if __name__ == "__main__":
             sector_map = fetch_sector_stocks_from_nse()
             # Step 2: Compute breadth using those constituents
             fetch_sector_breadth(sector_map)
+            # Step 3: Enrich watchlist
+            enrich_watchlist()
 
         print(f"\n{'='*56}\n✅  {RUN_MODE.upper()} complete\n{'='*56}\n")
 
