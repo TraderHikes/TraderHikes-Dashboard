@@ -338,8 +338,8 @@ body{overflow-x:hidden;
 .hm-s1{background:linear-gradient(135deg,rgba(240,82,114,.14),rgba(240,82,114,.05));border-color:rgba(240,82,114,.24)}.hm-s1:hover{box-shadow:0 6px 24px rgba(240,82,114,.1)}
 /* ── Valvo-style trade grid ── */
 .trades-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;padding:4px 0}
-.trade-card{display:flex;flex-direction:column;border:1px solid rgba(92,111,251,.35);border-radius:12px;overflow:hidden;background:var(--card);transition:border-color .2s,transform .15s,box-shadow .2s;box-shadow:0 0 0 1px rgba(92,111,251,.1),0 0 18px rgba(92,111,251,.12),0 4px 20px rgba(0,0,0,.35)}
-.trade-card:hover{border-color:rgba(92,111,251,.7);transform:translateY(-2px);box-shadow:0 0 0 1px rgba(92,111,251,.3),0 0 28px rgba(92,111,251,.22),0 8px 28px rgba(92,111,251,.15)}
+.trade-card{display:flex;flex-direction:column;border:1px solid var(--bdr);border-radius:12px;overflow:hidden;background:var(--card);transition:border-color .15s,transform .12s}
+.trade-card:hover{border-color:rgba(92,111,251,.3);transform:translateY(-1px)}
 .chart-col{width:100%;height:220px;background:var(--card);position:relative;overflow:hidden;flex-shrink:0}
 .tv-loading{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:11px;color:var(--muted);flex-direction:column;gap:6px}
 canvas.tc{display:block;width:100%;height:100%}
@@ -634,7 +634,8 @@ canvas.tc{display:block;width:100%;height:100%}
   </div>
   <div class="hdr-meta">
     <div class="regime-pill" id="hdr-regime-pill"><div class="rp-dot" id="hdr-regime-dot"></div><span id="hdr-regime-text">Market Score</span></div>
-
+    <div class="hdr-sep"></div>
+    <div class="hdr-stat"><div class="hdr-stat-l">Total Capital</div><div class="hdr-stat-v" id="hdr-capital">—</div></div>
     <div class="hdr-sep"></div>
     <div class="hdr-stat"><div class="hdr-stat-l">Deployed</div><div class="hdr-stat-v" id="hdr-deployed">—</div></div>
     <div class="hdr-sep"></div>
@@ -1940,7 +1941,10 @@ function renderFiiTable(rows, period) {
 /* ── PORTFOLIO OVERVIEW — LIVE DATA ── */
 async function loadPortfolioOverview() {
   const fmt  = (n) => '₹' + Math.abs(n).toLocaleString('en-IN', {maximumFractionDigits:0});
-  const fmtL = (n) => '₹' + (n/100000).toFixed(2) + 'L';
+  const fmtL = (n) => {
+    if (Math.abs(n) >= 10000000) return '₹' + (n/10000000).toFixed(2) + 'Cr';
+    return '₹' + (n/100000).toFixed(2) + 'L';
+  };
   const setText = (id, val) => { const el=document.getElementById(id); if(el) el.textContent=val; };
 
   // Date header
@@ -1964,7 +1968,7 @@ async function loadPortfolioOverview() {
     .from('portfolio_snapshots').select('*')
     .order('snapshot_date', { ascending:false }).limit(1).single();
 
-  const totalCapital = snap?.total_capital || Math.max(totalDeployed * 1.36, 1);
+  const totalCapital = snap?.total_capital || 8500000; // fallback to ₹85L
   const cashAvail    = snap?.cash_available || Math.max(0, totalCapital - totalDeployed);
   const portValue    = snap?.portfolio_value || (totalDeployed + totalPnl + cashAvail);
   const portReturn   = snap?.cumulative_return_pct || 0;
@@ -2837,7 +2841,10 @@ async function renderOpen(){
 
   // Calculate summary numbers
   const fmt  = (n) => '₹' + Math.abs(n).toLocaleString('en-IN',{maximumFractionDigits:0});
-  const fmtL = (n) => '₹' + (n/100000).toFixed(2) + 'L';
+  const fmtL = (n) => {
+    if (Math.abs(n) >= 10000000) return '₹' + (n/10000000).toFixed(2) + 'Cr';
+    return '₹' + (n/100000).toFixed(2) + 'L';
+  };
   const setT = (id,v,col) => { const e=document.getElementById(id); if(e){e.textContent=v; if(col)e.style.color=col;} };
 
   let totalDeployed=0, totalPnl=0;
@@ -2946,7 +2953,7 @@ async function renderOpen(){
     .order('snapshot_date', { ascending: false })
     .limit(1).single()
     .then(({ data: snap }) => {
-      const totalCap  = snap?.total_capital || (totalDeployed * (1/0.11));
+      const totalCap  = snap?.total_capital || 8500000; // fallback to ₹85L if snapshot missing
       const cashAvail = snap?.cash_available || Math.max(0, totalCap - totalDeployed);
       const cashPct   = totalCap > 0 ? (cashAvail/totalCap*100).toFixed(1) : 0;
       setT('os-cash', cashPct + '%', 'var(--cyan)');
