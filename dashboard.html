@@ -1528,6 +1528,102 @@ canvas.tc{display:block;width:100%;height:100%}
   <div class="sb-pb" id="sb-pb"></div>
 </div>
 
+
+<!-- ══════════════════════════════════════════════════
+     STOCK FILTER PANE
+══════════════════════════════════════════════════ -->
+<div class="pane" id="pane-filter">
+
+<style>
+/* ── FILTER BAR ── */
+.sf-bar{display:flex;align-items:center;gap:8px;padding:14px 24px 12px;border-bottom:1px solid var(--bdr);flex-wrap:wrap}
+.sf-bar-title{font-family:var(--f);font-size:13px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--white)}
+.sf-chips{display:flex;gap:6px;flex-wrap:wrap}
+.sf-chip{padding:4px 13px;border-radius:20px;font-size:10px;font-weight:600;cursor:pointer;border:1px solid var(--bdr2);background:transparent;color:var(--muted);transition:all .18s;font-family:var(--fm)}
+.sf-chip.on{background:var(--blue);border-color:var(--blue);color:#fff}
+.sf-count{font-size:10px;color:var(--muted);margin-left:auto}
+.sf-refresh{font-size:10px;color:var(--muted);cursor:pointer;padding:4px 10px;border:1px solid var(--bdr);border-radius:6px;background:transparent;transition:all .15s}
+.sf-refresh:hover{color:var(--white);border-color:var(--blue-lt)}
+
+/* ── WATCHLIST SECTION ── */
+.sf-section-title{font-size:10px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);padding:18px 24px 10px;display:flex;align-items:center;gap:10px}
+.sf-section-title::after{content:'';flex:1;height:1px;background:var(--bdr)}
+
+/* ── WATCHLIST CARDS ── */
+.wl-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px;padding:0 24px 20px}
+.wl-card{background:var(--card);border:1px solid rgba(92,111,251,.3);border-radius:12px;padding:16px;transition:all .2s;cursor:default;box-shadow:0 0 0 1px rgba(92,111,251,.06),0 4px 16px rgba(0,0,0,.3)}
+.wl-card:hover{border-color:rgba(92,111,251,.6);transform:translateY(-1px);box-shadow:0 0 16px rgba(92,111,251,.12)}
+.wl-top{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:10px}
+.wl-sym{font-family:var(--f);font-size:15px;font-weight:800;color:var(--white);letter-spacing:.02em}
+.wl-co{font-size:10px;color:var(--muted);margin-top:2px}
+.wl-setup{display:inline-block;padding:3px 9px;border-radius:4px;font-size:9px;font-weight:700;letter-spacing:.06em;text-transform:uppercase}
+.setup-flag    {background:rgba(92,111,251,.15);color:var(--blue-lt)}
+.setup-htf     {background:rgba(46,232,220,.15);color:#2ee8dc}
+.setup-breakout{background:rgba(46,216,160,.15);color:#2ed8a0}
+.setup-pullback{background:rgba(255,179,64,.15);color:#ffb340}
+.setup-stage2  {background:rgba(255,93,122,.12);color:#ff8099}
+.setup-watch   {background:rgba(255,255,255,.06);color:var(--muted)}
+.wl-cmp{font-family:var(--fm);font-size:18px;font-weight:800;color:var(--white);margin-bottom:8px}
+.wl-rs-row{display:flex;gap:8px;margin-bottom:8px}
+.wl-rs{display:flex;flex-direction:column;align-items:center;background:var(--card2);border-radius:6px;padding:4px 8px;flex:1;border:1px solid var(--bdr)}
+.wl-rs-v{font-size:12px;font-weight:700;font-family:var(--fm)}
+.wl-rs-l{font-size:8px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;margin-top:1px}
+.wl-ema-row{display:flex;gap:5px;margin-bottom:8px}
+.wl-ema{padding:3px 7px;border-radius:4px;font-size:9px;font-weight:700;font-family:var(--fm)}
+.ema-up{background:rgba(46,216,160,.15);color:#2ed8a0;border:1px solid rgba(46,216,160,.2)}
+.ema-dn{background:rgba(255,93,122,.12);color:#ff8099;border:1px solid rgba(255,93,122,.2)}
+.wl-sector-row{display:flex;align-items:center;justify-content:space-between}
+.wl-sector-name{font-size:9px;color:var(--muted)}
+.wl-regime{display:inline-block;padding:2px 7px;border-radius:3px;font-size:8px;font-weight:700;letter-spacing:.06em}
+.wl-notes{font-size:9px;color:var(--muted);font-style:italic;margin-top:6px;padding-top:6px;border-top:1px solid var(--bdr);line-height:1.4}
+.wl-updated{font-size:8px;color:var(--bdr2);margin-top:4px}
+
+/* ── SECTOR LEADERS TABLE ── */
+.sl-wrap{padding:0 24px 28px;overflow-x:auto}
+.sl-table{width:100%;border-collapse:collapse;font-size:11px}
+.sl-table th{padding:7px 10px;text-align:left;font-size:9px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:600;border-bottom:1px solid var(--bdr);white-space:nowrap;font-family:var(--f)}
+.sl-table td{padding:9px 10px;border-bottom:1px solid rgba(255,255,255,.03);font-family:var(--fm);vertical-align:middle;white-space:nowrap}
+.sl-table tr:hover td{background:rgba(92,111,251,.05)}
+.sl-sym{font-weight:700;color:var(--white);font-family:var(--f);font-size:12px}
+.sl-sec{display:inline-block;font-size:8px;padding:2px 7px;border-radius:3px;margin-left:6px;font-family:var(--fm);font-weight:600;background:rgba(92,111,251,.12);color:var(--blue-lt)}
+.sl-ema-pip{width:8px;height:8px;border-radius:50%;display:inline-block;margin:0 2px}
+.wl-loading{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:48px;gap:12px;color:var(--muted)}
+.wl-spinner{width:28px;height:28px;border:3px solid var(--bdr);border-top-color:var(--blue);border-radius:50%;animation:spin .8s linear infinite}
+.wl-empty{text-align:center;padding:40px;color:var(--muted);font-size:12px}
+</style>
+
+<!-- Filter Bar -->
+<div class="sf-bar">
+  <span class="sf-bar-title">Stock Filter</span>
+  <div class="sf-chips">
+    <button class="sf-chip on" data-f="all">All</button>
+    <button class="sf-chip" data-f="bull">Bull Sectors</button>
+    <button class="sf-chip" data-f="flag">Flag / HTF</button>
+    <button class="sf-chip" data-f="breakout">Breakout</button>
+    <button class="sf-chip" data-f="pullback">Pullback</button>
+    <button class="sf-chip" data-f="above200">Above 200 EMA</button>
+    <button class="sf-chip" data-f="rs_pos">RS Positive</button>
+  </div>
+  <span class="sf-count" id="sf-count"></span>
+  <button class="sf-refresh" onclick="SF.load()">↻ Refresh</button>
+</div>
+
+<!-- Watchlist Cards -->
+<div class="sf-section-title">📌 Your Watchlist</div>
+<div class="wl-grid" id="wl-grid">
+  <div class="wl-loading"><div class="wl-spinner"></div><div>Loading watchlist…</div></div>
+</div>
+
+<!-- Sector Leaders -->
+<div class="sf-section-title">🏆 Sector Leaders — Top RS by Sector</div>
+<div class="sl-wrap">
+  <div id="sl-table-wrap">
+    <div class="wl-loading"><div class="wl-spinner"></div><div>Loading sector leaders…</div></div>
+  </div>
+</div>
+
+</div><!-- /pane-filter -->
+
 </div><!-- /wrap -->
 
 <script>
@@ -1603,6 +1699,7 @@ function sw(id,el){
   if(id==='portfolio'){setTimeout(drawPortfolioCharts,80);}
   if(id==='breadth'){loadMarketBreadth();}
   if(id==='sectoral'){SB.init();}
+  if(id==='filter'){SF.init();}
 }
 
 /* ══ SECTORAL BREADTH CONTROLLER ══ */
@@ -4139,6 +4236,218 @@ function applyOtSort(){
   }
   keyed.forEach(k=>{const node=document.getElementById('tc_'+k.id);if(node)c.appendChild(node);});
 }
+
+
+/* ══════════════════════════════════════════════════
+   STOCK FILTER CONTROLLER
+══════════════════════════════════════════════════ */
+const SF = (() => {
+  let all = [], filt = 'all', loaded = false;
+
+  const sC = sc => sc>=80?'#2ed8a0':sc>=60?'#2ee8dc':sc>=40?'#ffb340':sc>=20?'#ff8c42':'#ff5d7a';
+  const rC = sc => sc>=80?'sba-sb':sc>=60?'sba-b':sc>=40?'sba-n':sc>=20?'sba-br':'sba-sd';
+  const sg = v => v > 0 ? '+' : '';
+  const f1 = v => v == null ? '—' : parseFloat(v).toFixed(1);
+
+  const SETUP_CSS = {
+    'Flag':'setup-flag','HTF':'setup-htf','High Tight Flag':'setup-htf',
+    'Breakout':'setup-breakout','Pullback':'setup-pullback',
+    'Stage-2':'setup-stage2','Stage 2':'setup-stage2','Watch':'setup-watch',
+  };
+
+  function getSetupCss(tag) {
+    if (!tag) return 'setup-watch';
+    for (const [k,v] of Object.entries(SETUP_CSS)) {
+      if (tag.toLowerCase().includes(k.toLowerCase())) return v;
+    }
+    return 'setup-watch';
+  }
+
+  async function load() {
+    loaded = true;
+    const grid = document.getElementById('wl-grid');
+    if (grid) grid.innerHTML = '<div class="wl-loading"><div class="wl-spinner"></div><div>Loading…</div></div>';
+
+    const { data, error } = await sb.from('watchlist')
+      .select('*').eq('is_active', true).order('rs_1m', { ascending: false });
+
+    if (error || !data || !data.length) {
+      if (grid) grid.innerHTML = '<div class="wl-empty">No watchlist stocks yet.<br>Add stocks from Admin Panel → Watchlist tab.</div>';
+      return;
+    }
+    all = data;
+    applyFilter();
+    loadSectorLeaders();
+  }
+
+  function applyFilter() {
+    let d = [...all];
+    switch (filt) {
+      case 'bull':      d = d.filter(s => (s.sector_score||0) >= 60); break;
+      case 'flag':      d = d.filter(s => s.setup_tag && (s.setup_tag.toLowerCase().includes('flag') || s.setup_tag.toLowerCase().includes('htf'))); break;
+      case 'breakout':  d = d.filter(s => s.setup_tag && s.setup_tag.toLowerCase().includes('break')); break;
+      case 'pullback':  d = d.filter(s => s.setup_tag && s.setup_tag.toLowerCase().includes('pull')); break;
+      case 'above200':  d = d.filter(s => s.above_200ema === true); break;
+      case 'rs_pos':    d = d.filter(s => (s.rs_1m||0) > 0 && (s.rs_3m||0) > 0); break;
+    }
+    renderCards(d);
+    const cnt = document.getElementById('sf-count');
+    if (cnt) cnt.textContent = d.length + ' stock' + (d.length!==1?'s':'') + ' matching';
+  }
+
+  function renderCards(stocks) {
+    const grid = document.getElementById('wl-grid');
+    if (!grid) return;
+    if (!stocks.length) {
+      grid.innerHTML = '<div class="wl-empty">No stocks match this filter.</div>';
+      return;
+    }
+
+    grid.innerHTML = stocks.map(s => {
+      const sc    = s.sector_score;
+      const scCol = sc != null ? sC(sc) : 'var(--muted)';
+      const scCls = sc != null ? rC(sc) : 'sba-n';
+      const setupCss = getSetupCss(s.setup_tag);
+      const cmpStr = s.cmp ? '₹' + parseFloat(s.cmp).toLocaleString('en-IN', {maximumFractionDigits:2}) : '—';
+      const rs1Col  = (s.rs_1m||0)>=0 ? 'var(--green)' : 'var(--red)';
+      const rs3Col  = (s.rs_3m||0)>=0 ? 'var(--green)' : 'var(--red)';
+      const rs6Col  = (s.rs_6m||0)>=0 ? 'var(--green)' : 'var(--red)';
+      const updStr  = s.updated_at ? new Date(s.updated_at).toLocaleDateString('en-IN',{day:'numeric',month:'short'}) : '';
+
+      return `<div class="wl-card">
+        <div class="wl-top">
+          <div>
+            <div class="wl-sym">${s.symbol}</div>
+            <div class="wl-co">${s.company_name || ''}</div>
+          </div>
+          ${s.setup_tag ? `<span class="wl-setup ${setupCss}">${s.setup_tag}</span>` : ''}
+        </div>
+        <div class="wl-cmp">${cmpStr}</div>
+        <div class="wl-rs-row">
+          <div class="wl-rs"><div class="wl-rs-v" style="color:${rs1Col}">${sg(s.rs_1m)}${f1(s.rs_1m)}%</div><div class="wl-rs-l">RS 1M</div></div>
+          <div class="wl-rs"><div class="wl-rs-v" style="color:${rs3Col}">${sg(s.rs_3m)}${f1(s.rs_3m)}%</div><div class="wl-rs-l">RS 3M</div></div>
+          <div class="wl-rs"><div class="wl-rs-v" style="color:${rs6Col}">${sg(s.rs_6m)}${f1(s.rs_6m)}%</div><div class="wl-rs-l">RS 6M</div></div>
+        </div>
+        <div class="wl-ema-row">
+          <span class="wl-ema ${s.above_21ema?'ema-up':'ema-dn'}">${s.above_21ema?'▲':'▼'} 21 EMA</span>
+          <span class="wl-ema ${s.above_50ema?'ema-up':'ema-dn'}">${s.above_50ema?'▲':'▼'} 50 EMA</span>
+          <span class="wl-ema ${s.above_200ema?'ema-up':'ema-dn'}">${s.above_200ema?'▲':'▼'} 200 EMA</span>
+        </div>
+        <div class="wl-sector-row">
+          <span class="wl-sector-name">${s.sector || '—'}</span>
+          ${sc != null ? `<span class="wl-regime ${scCls}" style="color:${scCol}">${s.sector_label||'—'} · ${Math.round(sc)}</span>` : ''}
+        </div>
+        ${s.notes ? `<div class="wl-notes">"${s.notes}"</div>` : ''}
+        ${updStr ? `<div class="wl-updated">Updated ${updStr}</div>` : ''}
+      </div>`;
+    }).join('');
+  }
+
+  async function loadSectorLeaders() {
+    const wrap = document.getElementById('sl-table-wrap');
+    if (!wrap) return;
+
+    // Get sector breadth for today — bull sectors only
+    const { data: sectors } = await sb.from('sector_breadth')
+      .select('sector_key,sector_name,regime_score,regime_label')
+      .gte('regime_score', 60)
+      .order('date', { ascending: false })
+      .order('regime_score', { ascending: false })
+      .limit(40);
+
+    if (!sectors || !sectors.length) {
+      wrap.innerHTML = '<div class="wl-empty">No bull sectors found. Run pipeline to populate.</div>';
+      return;
+    }
+
+    // Deduplicate by sector_key (latest date only)
+    const seen = new Set();
+    const bullSectors = sectors.filter(s => {
+      if (seen.has(s.sector_key)) return false;
+      seen.add(s.sector_key); return true;
+    });
+
+    // Get watchlist stocks — use them as the "leaders" pool
+    // Augmented by sector_stocks for broader universe
+    const { data: stkData } = await sb.from('watchlist')
+      .select('symbol,company_name,sector,sector_key,rs_1m,rs_3m,above_200ema,setup_tag,cmp,sector_score,sector_label')
+      .eq('is_active', true)
+      .order('rs_1m', { ascending: false });
+
+    if (!stkData || !stkData.length) {
+      wrap.innerHTML = '<div class="wl-empty">Add stocks to watchlist to see sector leaders.</div>';
+      return;
+    }
+
+    // Group by sector, pick top 3 by RS 1M
+    const bySecor = {};
+    for (const s of stkData) {
+      const sk = s.sector_key || s.sector || 'Other';
+      if (!bySecor[sk]) bySecor[sk] = [];
+      bySecor[sk].push(s);
+    }
+    for (const k of Object.keys(bySecor)) {
+      bySecor[k].sort((a,b) => (b.rs_1m||0) - (a.rs_1m||0));
+    }
+
+    const sC2 = sc => sc>=80?'#2ed8a0':sc>=60?'#2ee8dc':sc>=40?'#ffb340':sc>=20?'#ff8c42':'#ff5d7a';
+
+    // Build rows
+    const rows = [];
+    for (const sec of bullSectors) {
+      const stocks = bySecor[sec.sector_key] || bySecor[sec.sector_name] || [];
+      const top = stocks.slice(0, 3);
+      if (!top.length) continue;
+      top.forEach((s, i) => {
+        const rs1c = (s.rs_1m||0)>=0?'var(--green)':'var(--red)';
+        const rs3c = (s.rs_3m||0)>=0?'var(--green)':'var(--red)';
+        const scol = sC2(sec.regime_score);
+        rows.push(`<tr>
+          ${i===0 ? `<td rowspan="${top.length}" style="border-right:3px solid ${scol};vertical-align:middle;padding-left:14px">
+            <div style="font-size:11px;font-weight:700;color:var(--white);font-family:var(--f)">${sec.sector_name}</div>
+            <div style="font-size:9px;color:${scol};font-weight:700;margin-top:2px">${sec.regime_label} · ${Math.round(sec.regime_score)}</div>
+          </td>` : ''}
+          <td><span class="sl-sym">${s.symbol}</span>${s.setup_tag?`<span class="sl-sec">${s.setup_tag}</span>`:''}</td>
+          <td>${s.cmp?'₹'+parseFloat(s.cmp).toLocaleString('en-IN',{maximumFractionDigits:2}):'—'}</td>
+          <td style="color:${rs1c};font-weight:700">${(s.rs_1m||0)>=0?'+':''}${f1(s.rs_1m)}%</td>
+          <td style="color:${rs3c};font-weight:700">${(s.rs_3m||0)>=0?'+':''}${f1(s.rs_3m)}%</td>
+          <td>
+            <span class="sl-ema-pip" style="background:${s.above_21ema?'#2ed8a0':'#ff5d7a'}" title="21 EMA"></span>
+            <span class="sl-ema-pip" style="background:${s.above_50ema?'#2ed8a0':'#ff5d7a'}" title="50 EMA"></span>
+            <span class="sl-ema-pip" style="background:${s.above_200ema?'#2ed8a0':'#ff5d7a'}" title="200 EMA"></span>
+            <span style="font-size:9px;color:var(--muted);margin-left:4px">21 · 50 · 200</span>
+          </td>
+        </tr>`);
+      });
+    }
+
+    if (!rows.length) {
+      wrap.innerHTML = '<div class="wl-empty">No watchlist stocks in bull sectors. Add stocks with sector tags.</div>';
+      return;
+    }
+
+    wrap.innerHTML = `<table class="sl-table">
+      <thead><tr>
+        <th>Sector</th><th>Symbol</th><th>CMP</th>
+        <th>RS 1M</th><th>RS 3M</th><th>EMA Position</th>
+      </tr></thead>
+      <tbody>${rows.join('')}</tbody>
+    </table>`;
+  }
+
+  // Filter chip click handler
+  document.querySelectorAll('.sf-chip').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.sf-chip').forEach(b => b.classList.remove('on'));
+      btn.classList.add('on');
+      filt = btn.dataset.f;
+      if (!loaded) { load(); return; }
+      applyFilter();
+    });
+  });
+
+  return { load, init() { if (!loaded) load(); } };
+})();
 
 </script>
 </body>
