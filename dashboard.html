@@ -711,7 +711,8 @@ canvas.tc{display:block;width:100%;height:100%}
   <div class="card">
     <div class="equity-header">
       <div>
-        <div class="ct" style="display:inline-block;margin-right:16px">Equity Curve vs Nifty 500 Index</div>
+        <div class="ct" style="display:inline-block;margin-right:12px">Equity Curve vs Nifty 500 Index</div>
+        <span style="display:inline-block;padding:3px 10px;border-radius:20px;font-size:10px;font-weight:700;letter-spacing:.04em;background:linear-gradient(135deg,rgba(92,111,251,.2),rgba(92,111,251,.08));border:1px solid rgba(92,111,251,.4);color:var(--blue-lt);box-shadow:0 0 8px rgba(92,111,251,.15)">Since 1 Apr 2026</span>
         <div class="equity-legend" style="display:inline-flex">
           <div class="eq-leg"><div class="eq-line" style="background:var(--blue-lt)"></div>Your Portfolio</div>
           <div class="eq-leg"><div class="eq-line" style="background:var(--amber);opacity:.7"></div>Nifty 500</div>
@@ -731,14 +732,19 @@ canvas.tc{display:block;width:100%;height:100%}
     <!-- Equity Stats Row -->
     <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:1px;background:var(--bdr);border-top:1px solid var(--bdr)">
       <div style="background:var(--card2);padding:12px 18px">
-        <div class="pcl">Portfolio Return</div>
-        <div class="pcv g" id="eq-port-return">—</div>
-        <div class="pcs">Since inception</div>
+        <div class="pcl">Nifty 50 Return</div>
+        <div class="pcv a" id="eq-nifty50-return">—</div>
+        <div class="pcs">Since 1 Apr 2026</div>
       </div>
       <div style="background:var(--card2);padding:12px 18px;border-left:1px solid var(--bdr)">
         <div class="pcl">Nifty 500 Return</div>
         <div class="pcv a" id="eq-nifty-return">—</div>
-        <div class="pcs">Since Apr 1, 2026</div>
+        <div class="pcs">Since 1 Apr 2026</div>
+      </div>
+      <div style="background:var(--card2);padding:12px 18px;border-left:1px solid var(--bdr)">
+        <div class="pcl">Portfolio Return</div>
+        <div class="pcv g" id="eq-port-return">—</div>
+        <div class="pcs">Since 1 Apr 2026</div>
       </div>
       <div style="background:var(--card2);padding:12px 18px;border-left:1px solid var(--bdr)">
         <div class="pcl">Alpha Generated</div>
@@ -2057,7 +2063,22 @@ async function loadPortfolioOverview() {
   setText('eq-port-return', (portReturn>=0?'+':'')+portReturn.toFixed(1)+'%');
   setText('eq-nifty-return', (niftyReturn>=0?'+':'')+niftyReturn.toFixed(1)+'%');
   setText('eq-alpha', (alpha>=0?'+':'')+alpha.toFixed(1)+'%');
-  setText('eq-port-value', fmtL(portValue));
+
+  // Nifty 50 return since 1 Apr 2026 — from index_levels table
+  sb.from('index_levels').select('nifty50,snapshot_date')
+    .gte('snapshot_date','2026-04-01').order('snapshot_date',{ascending:true}).limit(1).maybeSingle()
+    .then(({data:base50})=>{
+      sb.from('index_levels').select('nifty50').order('snapshot_date',{ascending:false}).limit(1).maybeSingle()
+        .then(({data:last50})=>{
+          const el=document.getElementById('eq-nifty50-return');
+          if(!el)return;
+          if(base50?.nifty50&&last50?.nifty50){
+            const r=(last50.nifty50-base50.nifty50)/base50.nifty50*100;
+            el.textContent=(r>=0?'+':'')+r.toFixed(1)+'%';
+            el.style.color=r>=0?'var(--amber)':'var(--red)';
+          } else el.textContent='—';
+        });
+    });
   const rpEl = document.getElementById('eq-realised-pnl');
   if(rpEl){ rpEl.textContent=(realisedPnl>=0?'+':'')+fmt(realisedPnl); rpEl.style.color=realisedPnl>=0?'var(--green)':'var(--red)'; }
 
