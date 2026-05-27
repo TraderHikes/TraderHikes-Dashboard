@@ -338,8 +338,26 @@ body{overflow-x:hidden;
 .hm-s1{background:linear-gradient(135deg,rgba(240,82,114,.14),rgba(240,82,114,.05));border-color:rgba(240,82,114,.24)}.hm-s1:hover{box-shadow:0 6px 24px rgba(240,82,114,.1)}
 /* ── Valvo-style trade grid ── */
 .trades-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;padding:4px 0}
-.trade-card{display:flex;flex-direction:column;border:1px solid var(--bdr);border-radius:12px;overflow:hidden;background:var(--card);transition:border-color .15s,transform .12s}
-.trade-card:hover{border-color:rgba(92,111,251,.3);transform:translateY(-1px)}
+.trade-card{
+  display:flex;flex-direction:column;
+  border:1px solid rgba(92,111,251,.55);
+  border-radius:12px;overflow:hidden;background:var(--card);
+  transition:border-color .2s,transform .15s,box-shadow .2s;
+  box-shadow:
+    0 0 0 1px rgba(92,111,251,.15),
+    0 0 20px rgba(92,111,251,.18),
+    inset 0 1px 0 rgba(92,111,251,.12),
+    0 4px 20px rgba(0,0,0,.4);
+}
+.trade-card:hover{
+  border-color:rgba(92,111,251,.9);
+  transform:translateY(-2px);
+  box-shadow:
+    0 0 0 1px rgba(92,111,251,.35),
+    0 0 32px rgba(92,111,251,.3),
+    inset 0 1px 0 rgba(92,111,251,.25),
+    0 8px 32px rgba(92,111,251,.18);
+}
 .chart-col{width:100%;height:220px;background:var(--card);position:relative;overflow:hidden;flex-shrink:0}
 .tv-loading{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:11px;color:var(--muted);flex-direction:column;gap:6px}
 canvas.tc{display:block;width:100%;height:100%}
@@ -1967,7 +1985,7 @@ async function loadPortfolioOverview() {
     .from('portfolio_snapshots').select('*')
     .order('snapshot_date', { ascending:false }).limit(1).maybeSingle();
 
-  const totalCapital = snap?.total_capital || 8500000; // ₹85L fallback — update via pipeline
+  const totalCapital = snap?.total_capital || 8500000;
   const cashAvail    = snap?.cash_available || Math.max(0, totalCapital - totalDeployed);
   const portValue    = snap?.portfolio_value || (totalDeployed + totalPnl + cashAvail);
   const portReturn   = snap?.cumulative_return_pct || 0;
@@ -2952,7 +2970,7 @@ async function renderOpen(){
     .order('snapshot_date', { ascending: false })
     .limit(1).single()
     .then(({ data: snap }) => {
-      const totalCap  = snap?.total_capital || 8500000; // ₹85L fallback
+      const totalCap  = snap?.total_capital || 8500000;
       const cashAvail = snap?.cash_available || Math.max(0, totalCap - totalDeployed);
       const cashPct   = totalCap > 0 ? (cashAvail/totalCap*100).toFixed(1) : 0;
       setT('os-cash', cashPct + '%', 'var(--cyan)');
