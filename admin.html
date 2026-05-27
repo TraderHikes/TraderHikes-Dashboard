@@ -1733,20 +1733,35 @@ async function saveCoreFields() {
   const tgt = parseFloat(document.getElementById('edit-target').value);
   if (isNaN(sl) || sl === undefined) { showEditAlert('Please enter a valid Stop Loss price.','error'); return; }
 
+  // Step 1: Update SL alone first (most critical)
+  const slUpdate = await sb.from('open_trades')
+    .update({ sl_price: sl, updated_at: new Date().toISOString() })
+    .eq('id', id);
+
+  if (slUpdate.error) {
+    showEditAlert('❌ SL save failed: ' + slUpdate.error.message, 'error');
+    console.error('SL update error:', slUpdate.error);
+    return;
+  }
+
+  // Step 2: Update remaining fields
   const { error } = await sb.from('open_trades').update({
     symbol:       document.getElementById('edit-symbol').value.trim().toUpperCase(),
-    sl_price:     sl, stop_loss: sl, stop_loss_price: sl,
     target_price: tgt || null,
     status:       document.getElementById('edit-status').value,
     sector:       document.getElementById('edit-sector').value.trim() || null,
     exchange:     document.getElementById('edit-exchange').value,
     trade_notes:  document.getElementById('edit-notes').value.trim() || null,
-    updated_at:   new Date().toISOString(),
   }).eq('id', id);
 
-  if (error) { showEditAlert('Error: ' + error.message, 'error'); return; }
-  showEditAlert('✓ Core fields saved.', 'success');
-  toast('Trade core fields updated ✓');
+  if (error) {
+    // SL was saved — warn but don't block
+    showEditAlert('✓ SL saved. Other fields error: ' + error.message, 'error');
+    console.error('Other fields error:', error);
+  } else {
+    showEditAlert('✓ Trade updated. SL: ₹' + sl.toLocaleString('en-IN'), 'success');
+    toast('SL updated to ₹' + sl.toLocaleString('en-IN') + ' ✓');
+  }
   await loadOpenTrades();
   await loadOpenTradesForSelect();
 }
