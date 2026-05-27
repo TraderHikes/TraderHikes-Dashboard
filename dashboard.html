@@ -338,26 +338,8 @@ body{overflow-x:hidden;
 .hm-s1{background:linear-gradient(135deg,rgba(240,82,114,.14),rgba(240,82,114,.05));border-color:rgba(240,82,114,.24)}.hm-s1:hover{box-shadow:0 6px 24px rgba(240,82,114,.1)}
 /* ── Valvo-style trade grid ── */
 .trades-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;padding:4px 0}
-.trade-card{
-  display:flex;flex-direction:column;
-  border:1px solid rgba(92,111,251,.55);
-  border-radius:12px;overflow:hidden;background:var(--card);
-  transition:border-color .2s,transform .15s,box-shadow .2s;
-  box-shadow:
-    0 0 0 1px rgba(92,111,251,.15),
-    0 0 20px rgba(92,111,251,.18),
-    inset 0 1px 0 rgba(92,111,251,.12),
-    0 4px 20px rgba(0,0,0,.4);
-}
-.trade-card:hover{
-  border-color:rgba(92,111,251,.9);
-  transform:translateY(-2px);
-  box-shadow:
-    0 0 0 1px rgba(92,111,251,.35),
-    0 0 32px rgba(92,111,251,.3),
-    inset 0 1px 0 rgba(92,111,251,.25),
-    0 8px 32px rgba(92,111,251,.18);
-}
+.trade-card{display:flex;flex-direction:column;border:1px solid rgba(92,111,251,.55);border-radius:12px;overflow:hidden;background:var(--card);transition:border-color .2s,transform .15s,box-shadow .2s;box-shadow:0 0 0 1px rgba(92,111,251,.15),0 0 20px rgba(92,111,251,.18),inset 0 1px 0 rgba(92,111,251,.12),0 4px 20px rgba(0,0,0,.4)}
+.trade-card:hover{border-color:rgba(92,111,251,.9);transform:translateY(-2px);box-shadow:0 0 0 1px rgba(92,111,251,.35),0 0 32px rgba(92,111,251,.3),inset 0 1px 0 rgba(92,111,251,.25),0 8px 32px rgba(92,111,251,.18)}
 .chart-col{width:100%;height:220px;background:var(--card);position:relative;overflow:hidden;flex-shrink:0}
 .tv-loading{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:11px;color:var(--muted);flex-direction:column;gap:6px}
 canvas.tc{display:block;width:100%;height:100%}
@@ -637,6 +619,12 @@ canvas.tc{display:block;width:100%;height:100%}
   .monthly-grid{grid-template-columns:repeat(3,1fr)}
   .sb-grid{grid-template-columns:repeat(2,1fr)!important}
 }
+
+/* ── OPEN TRADES SORT ── */
+.ot-sort-wrap{display:flex;align-items:center;gap:7px}
+.ot-sort-lbl{font-size:10px;color:var(--muted);font-family:var(--f);letter-spacing:.04em}
+.ot-sort-sel{background:var(--card2);border:1px solid var(--bdr);color:var(--text);font-family:var(--fm);font-size:11px;padding:4px 10px;border-radius:6px;cursor:pointer;outline:none;transition:border-color .15s}
+.ot-sort-sel:focus{border-color:var(--blue-lt)}
 </style>
 </head>
 <body>
@@ -1337,7 +1325,25 @@ canvas.tc{display:block;width:100%;height:100%}
     </div>
   </div>
   <div class="card">
-    <div class="ch"><span class="ct">Active Positions — Annotated Charts</span><div class="ch-r"><span class="chip">60-day daily</span></div></div>
+    <div class="ch"><span class="ct">Active Positions — Annotated Charts</span>
+      <div class="ch-r">
+        <div class="ot-sort-wrap">
+          <span class="ot-sort-lbl">Sort</span>
+          <select class="ot-sort-sel" id="ot-sort" onchange="applyOtSort()">
+            <option value="default">Entry Date</option>
+            <option value="alpha_asc">A → Z</option>
+            <option value="alpha_desc">Z → A</option>
+            <option value="pct_desc">Profit % ↓</option>
+            <option value="pct_asc">Profit % ↑</option>
+            <option value="pnl_desc">Notional P&L ↓</option>
+            <option value="pnl_asc">Notional P&L ↑</option>
+            <option value="size_desc">Position Size ↓</option>
+            <option value="size_asc">Position Size ↑</option>
+          </select>
+        </div>
+        <span class="chip">60-day daily</span>
+      </div>
+    </div>
     <div id="ot-container" class="trades-grid"></div>
   </div>
 </div>
@@ -1528,6 +1534,10 @@ canvas.tc{display:block;width:100%;height:100%}
 </div><!-- /wrap -->
 
 <script>
+/* ── OPEN TRADES SORT STATE ── */
+let _openTradesData = [];  // cached for re-sorting without re-fetch
+let _openTotalCap   = 8500000;
+
 /* ── SUPABASE CLIENT ── */
 const SUPABASE_URL = 'https://kqndpeflwuztzhixibih.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_TKxZEcz6BqGzko2I3Erk7w_zkl2Az76';
@@ -2971,6 +2981,7 @@ async function renderOpen(){
     .limit(1).single()
     .then(({ data: snap }) => {
       const totalCap  = snap?.total_capital || 8500000;
+      _openTotalCap = totalCap;
       const cashAvail = snap?.cash_available || Math.max(0, totalCap - totalDeployed);
       const cashPct   = totalCap > 0 ? (cashAvail/totalCap*100).toFixed(1) : 0;
       setT('os-cash', cashPct + '%', 'var(--cyan)');
@@ -2985,123 +2996,11 @@ async function renderOpen(){
   setT('hdr-deployed', fmtL(totalDeployed));
   setT('hdr-pnl', (totalPnl>=0?'+':'')+fmt(totalPnl), totalPnl>=0?'var(--green)':'var(--red)');
 
-  c.innerHTML='';
-  trades.forEach(t=>{
-    // Use avg_entry_price + remaining_qty if pyramided, else fall back to originals
-    const avgEntry = t.avg_entry_price || t.entry_price;
-    const remQty   = t.remaining_qty   || t.quantity;
-    const pp = t.cmp ? t.cmp > avgEntry : false;
-    const pnl = t.cmp ? (t.cmp - avgEntry) * remQty : null;
-    const pct = t.cmp ? ((t.cmp - avgEntry) / avgEntry * 100) : null;
-    const risk = (avgEntry - t.sl_price) * remQty;
-    const riskPct = ((avgEntry - t.sl_price) / avgEntry * 100);
-    const badgeMap = { long:'bl', trail_sl:'bt', watch:'bw' };
-    const bc = badgeMap[t.status] || 'bw';
-    const badgeLabel = t.status.replace('_',' ').replace(/\b\w/g,c=>c.toUpperCase());
+  // Cache for sort
+  _openTradesData = trades;
 
-    // Generate simulated bars based on avg entry price
-    const trend = t.cmp && t.cmp > avgEntry ? 0.004 : -0.002;
-    const bars = gen(avgEntry * 0.97, 60, trend, 0.018);
-    if(t.cmp && bars.length > 0) bars[bars.length-1].c = t.cmp;
+  _renderOtCards(trades);
 
-    // ── Calculated fields ──────────────────────────
-    const posValue    = avgEntry * remQty;
-    const reward      = t.cmp ? (t.cmp - avgEntry) : 0;
-    const riskPerSh   = avgEntry - t.sl_price;
-    const rrRatio     = riskPerSh > 0 ? (reward / riskPerSh) : null;
-    const fromInitial = t.avg_entry_price && t.entry_price && t.avg_entry_price !== t.entry_price
-      ? ((t.avg_entry_price - t.entry_price) / t.entry_price * 100)
-      : null;
-    const holdingDays = t.entry_date
-      ? Math.max(1, Math.round((Date.now() - new Date(t.entry_date).getTime()) / 86400000))
-      : 1;
-
-    const el=document.createElement('div');
-    el.className='trade-card';
-    el.innerHTML=`
-      <div class="chart-col" id="chart_${t.id}">
-        <div class="tv-loading">
-          <div style="width:14px;height:14px;border:2px solid rgba(255,255,255,.1);border-top-color:var(--blue);border-radius:50%;animation:spin .7s linear infinite"></div>
-          <span style="font-size:10px;color:var(--muted)">Loading chart...</span>
-        </div>
-      </div>
-      <div class="info-col">
-        <div class="trade-top">
-          <div style="flex:1;min-width:0">
-            <div style="display:flex;align-items:center;gap:4px;flex-wrap:wrap;margin-bottom:2px">
-              <span class="tnm">${t.symbol}</span>
-              <span class="badge ${bc}" style="font-size:8px;padding:2px 6px">${badgeLabel}</span>
-              ${t.has_pyramid ? '<span style="background:rgba(92,111,251,.15);border:1px solid rgba(92,111,251,.3);color:var(--blue-lt);padding:2px 5px;border-radius:100px;font-size:8px;font-weight:700">Pyramided</span>' : ''}
-              ${t.has_partial_exit ? '<span style="background:var(--amber-dim);border:1px solid var(--amber-bd);color:var(--amber);padding:2px 5px;border-radius:100px;font-size:8px;font-weight:700">Reduced</span>' : ''}
-            </div>
-            <div style="font-size:9px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${t.company_name}</div>
-            <div style="font-size:8px;color:var(--muted);margin-top:1px;opacity:.7">${t.sector||''} ${t.chart_pattern?'· '+t.chart_pattern:''}</div>
-          </div>
-          <div style="text-align:right;flex-shrink:0;margin-left:8px">
-            <div style="font-size:20px;font-weight:800;letter-spacing:-.5px;line-height:1;color:${pct!==null?(pct>=0?'var(--green)':'var(--red)'):'var(--muted)'}">
-              ${pct!==null?(pct>=0?'+':'')+pct.toFixed(1)+'%':'—'}
-            </div>
-            ${rrRatio!==null?`<div style="font-size:9px;font-weight:700;color:${rrRatio>=2?'var(--green)':rrRatio>=1?'var(--amber)':'var(--red)'};margin-top:1px">${(rrRatio>=0?'+':'')+rrRatio.toFixed(1)}R</div>`:''}
-          </div>
-        </div>
-
-        ${t.trade_notes ? `<div style="font-size:9px;color:var(--white);opacity:.75;font-style:italic;padding:3px 7px;background:rgba(255,255,255,.02);border-radius:4px;border-left:2px solid var(--bdr2);margin:4px 0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">"${t.trade_notes}"</div>` : ''}
-
-        <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--muted);padding:6px 0;border-top:1px solid var(--bdr);border-bottom:1px solid var(--bdr);margin:4px 0">
-          <span>Entry <b style="color:var(--green);font-family:var(--fm)">\u20B9${Number(t.entry_price).toLocaleString('en-IN')}</b></span>
-          ${t.avg_entry_price && t.avg_entry_price !== t.entry_price ? `<span>Avg <b style="color:var(--amber);font-family:var(--fm)">\u20B9${Number(avgEntry).toLocaleString('en-IN')}</b></span>` : ''}
-          <span>CMP <b style="color:${pp?'var(--green)':'var(--red)'};font-family:var(--fm)">${t.cmp?'\u20B9'+Number(t.cmp).toLocaleString('en-IN'):'—'}</b></span>
-          <span>SL <b style="color:var(--red);font-family:var(--fm)">\u20B9${Number(t.sl_price).toLocaleString('en-IN')}</b></span>
-        </div>
-
-        <div class="tc-metrics">
-          <div class="tc-met">
-            <div class="tc-met-l">Position Size</div>
-            <div class="tc-met-v" style="color:var(--blue-lt);font-family:var(--fm)">${t.position_size_pct ? t.position_size_pct+'%' : (t.capital_at_entry ? (posValue/t.capital_at_entry*100).toFixed(1)+'%' : '—')}</div>
-            <div style="font-size:8px;color:var(--white);margin-top:1px">\u20B9${(posValue/100000).toFixed(2)}L value</div>
-          </div>
-          <div class="tc-met">
-            <div class="tc-met-l">Qty (Rem / Total)</div>
-            <div class="tc-met-v" style="color:#a78bfa;font-family:var(--fm)">${remQty}<span style="color:#a78bfa;opacity:.7;font-size:9px"> /${t.total_quantity||t.quantity}</span></div>
-            <div style="font-size:8px;color:var(--white);margin-top:1px">${t.entry_date}</div>
-          </div>
-          <div class="tc-met">
-            <div class="tc-met-l">Open Risk</div>
-            <div class="tc-met-v" style="color:var(--red);font-family:var(--fm)">\u20B9${Math.abs(risk).toLocaleString('en-IN',{maximumFractionDigits:0})}</div>
-            <div style="font-size:8px;color:var(--white);margin-top:1px">${riskPct.toFixed(1)}% of pos</div>
-          </div>
-          <div class="tc-met">
-            <div class="tc-met-l">Notional P&L</div>
-            <div class="tc-met-v" style="color:${pnl!==null?(pnl>=0?'var(--green)':'var(--red)'):'var(--muted)'};font-family:var(--fm)">${pnl!==null?(pnl>=0?'+\u20B9':'\u20B9')+Math.abs(pnl).toLocaleString('en-IN',{maximumFractionDigits:0}):'—'}</div>
-            <div style="font-size:8px;color:var(--white);margin-top:1px;font-family:var(--fm)">${pct!==null?(pct>=0?'+':'')+pct.toFixed(2)+'% return':'—'}</div>
-          </div>
-        </div>
-
-        <!-- Holding Period bar -->
-        <div style="display:flex;align-items:center;gap:5px;margin-top:8px;padding-top:6px;border-top:1px solid var(--bdr)">
-          <span style="font-size:8px;color:var(--white);text-transform:uppercase;letter-spacing:.5px;min-width:60px">Holding: ${holdingDays}d</span>
-          <div style="display:flex;gap:2px;align-items:center">
-            ${Array.from({length:Math.min(Math.ceil(holdingDays/7),16)}, (_,i) =>
-              '<div style="width:5px;height:5px;border-radius:1px;background:var(--blue-lt);opacity:'+(1-(i/Math.min(Math.ceil(holdingDays/7),16))*0.5)+'"></div>'
-            ).join('')}
-          </div>
-        </div>
-
-        <!-- Trade Log (loaded async) -->
-        <div id="tlog_${t.id}" style="margin-top:8px;padding-top:6px;border-top:1px solid var(--bdr)">
-          <div style="font-size:9px;color:var(--muted)">Loading trade log...</div>
-        </div>
-      </div>`;
-    c.appendChild(el);
-
-    // Load trade log and render TV chart in parallel
-    loadTradeLog(t);
-    requestAnimationFrame(() => {
-      renderTVChart(t.id, t.symbol, avgEntry, t.sl_price, t.cmp || avgEntry,
-        t.entry_date, t.has_pyramid, t.has_partial_exit);
-    });
-
-  });
 }
 
 /* ─ RENDER CLOSED (LIVE FROM SUPABASE) ─ */
@@ -4065,6 +3964,168 @@ window.addEventListener('load', async () => {
       drawPortfolioCharts();
   });
 });
+
+
+// ── Named card renderer — used by renderOpen + applyOtSort ──
+function _renderOtCards(trades) {
+  const c = document.getElementById('ot-container');
+  if (!c) return;
+  c.innerHTML = '';
+  const totalCap = _openTotalCap;
+  const fmt  = (n) => '₹' + Math.abs(n).toLocaleString('en-IN',{maximumFractionDigits:0});
+  const fmtL = (n) => {
+    if (Math.abs(n) >= 10000000) return '₹' + (n/10000000).toFixed(2) + 'Cr';
+    return '₹' + (n/100000).toFixed(2) + 'L';
+  };
+  trades.forEach(t=>{
+    // Use avg_entry_price + remaining_qty if pyramided, else fall back to originals
+    const avgEntry = t.avg_entry_price || t.entry_price;
+    const remQty   = t.remaining_qty   || t.quantity;
+    const pp = t.cmp ? t.cmp > avgEntry : false;
+    const pnl = t.cmp ? (t.cmp - avgEntry) * remQty : null;
+    const pct = t.cmp ? ((t.cmp - avgEntry) / avgEntry * 100) : null;
+    const risk = (avgEntry - t.sl_price) * remQty;
+    const riskPct = ((avgEntry - t.sl_price) / avgEntry * 100);
+    const badgeMap = { long:'bl', trail_sl:'bt', watch:'bw' };
+    const bc = badgeMap[t.status] || 'bw';
+    const badgeLabel = t.status.replace('_',' ').replace(/\b\w/g,c=>c.toUpperCase());
+
+    // Generate simulated bars based on avg entry price
+    const trend = t.cmp && t.cmp > avgEntry ? 0.004 : -0.002;
+    const bars = gen(avgEntry * 0.97, 60, trend, 0.018);
+    if(t.cmp && bars.length > 0) bars[bars.length-1].c = t.cmp;
+
+    // ── Calculated fields ──────────────────────────
+    const posValue    = avgEntry * remQty;
+    const reward      = t.cmp ? (t.cmp - avgEntry) : 0;
+    const riskPerSh   = avgEntry - t.sl_price;
+    const rrRatio     = riskPerSh > 0 ? (reward / riskPerSh) : null;
+    const fromInitial = t.avg_entry_price && t.entry_price && t.avg_entry_price !== t.entry_price
+      ? ((t.avg_entry_price - t.entry_price) / t.entry_price * 100)
+      : null;
+    const holdingDays = t.entry_date
+      ? Math.max(1, Math.round((Date.now() - new Date(t.entry_date).getTime()) / 86400000))
+      : 1;
+
+    const el=document.createElement('div');
+    el.className='trade-card';
+    el.innerHTML=`
+      <div class="chart-col" id="chart_${t.id}">
+        <div class="tv-loading">
+          <div style="width:14px;height:14px;border:2px solid rgba(255,255,255,.1);border-top-color:var(--blue);border-radius:50%;animation:spin .7s linear infinite"></div>
+          <span style="font-size:10px;color:var(--muted)">Loading chart...</span>
+        </div>
+      </div>
+      <div class="info-col">
+        <div class="trade-top">
+          <div style="flex:1;min-width:0">
+            <div style="display:flex;align-items:center;gap:4px;flex-wrap:wrap;margin-bottom:2px">
+              <span class="tnm">${t.symbol}</span>
+              <span class="badge ${bc}" style="font-size:8px;padding:2px 6px">${badgeLabel}</span>
+              ${t.has_pyramid ? '<span style="background:rgba(92,111,251,.15);border:1px solid rgba(92,111,251,.3);color:var(--blue-lt);padding:2px 5px;border-radius:100px;font-size:8px;font-weight:700">Pyramided</span>' : ''}
+              ${t.has_partial_exit ? '<span style="background:var(--amber-dim);border:1px solid var(--amber-bd);color:var(--amber);padding:2px 5px;border-radius:100px;font-size:8px;font-weight:700">Reduced</span>' : ''}
+            </div>
+            <div style="font-size:9px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${t.company_name}</div>
+            <div style="font-size:8px;color:var(--muted);margin-top:1px;opacity:.7">${t.sector||''} ${t.chart_pattern?'· '+t.chart_pattern:''}</div>
+          </div>
+          <div style="text-align:right;flex-shrink:0;margin-left:8px">
+            <div style="font-size:20px;font-weight:800;letter-spacing:-.5px;line-height:1;color:${pct!==null?(pct>=0?'var(--green)':'var(--red)'):'var(--muted)'}">
+              ${pct!==null?(pct>=0?'+':'')+pct.toFixed(1)+'%':'—'}
+            </div>
+            ${rrRatio!==null?`<div style="font-size:9px;font-weight:700;color:${rrRatio>=2?'var(--green)':rrRatio>=1?'var(--amber)':'var(--red)'};margin-top:1px">${(rrRatio>=0?'+':'')+rrRatio.toFixed(1)}R</div>`:''}
+          </div>
+        </div>
+
+        ${t.trade_notes ? `<div style="font-size:9px;color:var(--white);opacity:.75;font-style:italic;padding:3px 7px;background:rgba(255,255,255,.02);border-radius:4px;border-left:2px solid var(--bdr2);margin:4px 0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">"${t.trade_notes}"</div>` : ''}
+
+        <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--muted);padding:6px 0;border-top:1px solid var(--bdr);border-bottom:1px solid var(--bdr);margin:4px 0">
+          <span>Entry <b style="color:var(--green);font-family:var(--fm)">\u20B9${Number(t.entry_price).toLocaleString('en-IN')}</b></span>
+          ${t.avg_entry_price && t.avg_entry_price !== t.entry_price ? `<span>Avg <b style="color:var(--amber);font-family:var(--fm)">\u20B9${Number(avgEntry).toLocaleString('en-IN')}</b></span>` : ''}
+          <span>CMP <b style="color:${pp?'var(--green)':'var(--red)'};font-family:var(--fm)">${t.cmp?'\u20B9'+Number(t.cmp).toLocaleString('en-IN'):'—'}</b></span>
+          <span>SL <b style="color:var(--red);font-family:var(--fm)">\u20B9${Number(t.sl_price).toLocaleString('en-IN')}</b></span>
+        </div>
+
+        <div class="tc-metrics">
+          <div class="tc-met">
+            <div class="tc-met-l">Position Size</div>
+            <div class="tc-met-v" style="color:var(--blue-lt);font-family:var(--fm)">${t.position_size_pct ? t.position_size_pct+'%' : (t.capital_at_entry ? (posValue/t.capital_at_entry*100).toFixed(1)+'%' : '—')}</div>
+            <div style="font-size:8px;color:var(--white);margin-top:1px">\u20B9${(posValue/100000).toFixed(2)}L value</div>
+          </div>
+          <div class="tc-met">
+            <div class="tc-met-l">Qty (Rem / Total)</div>
+            <div class="tc-met-v" style="color:#a78bfa;font-family:var(--fm)">${remQty}<span style="color:#a78bfa;opacity:.7;font-size:9px"> /${t.total_quantity||t.quantity}</span></div>
+            <div style="font-size:8px;color:var(--white);margin-top:1px">${t.entry_date}</div>
+          </div>
+          <div class="tc-met">
+            <div class="tc-met-l">Open Risk</div>
+            <div class="tc-met-v" style="color:var(--red);font-family:var(--fm)">\u20B9${Math.abs(risk).toLocaleString('en-IN',{maximumFractionDigits:0})}</div>
+            <div style="font-size:8px;color:var(--white);margin-top:1px">${riskPct.toFixed(1)}% of pos</div>
+          </div>
+          <div class="tc-met">
+            <div class="tc-met-l">Notional P&L</div>
+            <div class="tc-met-v" style="color:${pnl!==null?(pnl>=0?'var(--green)':'var(--red)'):'var(--muted)'};font-family:var(--fm)">${pnl!==null?(pnl>=0?'+\u20B9':'\u20B9')+Math.abs(pnl).toLocaleString('en-IN',{maximumFractionDigits:0}):'—'}</div>
+            <div style="font-size:8px;color:var(--white);margin-top:1px;font-family:var(--fm)">${pct!==null?(pct>=0?'+':'')+pct.toFixed(2)+'% return':'—'}</div>
+          </div>
+        </div>
+
+        <!-- Holding Period bar -->
+        <div style="display:flex;align-items:center;gap:5px;margin-top:8px;padding-top:6px;border-top:1px solid var(--bdr)">
+          <span style="font-size:8px;color:var(--white);text-transform:uppercase;letter-spacing:.5px;min-width:60px">Holding: ${holdingDays}d</span>
+          <div style="display:flex;gap:2px;align-items:center">
+            ${Array.from({length:Math.min(Math.ceil(holdingDays/7),16)}, (_,i) =>
+              '<div style="width:5px;height:5px;border-radius:1px;background:var(--blue-lt);opacity:'+(1-(i/Math.min(Math.ceil(holdingDays/7),16))*0.5)+'"></div>'
+            ).join('')}
+          </div>
+        </div>
+
+        <!-- Trade Log (loaded async) -->
+        <div id="tlog_${t.id}" style="margin-top:8px;padding-top:6px;border-top:1px solid var(--bdr)">
+          <div style="font-size:9px;color:var(--muted)">Loading trade log...</div>
+        </div>
+      </div>`;
+    c.appendChild(el);
+
+    // Load trade log and render TV chart in parallel
+    loadTradeLog(t);
+    requestAnimationFrame(() => {
+      renderTVChart(t.id, t.symbol, avgEntry, t.sl_price, t.cmp || avgEntry,
+        t.entry_date, t.has_pyramid, t.has_partial_exit);
+    });
+
+  });
+}
+
+// ── OPEN TRADES SORT ─────────────────────────────────────────────
+function applyOtSort() {
+  if (!_openTradesData.length) return;
+  const sel  = document.getElementById('ot-sort');
+  const mode = sel ? sel.value : 'default';
+  let sorted = [..._openTradesData];
+
+  sorted.forEach(t => {
+    const ae  = t.avg_entry_price || t.entry_price;
+    const rq  = t.remaining_qty   || t.quantity;
+    t._pct  = t.cmp ? ((t.cmp - ae) / ae * 100) : 0;
+    t._pnl  = t.cmp ? ((t.cmp - ae) * rq)       : 0;
+    t._size = ae * rq;
+  });
+
+  switch (mode) {
+    case 'alpha_asc':  sorted.sort((a,b) => a.symbol.localeCompare(b.symbol)); break;
+    case 'alpha_desc': sorted.sort((a,b) => b.symbol.localeCompare(a.symbol)); break;
+    case 'pct_desc':   sorted.sort((a,b) => b._pct  - a._pct);  break;
+    case 'pct_asc':    sorted.sort((a,b) => a._pct  - b._pct);  break;
+    case 'pnl_desc':   sorted.sort((a,b) => b._pnl  - a._pnl);  break;
+    case 'pnl_asc':    sorted.sort((a,b) => a._pnl  - b._pnl);  break;
+    case 'size_desc':  sorted.sort((a,b) => b._size - a._size);  break;
+    case 'size_asc':   sorted.sort((a,b) => a._size - b._size);  break;
+    default:           /* entry date — already in fetch order */  break;
+  }
+
+  // Re-render cards using shared renderer
+  _renderOtCards(sorted);
+}
+
 </script>
 </body>
 </html>
