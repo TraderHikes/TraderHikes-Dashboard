@@ -413,7 +413,7 @@
           <thead><tr>
             <th>Symbol</th><th>Company</th><th>Entry Date</th>
             <th>Avg Entry ₹</th><th>Rem/Total Qty</th><th>SL ₹</th><th>CMP ₹</th>
-            <th>P&L ₹</th><th>Pos Size</th><th>Status</th><th>Actions</th>
+            <th>P&L ₹</th><th>Return %</th><th>Pos Size</th><th>Status</th><th>Actions</th>
           </tr></thead>
           <tbody id="open-trades-tbody">
             <tr><td colspan="10" style="text-align:center;color:var(--muted);padding:20px">Loading...</td></tr>
@@ -1366,11 +1366,11 @@ async function loadTradeHistoryForClose(tradeId) {
 }
 async function loadOpenTrades() {
   const tbody = document.getElementById('open-trades-tbody');
-  tbody.innerHTML = '<tr><td colspan="11" style="text-align:center;color:var(--muted);padding:20px">Loading...</td></tr>';
+  tbody.innerHTML = '<tr><td colspan="12" style="text-align:center;color:var(--muted);padding:20px">Loading...</td></tr>';
   const { data, error } = await sb
     .from('open_trades').select('*').order('entry_date', { ascending: false });
-  if (error) { tbody.innerHTML = `<tr><td colspan="11" style="color:var(--red);padding:16px">${error.message}</td></tr>`; return; }
-  if (!data || data.length === 0) { tbody.innerHTML = '<tr><td colspan="11" style="text-align:center;color:var(--muted);padding:20px">No open trades yet.</td></tr>'; return; }
+  if (error) { tbody.innerHTML = `<tr><td colspan="12" style="color:var(--red);padding:16px">${error.message}</td></tr>`; return; }
+  if (!data || data.length === 0) { tbody.innerHTML = '<tr><td colspan="12" style="text-align:center;color:var(--muted);padding:20px">No open trades yet.</td></tr>'; return; }
   tbody.innerHTML = data.map(t => {
     const avgEntry = t.avg_entry_price || t.entry_price;
     const remQty   = t.remaining_qty   || t.quantity;
@@ -1378,6 +1378,10 @@ async function loadOpenTrades() {
     const pnlStr   = pnl !== null
       ? `<span style="color:${pnl>=0?'var(--green)':'var(--red)'}">${pnl>=0?'+':''}\u20b9${Math.abs(pnl).toLocaleString('en-IN',{maximumFractionDigits:0})}</span>`
       : '<span style="color:var(--muted)">\u2014</span>';
+    const retPct   = (t.cmp && avgEntry) ? ((t.cmp - avgEntry) / avgEntry * 100) : null;
+    const retStr   = retPct !== null
+      ? `<span style="color:${retPct>=0?'var(--green)':'var(--red)'};font-weight:700">${retPct>=0?'+':''}${retPct.toFixed(2)}%</span>`
+      : '<span style="color:var(--muted)">—</span>';
     const badgeMap = { long:'badge-long', trail_sl:'badge-trail', watch:'badge-watch' };
     const posPct   = t.position_size_pct ? t.position_size_pct+'%' : '\u2014';
     const flags    = [
@@ -1393,6 +1397,7 @@ async function loadOpenTrades() {
       <td class="mono" style="color:var(--red)">\u20b9${Number(t.sl_price).toLocaleString('en-IN')}</td>
       <td class="mono">${t.cmp?'\u20b9'+Number(t.cmp).toLocaleString('en-IN'):'<span style="color:var(--muted)">\u2014</span>'}</td>
       <td>${pnlStr}</td>
+      <td>${retStr}</td>
       <td style="color:var(--blue-lt);font-weight:700">${posPct}</td>
       <td><span class="badge ${badgeMap[t.status]||'badge-watch'}">${t.status.replace('_',' ')}</span></td>
       <td style="display:flex;gap:6px;align-items:center">
@@ -1759,8 +1764,12 @@ async function saveCoreFields() {
     showEditAlert('✓ SL saved. Other fields error: ' + error.message, 'error');
     console.error('Other fields error:', error);
   } else {
-    showEditAlert('✓ Trade updated. SL: ₹' + sl.toLocaleString('en-IN'), 'success');
-    toast('SL updated to ₹' + sl.toLocaleString('en-IN') + ' ✓');
+    const msg = '✓ ' + document.getElementById('edit-symbol').value + ' updated — SL: ₹' + sl.toLocaleString('en-IN');
+    showEditAlert(msg, 'success');
+    toast(msg, 'success');
+    // Scroll alert into view
+    const alertEl = document.getElementById('edit-modal-alert-wrap');
+    if (alertEl) alertEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   }
   await loadOpenTrades();
   await loadOpenTradesForSelect();
