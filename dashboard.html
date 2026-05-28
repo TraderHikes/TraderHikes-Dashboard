@@ -4172,7 +4172,7 @@ async function loadStockFilter() {
   // Fetch both tables and merge — watchlist has RS+company from CSV,
   // watchlist_enriched has EMA data from pipeline
   const [rawRes, enrichedRes] = await Promise.all([
-    sb.from('watchlist').select('symbol,company_name,rs_rating,cur_price,price_chg_pct'),
+    sb.from('watchlist').select('symbol,company_name,rs_rating'),
     sb.from('watchlist_enriched').select('*'),
   ]);
 
@@ -4182,7 +4182,8 @@ async function loadStockFilter() {
   const enrichedMap = {};
   (enrichedRes.data||[]).forEach(r => enrichedMap[r.symbol] = r);
 
-  // Merge: enriched data takes priority, fill missing fields from raw
+  // Merge: CSV fields (symbol, company, rs) are authoritative
+  // EMA data comes from pipeline enrichment
   const allSymbols = new Set([
     ...Object.keys(rawMap),
     ...Object.keys(enrichedMap),
@@ -4192,12 +4193,10 @@ async function loadStockFilter() {
     const raw = rawMap[sym] || {};
     const enr = enrichedMap[sym] || {};
     return {
-      ...enr,
+      ...enr,                                    // EMA data from pipeline
       symbol:       sym,
-      company_name: raw.company_name || enr.company_name || null,
-      rs_rating:    raw.rs_rating    || enr.rs_rating    || null,
-      cur_price:    enr.cur_price    || raw.cur_price     || null,
-      price_chg_pct:enr.price_chg_pct|| raw.price_chg_pct|| null,
+      company_name: raw.company_name || null,    // from CSV
+      rs_rating:    raw.rs_rating    || null,    // from CSV (MarketSmith RS)
     };
   }).sort((a,b) => (b.rs_rating||0) - (a.rs_rating||0));
 
