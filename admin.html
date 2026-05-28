@@ -2343,6 +2343,10 @@ async function wlRemove(symbol) {
 async function wlUploadCSV() {
   const fileInput = document.getElementById('wl-file-input');
   const statusEl  = document.getElementById('wl-upload-status');
+  const alertErr  = document.getElementById('wl-alert-error');
+  const alertOk   = document.getElementById('wl-alert-success');
+  if (alertErr) alertErr.style.display = 'none';
+  if (alertOk)  alertOk.style.display  = 'none';
 
   if (!fileInput?.files[0]) {
     if(statusEl){ statusEl.textContent = '⚠ Select a CSV file first'; statusEl.style.color='var(--amber)'; }
@@ -2354,35 +2358,38 @@ async function wlUploadCSV() {
 
   const text    = await file.text();
   const lines   = text.trim().split(/\r?\n/);
-  const headers = lines[0].split(',').map(h => h.replace(/"/g,'').trim().toLowerCase());
+  // Parse header — preserve original casing for lookup, lowercase for matching
+  const rawHeaders = lines[0].split(',').map(h => h.replace(/"/g,'').trim());
+  const headers    = rawHeaders.map(h => h.toLowerCase());
 
-  // Flexible column mapping
-  const col = {
-    symbol:  headers.findIndex(h => h.includes('symbol')),
-    company: headers.findIndex(h => h.includes('company') || h.includes('name')),
-    price:   headers.findIndex(h => h === 'cur_price' || (h.includes('price') && !h.includes('chg') && !h.includes('pct') && !h.includes('change'))),
-    change:  headers.findIndex(h => h === 'price_change' || h === 'change'),
-    chgpct:  headers.findIndex(h => h.includes('pct') || h.includes('percentage')),
-    rs:      headers.findIndex(h => h.includes('rs_rating') || h === 'rs'),
+  const colIdx = (names) => {
+    for (const n of names) {
+      const i = headers.findIndex(h => h === n.toLowerCase() || h.includes(n.toLowerCase()));
+      if (i >= 0) return i;
+    }
+    return -1;
   };
 
-  if (col.symbol < 0) {
+  const iSym     = colIdx(['symbol']);
+  const iCompany = colIdx(['companyname','company_name','company','name']);
+  const iPrice   = colIdx(['cur_price','price','current_price']);
+  const iChange  = colIdx(['price_change','change']);
+  const iChgPct  = colIdx(['price_percentage_chg','price_chg_pct','pct','percentage']);
+  const iRS      = colIdx(['rs_rating','rs']);
+
+  if (iSym < 0) {
     statusEl.textContent = '❌ No Symbol column found'; statusEl.style.color='var(--red)'; return;
   }
 
   const rows = [];
   for (let i = 1; i < lines.length; i++) {
-    const c   = lines[i].split(',').map(v => v.replace(/"/g,'').trim());
-    const sym = c[col.symbol];
-    if (!sym || sym.toLowerCase() === 'symbol' || sym === '') continue;
+    const c = lines[i].split(',').map(v => v.replace(/"/g,'').trim());
+    const sym = c[iSym];
+    if (!sym || sym === '' || sym.toLowerCase() === 'symbol') continue;
     rows.push({
-      symbol:        sym.toUpperCase(),
-      company_name:  col.company >= 0  ? c[col.company]                    : null,
-      cur_price:     col.price   >= 0  ? parseFloat(c[col.price])  || null : null,
-      price_change:  col.change  >= 0  ? parseFloat(c[col.change]) || null : null,
-      price_chg_pct: col.chgpct  >= 0  ? parseFloat(c[col.chgpct]) || null : null,
-      rs_rating:     col.rs      >= 0  ? parseInt(c[col.rs])        || null : null,
-      uploaded_at:   new Date().toISOString(),
+      symbol:      sym.toUpperCase(),
+      company_name:iCompany >= 0 ? c[iCompany] || null : null,
+      rs_rating:   iRS      >= 0 ? parseInt(c[iRS]) || null : null,
     });
   }
 
@@ -2390,55 +2397,62 @@ async function wlUploadCSV() {
     statusEl.textContent = '❌ No valid rows found'; statusEl.style.color='var(--red)'; return;
   }
 
-  statusEl.textContent = `⏳ Uploading ${rows.length} stocks…`; statusEl.style.color = 'var(--amber)';
+  statusEl.textContent = `⏳ Uploading ${rows.length} stocks…`;
 
-  // Step 1: Remove symbols no longer in the new CSV
-  // (fetch existing, diff, delete removed ones)
-  const { data: existing } = await sb.from('watchlist').select('symbol');
-  const newSyms = new Set(rows.map(r => r.symbol));
-  const toDelete = (existing || []).map(r => r.symbol).filter(s => !newSyms.has(s));
-  if (toDelete.length) {
-    for (let i = 0; i < toDelete.length; i += 50) {
-      await sb.from('watchlist').delete().in('symbol', toDelete.slice(i, i+50));
-      await sb.from('watchlist_enriched').delete().in('symbol', toDelete.slice(i, i+50));
+  // Test single row first to detect schema issues early
+  const testRow = rows[0];
+  const { error: testErr } = await sb.from('watchlist')
+    .upsert([testRow], { onConflict: 'symbol' });
+
+  if (testErr) {
+    // Schema mismatch — try minimal payload (symbol only)
+    console.error('Schema test failed:', testErr.message);
+    // Check if it's a column error — if so, try with only symbol
+    if (testErr.message.includes('column')) {
+      statusEl.textContent = '⚠ Schema mismatch — trying minimal upload…';
+      const minRows = rows.map(r => ({ symbol: r.symbol }));
+      const { error: minErr } = await sb.from('watchlist')
+        .upsert(minRows.slice(0,1), { onConflict: 'symbol' });
+      if (minErr) {
+        statusEl.textContent = `❌ ${minErr.message}`;
+        statusEl.style.color = 'var(--red)';
+        if (alertErr) { alertErr.textContent = `Upload failed: ${minErr.message}. Run watchlist_schema.sql in Supabase to fix the table structure.`; alertErr.style.display='block'; }
+        return;
+      }
+      // Minimal works — proceed with symbol only
+      rows.forEach(r => { Object.keys(r).forEach(k => { if(k!=='symbol') delete r[k]; }); });
+      statusEl.textContent = `⚠ Uploading symbol-only (run watchlist_schema.sql to enable full data)`;
+    } else {
+      statusEl.textContent = `❌ ${testErr.message}`; statusEl.style.color='var(--red)';
+      if (alertErr) { alertErr.textContent = `Upload failed: ${testErr.message}`; alertErr.style.display='block'; }
+      return;
     }
   }
 
-  // Step 2: Upsert all new rows (insert or update on symbol conflict)
-  let errorMsgs = [];
-  let uploaded  = 0;
+  // Remove symbols no longer in new CSV
+  const { data: existing } = await sb.from('watchlist').select('symbol');
+  const newSyms   = new Set(rows.map(r => r.symbol));
+  const toDelete  = (existing||[]).map(r=>r.symbol).filter(s=>!newSyms.has(s));
+  for (let i = 0; i < toDelete.length; i += 50)
+    await sb.from('watchlist').delete().in('symbol', toDelete.slice(i,i+50));
+
+  // Upsert all rows
+  let uploaded = 0;
   for (let i = 0; i < rows.length; i += 50) {
     const { error } = await sb.from('watchlist')
-      .upsert(rows.slice(i, i+50), { onConflict: 'symbol' });
-    if (error) {
-      errorMsgs.push(error.message);
-      console.error('Upsert error batch', i/50+1, ':', error);
-    } else {
-      uploaded += rows.slice(i, i+50).length;
-    }
+      .upsert(rows.slice(i,i+50), { onConflict: 'symbol' });
+    if (error) { console.error('Batch error:', error); }
+    else uploaded += rows.slice(i,i+50).length;
   }
 
-  if (errorMsgs.length) {
-    const msg = errorMsgs[0].length > 80 ? errorMsgs[0].slice(0,80)+'…' : errorMsgs[0];
-    statusEl.textContent = `❌ Error: ${msg}`;
-    statusEl.style.color = 'var(--red)';
-    // Show in alert too
-    const alertEl = document.getElementById('wl-alert-error');
-    if (alertEl) { alertEl.textContent = `Upload failed: ${errorMsgs[0]}`; alertEl.style.display='block'; }
-    return;
-  }
-
-  statusEl.textContent = `✓ ${uploaded} stocks uploaded — ${toDelete.length} removed`;
+  statusEl.textContent = `✓ ${uploaded}/${rows.length} stocks uploaded`;
   statusEl.style.color = 'var(--green)';
-  const alertEl = document.getElementById('wl-alert-success');
-  if (alertEl) {
-    alertEl.textContent = `✓ Watchlist updated: ${uploaded} stocks loaded, ${toDelete.length} old stocks removed. Pipeline enriches with EMAs tonight.`;
-    alertEl.style.display = 'block';
-    setTimeout(() => { alertEl.style.display='none'; }, 8000);
+  if (alertOk) {
+    alertOk.textContent = `✓ ${uploaded} stocks loaded. ${toDelete.length} stale stocks removed. Pipeline enriches with EMAs tonight.`;
+    alertOk.style.display = 'block';
+    setTimeout(()=>{ alertOk.style.display='none'; }, 8000);
   }
   toast(`✓ Watchlist: ${uploaded} stocks uploaded`);
-
-  // Reload table
   await loadWatchlistAdmin();
 }
 
