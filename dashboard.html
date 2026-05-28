@@ -1402,21 +1402,23 @@ canvas.tc{display:block;width:100%;height:100%}
 
 
     <!-- Section 1: Focused Watchlist -->
-    <div class="sf-section-title">
-      <span>⚡ Focused Watchlist</span>
-      <span style="font-size:10px;font-weight:400;color:var(--muted);text-transform:none;letter-spacing:0">Within 10% of 21 EMA &middot; 15% of 10-week EMA &middot; 70% of 200 EMA</span>
+    <div style="margin-bottom:16px">
+      <div style="display:inline-flex;align-items:center;padding:8px 20px;border-radius:10px;background:linear-gradient(135deg,rgba(92,111,251,.18),rgba(92,111,251,.06));border:1px solid rgba(92,111,251,.35);box-shadow:0 0 16px rgba(92,111,251,.12)">
+        <span style="font-family:var(--f);font-size:15px;font-weight:800;letter-spacing:.03em;color:var(--white)">Focused Watchlist</span>
+      </div>
     </div>
     <div id="sf-focused-cards" class="sf-cards">
       <div class="sf-loading"><div class="sf-spinner"></div><div>Loading focused watchlist…</div></div>
     </div>
 
     <!-- Section 2: Full Watchlist Table -->
-    <div class="sf-section-title" style="margin-top:8px">
-      <span>📋 Full Watchlist</span>
+    <div style="margin-bottom:16px;margin-top:24px">
+      <div style="display:inline-flex;align-items:center;padding:8px 20px;border-radius:10px;background:linear-gradient(135deg,rgba(92,111,251,.18),rgba(92,111,251,.06));border:1px solid rgba(92,111,251,.35);box-shadow:0 0 16px rgba(92,111,251,.12)">
+        <span style="font-family:var(--f);font-size:15px;font-weight:800;letter-spacing:.03em;color:var(--white)">Full Watchlist</span>
+      </div>
     </div>
     <div class="sf-filters">
       <button class="sf-filter-chip on" data-sf="all">All</button>
-      <button class="sf-filter-chip" data-sf="buy">In Buy Range</button>
       <button class="sf-filter-chip" data-sf="above_21">Above 21 EMA</button>
       <button class="sf-filter-chip" data-sf="above_200">Above 200 EMA</button>
       <button class="sf-filter-chip" data-sf="bull_sector">Bull Sector</button>
