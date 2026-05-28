@@ -658,6 +658,88 @@ def enrich_watchlist():
         import traceback; traceback.print_exc()
 
 
+# ════════════════════════════════════════════════════════════
+# WATCHLIST CANDLES  →  watchlist_candles
+# Fetches ~24 months of daily OHLCV for every stock in the CURRENT
+# watchlist and upserts into watchlist_candles. Runs in full_eod so
+# the dashboard charts refresh whenever the watchlist is updated.
+# The dashboard renders these with TradingView Lightweight Charts
+# and computes 21/50/200 EMAs client-side from this same data.
+# ════════════════════════════════════════════════════════════
+def fetch_candles_for_watchlist():
+    print("🕯️  Fetching 24-month candles for watchlist...")
+    try:
+        resp = sb.table("watchlist").select("symbol").execute()
+        stocks = resp.data or []
+        if not stocks:
+            print("   ⚠️  watchlist table is empty — nothing to chart\n")
+            return
+
+        symbols = sorted({
+            s["symbol"].strip().upper()
+            for s in stocks if s.get("symbol")
+        })
+        print(f"   {len(symbols)} symbols to fetch")
+
+        BATCH = 20
+        total = 0
+        for i in range(0, len(symbols), BATCH):
+            batch   = symbols[i:i+BATCH]
+            syms_ns = [s + ".NS" for s in batch]
+            try:
+                raw = yf.download(
+                    syms_ns, period="2y", progress=False,
+                    group_by="ticker", auto_adjust=True
+                )
+            except Exception as e:
+                print(f"   ⚠️  Batch {i//BATCH+1} download failed: {e}")
+                continue
+
+            rows = []
+            for sym in batch:
+                sym_ns = sym + ".NS"
+                try:
+                    if len(syms_ns) == 1:
+                        df = raw
+                    else:
+                        if sym_ns not in raw.columns.get_level_values(0):
+                            continue
+                        df = raw[sym_ns]
+                    df = df.dropna(subset=["Close"])
+                    if df.empty:
+                        continue
+                    for dt, r in df.iterrows():
+                        try:
+                            rows.append({
+                                "symbol": sym,
+                                "date":   str(dt.date()),
+                                "open":   round(float(r["Open"]),  2),
+                                "high":   round(float(r["High"]),  2),
+                                "low":    round(float(r["Low"]),   2),
+                                "close":  round(float(r["Close"]), 2),
+                                "volume": int(r["Volume"]) if not pd.isna(r["Volume"]) else 0,
+                            })
+                        except Exception:
+                            continue
+                except Exception as e:
+                    print(f"   ⚠️  {sym}: {e}")
+                    continue
+
+            if rows:
+                for j in range(0, len(rows), 500):
+                    sb.table("watchlist_candles").upsert(
+                        rows[j:j+500], on_conflict="symbol,date"
+                    ).execute()
+                total += len(rows)
+                print(f"   ✓ Batch {i//BATCH+1}: {len(batch)} stocks → {len(rows)} candles")
+
+        print(f"   ✓ {total} candles upserted across {len(symbols)} symbols\n")
+
+    except Exception as e:
+        print(f"   ❌ Watchlist candles failed: {e}\n")
+        import traceback; traceback.print_exc()
+
+
 if __name__ == "__main__":
     try:
         if RUN_MODE == "intraday":
@@ -684,6 +766,8 @@ if __name__ == "__main__":
             fetch_sector_breadth(sector_map)
             # Step 3: Enrich watchlist
             enrich_watchlist()
+            # Step 4: Fetch 24-month candles for watchlist charts
+            fetch_candles_for_watchlist()
 
         print(f"\n{'='*56}\n✅  {RUN_MODE.upper()} complete\n{'='*56}\n")
 
