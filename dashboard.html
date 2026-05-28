@@ -1412,7 +1412,6 @@ canvas.tc{display:block;width:100%;height:100%}
         <thead><tr>
           <th onclick="sfSortFocused('symbol')">Symbol</th>
           <th onclick="sfSortFocused('company_name')">Company</th>
-          <th onclick="sfSortFocused('cur_price')">CMP ₹</th>
           <th onclick="sfSortFocused('rs_rating')" class="sf-srt">RS ↕</th>
           <th onclick="sfSortFocused('pct_from_21ema')">vs 21 EMA ↕</th>
           <th onclick="sfSortFocused('pct_from_10wema')">vs 10W EMA ↕</th>
@@ -1443,8 +1442,6 @@ canvas.tc{display:block;width:100%;height:100%}
         <thead><tr>
           <th onclick="sfSort('symbol')">Symbol</th>
           <th onclick="sfSort('company_name')">Company</th>
-          <th onclick="sfSort('cur_price')" class="sf-srt">CMP ₹</th>
-          <th onclick="sfSort('price_chg_pct')">Change %</th>
           <th onclick="sfSort('rs_rating')">RS</th>
           <th onclick="sfSort('sector_name')">Sector</th>
           <th onclick="sfSort('sector_score')">Sector Score</th>
@@ -4182,8 +4179,7 @@ async function loadStockFilter() {
   const enrichedMap = {};
   (enrichedRes.data||[]).forEach(r => enrichedMap[r.symbol] = r);
 
-  // Merge: CSV fields (symbol, company, rs) are authoritative
-  // EMA data comes from pipeline enrichment
+  // Merge: enriched data takes priority, fill missing fields from raw
   const allSymbols = new Set([
     ...Object.keys(rawMap),
     ...Object.keys(enrichedMap),
@@ -4193,10 +4189,10 @@ async function loadStockFilter() {
     const raw = rawMap[sym] || {};
     const enr = enrichedMap[sym] || {};
     return {
-      ...enr,                                    // EMA data from pipeline
+      ...enr,
       symbol:       sym,
-      company_name: raw.company_name || null,    // from CSV
-      rs_rating:    raw.rs_rating    || null,    // from CSV (MarketSmith RS)
+      company_name: raw.company_name || null,
+      rs_rating:    raw.rs_rating    || null,
     };
   }).sort((a,b) => (b.rs_rating||0) - (a.rs_rating||0));
 
@@ -4236,8 +4232,7 @@ function sfRenderFocused() {
   tbody.innerHTML = focused.map(s => {
     return `<tr>
       <td class="sf-sym-cell" style="color:var(--white)">${s.symbol}</td>
-      <td style="color:var(--white);max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${s.company_name||'—'}</td>
-      <td style="color:var(--white);font-weight:600">${sfFmt(s.cur_price)}</td>
+      <td style="color:var(--white);max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${s.company_name||'—'}</td>
       <td style="color:var(--white);font-weight:700">${s.rs_rating||'—'}</td>
       <td style="color:var(--white);font-weight:600">${sfPct(s.pct_from_21ema)}</td>
       <td style="color:var(--white);font-weight:600">${sfPct(s.pct_from_10wema)}</td>
@@ -4294,10 +4289,8 @@ function sfRenderTable() {
     const chgCol = (s.price_chg_pct||0)>=0?'var(--green)':'var(--red)';
     const secCol  = sfScoreCol(s.sector_score||0);
     return `<tr>
-      <td class="sf-sym-cell">${s.symbol}${s.in_buy_range?` <span class="sf-buy-badge">BUY RANGE</span>`:''}</td>
-      <td style="color:var(--text2);max-width:160px;overflow:hidden;text-overflow:ellipsis">${s.company_name||'—'}</td>
-      <td style="font-weight:700">${sfFmt(s.cur_price)}</td>
-      <td style="color:${chgCol};font-weight:700">${sfPct(s.price_chg_pct)}</td>
+      <td class="sf-sym-cell">${s.symbol}</td>
+      <td style="color:var(--text2);max-width:200px;overflow:hidden;text-overflow:ellipsis">${s.company_name||'—'}</td>
       <td><span style="background:rgba(92,111,251,.15);color:var(--blue-lt);padding:2px 7px;border-radius:4px;font-weight:700">${s.rs_rating||'—'}</span></td>
       <td style="color:var(--text2)">${s.sector_name||'—'}</td>
       <td><span style="color:${secCol};font-weight:700">${s.sector_score||'—'}</span> <span style="font-size:9px;color:var(--muted)">${s.sector_label||''}</span></td>
