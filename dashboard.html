@@ -1402,10 +1402,11 @@ canvas.tc{display:block;width:100%;height:100%}
 
 
     <!-- Section 1: Focused Watchlist -->
-    <div style="margin-bottom:16px">
+    <div style="margin-bottom:16px;display:flex;align-items:center;gap:12px">
       <div style="display:inline-flex;align-items:center;padding:8px 20px;border-radius:10px;background:linear-gradient(135deg,rgba(92,111,251,.18),rgba(92,111,251,.06));border:1px solid rgba(92,111,251,.35);box-shadow:0 0 16px rgba(92,111,251,.12)">
         <span style="font-family:var(--f);font-size:15px;font-weight:800;letter-spacing:.03em;color:var(--white)">Focused Watchlist</span>
       </div>
+      <div id="sf-focused-count" style="display:inline-flex;align-items:center;padding:4px 14px;border-radius:20px;background:linear-gradient(135deg,rgba(92,111,251,.18),rgba(92,111,251,.06));border:1px solid rgba(92,111,251,.35);box-shadow:0 0 10px rgba(92,111,251,.12);font-size:11px;font-weight:700;font-family:var(--f);color:var(--blue-lt)">—</div>
     </div>
     <div class="sf-table-wrap" style="margin-bottom:8px">
       <table class="sf-table" id="sf-focused-table">
@@ -1424,10 +1425,11 @@ canvas.tc{display:block;width:100%;height:100%}
     </div>
 
     <!-- Section 2: Full Watchlist Table -->
-    <div style="margin-bottom:16px;margin-top:24px">
+    <div style="margin-bottom:16px;margin-top:24px;display:flex;align-items:center;gap:12px">
       <div style="display:inline-flex;align-items:center;padding:8px 20px;border-radius:10px;background:linear-gradient(135deg,rgba(92,111,251,.18),rgba(92,111,251,.06));border:1px solid rgba(92,111,251,.35);box-shadow:0 0 16px rgba(92,111,251,.12)">
         <span style="font-family:var(--f);font-size:15px;font-weight:800;letter-spacing:.03em;color:var(--white)">Full Watchlist</span>
       </div>
+      <div id="sf-count" style="display:inline-flex;align-items:center;padding:4px 14px;border-radius:20px;background:linear-gradient(135deg,rgba(92,111,251,.18),rgba(92,111,251,.06));border:1px solid rgba(92,111,251,.35);box-shadow:0 0 10px rgba(92,111,251,.12);font-size:11px;font-weight:700;font-family:var(--f);color:var(--blue-lt)">—</div>
     </div>
     <div class="sf-filters">
       <button class="sf-filter-chip on" data-sf="all">All</button>
@@ -1435,7 +1437,6 @@ canvas.tc{display:block;width:100%;height:100%}
       <button class="sf-filter-chip" data-sf="above_200">Above 200 EMA</button>
       <button class="sf-filter-chip" data-sf="bull_sector">Bull Sector</button>
       <input type="text" class="sf-search" id="sf-search" placeholder="Search symbol…" oninput="sfRenderTable()">
-      <span class="sf-count" id="sf-count"></span>
     </div>
     <div class="sf-table-wrap">
       <table class="sf-table">
@@ -4221,6 +4222,10 @@ function sfRenderFocused() {
     tbody.innerHTML = '<tr><td colspan="7" class="sf-empty" style="padding:28px">No stocks in focus range today. Check back after pipeline runs.</td></tr>';
     return;
   }
+
+  // Update count badge
+  const focCountEl = document.getElementById('sf-focused-count');
+  if (focCountEl) focCountEl.textContent = focused.length + ' stocks';
 
   // Sort
   focused.sort((a,b) => {
