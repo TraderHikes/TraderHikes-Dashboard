@@ -701,7 +701,11 @@ canvas.tc{display:block;width:100%;height:100%}
 .ch-sub b{color:var(--white);font-weight:600}
 .ch-sub b.pos{color:var(--green)}.ch-sub b.neg{color:var(--red)}
 .ch-asof{font-size:9px;color:var(--muted);letter-spacing:.05em}
-.ch-tv{height:560px;width:100%}
+.ch-tv{height:560px;width:100%;position:relative}
+.ch-ohlc{position:absolute;top:8px;left:12px;z-index:3;pointer-events:none;font-family:var(--fm);font-size:11px;color:var(--text2);background:rgba(14,21,40,.6);padding:3px 9px;border-radius:6px;white-space:nowrap;border:1px solid var(--bdr)}
+.ch-ohlc .oh-k{color:var(--muted);margin-left:3px}
+.ch-ohlc b.pos{color:var(--green)}
+.ch-ohlc b.neg{color:var(--red)}
 .ch-ctrl{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 16px;border-bottom:1px solid var(--bdr);flex-wrap:wrap}
 .ch-ranges{display:flex;gap:5px}
 .ch-rbtn{background:var(--card2);border:1px solid var(--bdr);color:var(--muted);font-family:var(--fm);font-size:11px;padding:4px 11px;border-radius:7px;cursor:pointer;transition:all .15s}
@@ -1675,9 +1679,10 @@ canvas.tc{display:block;width:100%;height:100%}
           <button class="ch-rbtn" data-r="all" onclick="setChartRange('all',this)">All</button>
         </div>
         <div class="ch-legend">
-          <span class="ch-leg" data-ema="21"  onclick="toggleEma('21',this)"><i style="background:#5c6ffb"></i>EMA 21</span>
-          <span class="ch-leg" data-ema="50"  onclick="toggleEma('50',this)"><i style="background:#ffb340"></i>EMA 50</span>
-          <span class="ch-leg" data-ema="200" onclick="toggleEma('200',this)"><i style="background:#2ee8dc"></i>EMA 200</span>
+          <span class="ch-leg" data-ema="10"  onclick="toggleEma('10',this)"><i style="background:#ffffff"></i>EMA 10</span>
+          <span class="ch-leg" data-ema="20"  onclick="toggleEma('20',this)"><i style="background:#a974ff"></i>EMA 20</span>
+          <span class="ch-leg" data-ema="50"  onclick="toggleEma('50',this)"><i style="background:#ff66c4"></i>EMA 50</span>
+          <span class="ch-leg" data-ema="200" onclick="toggleEma('200',this)"><i style="background:#ffd84d"></i>EMA 200</span>
         </div>
       </div>
       <div class="ch-tv" id="ch-tv"></div>
@@ -4431,7 +4436,33 @@ let _lwcPromise   = null;   // library load promise (lazy)
 let _lwChart      = null;   // current chart instance
 let _lwCandles    = [];     // current symbol's candle array (for range buttons)
 let _emaSeries    = {};     // {21:series, 50:series, 200:series}
-let _emaVisible   = { '21': true, '50': true, '200': true };
+let _emaVisible   = { '10': true, '20': true, '50': true, '200': true };
+let _timeIndex    = new Map();  // 'YYYY-MM-DD' → index, for crosshair lookups
+
+/* Lightweight Charts crosshair time can come back as a BusinessDay object
+   or a string; normalise both to 'YYYY-MM-DD' */
+function timeKey(t){
+  if(t == null) return null;
+  if(typeof t === 'string') return t;
+  if(typeof t === 'number') return String(t);
+  if(typeof t === 'object' && t.year){
+    return t.year + '-' + String(t.month).padStart(2,'0') + '-' + String(t.day).padStart(2,'0');
+  }
+  return String(t);
+}
+
+/* OHLC + daily % (close vs previous close) legend line */
+function fmtOHLC(c, prevClose){
+  const has = prevClose != null && prevClose !== 0;
+  const pct = has ? (c.close - prevClose) / prevClose * 100 : 0;
+  const cls = pct >= 0 ? 'pos' : 'neg';
+  const sgn = pct >= 0 ? '+' : '';
+  return '<span class="oh-k">O</span>' + c.open.toFixed(2) +
+         ' <span class="oh-k">H</span>' + c.high.toFixed(2) +
+         ' <span class="oh-k">L</span>' + c.low.toFixed(2) +
+         ' <span class="oh-k">C</span>' + c.close.toFixed(2) +
+         (has ? ' <b class="' + cls + '">' + sgn + pct.toFixed(2) + '%</b>' : '');
+}
 const LWC_SRC = 'https://unpkg.com/lightweight-charts@4.1.3/dist/lightweight-charts.standalone.production.js';
 
 /* Lazy-load the library only when the Charts tab is first used */
@@ -4549,16 +4580,12 @@ function selectChart(symbol){
   document.getElementById('ch-asof').textContent =
     _chartsAsOf ? ('Daily candles · stats as of ' + _chartsAsOf) : 'Daily candles';
 
-  const pct = (v, lbl) => v == null ? '' :
-    '<span>' + lbl + ' <b class="' + (v >= 0 ? 'pos' : 'neg') + '">' +
-    (v >= 0 ? '+' : '') + v.toFixed(1) + '%</b></span>';
+  // Lightweight fallback; renderChart fills in EOD price + 10/20/50/200 EMA
+  // distances computed from the actual chart data once candles load.
   const parts = [];
-  if(r.cur_price   != null) parts.push('<span>EOD <b>₹' + r.cur_price + '</b></span>');
-  parts.push(pct(r.pct21,  '21E'));
-  parts.push(pct(r.pct50,  '50E'));
-  parts.push(pct(r.pct200, '200E'));
-  if(r.sector_name) parts.push('<span>' + r.sector_name + '</span>');
-  document.getElementById('ch-sub').innerHTML = parts.filter(Boolean).join('');
+  if(r.sector_name)      parts.push('<span>' + r.sector_name + '</span>');
+  if(r.rs_rating != null) parts.push('<span>RS <b>' + r.rs_rating + '</b></span>');
+  document.getElementById('ch-sub').innerHTML = parts.join('');
 
   renderChart(symbol);
 }
@@ -4592,6 +4619,8 @@ async function renderChart(symbol){
       close: +r.close,
     }));
     _lwCandles = candles;
+    _timeIndex = new Map();
+    candles.forEach((c, i) => _timeIndex.set(c.time, i));
 
     // Tear down any previous chart
     if(_lwChart){ try{ _lwChart.remove(); }catch(e){} _lwChart = null; }
@@ -4622,13 +4651,16 @@ async function renderChart(symbol){
     });
     candleSeries.setData(candles);
 
-    // EMA overlays
+    // EMA overlays — 10 / 20 / 50 / 200
     const closes = candles.map(c => c.close);
+    const lastClose = closes[closes.length - 1];
     const emaConf = [
-      ['21',  '#5c6ffb'],
-      ['50',  '#ffb340'],
-      ['200', '#2ee8dc'],
+      ['10',  '#ffffff'],
+      ['20',  '#a974ff'],
+      ['50',  '#ff66c4'],
+      ['200', '#ffd84d'],
     ];
+    const emaDist = {};
     emaConf.forEach(([p, color]) => {
       const vals = emaSeries(closes, +p);
       const line = chart.addLineSeries({
@@ -4638,7 +4670,41 @@ async function renderChart(symbol){
       });
       line.setData(candles.map((c, i) => ({ time: c.time, value: +vals[i].toFixed(2) })));
       _emaSeries[p] = line;
+      const e = vals[vals.length - 1];
+      emaDist[p] = e ? (lastClose - e) / e * 100 : null;
     });
+
+    // Header sub-line: EOD close + distance from each EMA (matches the chart)
+    const r2 = _chartsData.find(x => x.symbol === symbol) || {};
+    const dpct = (v, lbl) => v == null ? '' :
+      '<span>' + lbl + ' <b class="' + (v >= 0 ? 'pos' : 'neg') + '">' +
+      (v >= 0 ? '+' : '') + v.toFixed(1) + '%</b></span>';
+    const sub = [
+      '<span>EOD <b>₹' + lastClose.toFixed(2) + '</b></span>',
+      dpct(emaDist['10'],  '10E'),
+      dpct(emaDist['20'],  '20E'),
+      dpct(emaDist['50'],  '50E'),
+      dpct(emaDist['200'], '200E'),
+    ];
+    if(r2.sector_name) sub.push('<span>' + r2.sector_name + '</span>');
+    document.getElementById('ch-sub').innerHTML = sub.filter(Boolean).join('');
+
+    // OHLC + daily % legend overlay (updates on crosshair move)
+    const ohlcEl = document.createElement('div');
+    ohlcEl.className = 'ch-ohlc';
+    host.appendChild(ohlcEl);
+    const showLatest = () => {
+      const n = _lwCandles.length;
+      ohlcEl.innerHTML = fmtOHLC(_lwCandles[n-1], n > 1 ? _lwCandles[n-2].close : null);
+    };
+    chart.subscribeCrosshairMove(param => {
+      const pt = param && param.time && param.seriesData && param.seriesData.get(candleSeries);
+      if(!pt){ showLatest(); return; }
+      const idx  = _timeIndex.get(timeKey(param.time));
+      const prev = (idx != null && idx > 0) ? _lwCandles[idx-1].close : null;
+      ohlcEl.innerHTML = fmtOHLC({ open: pt.open, high: pt.high, low: pt.low, close: pt.close }, prev);
+    });
+    showLatest();
 
     // Apply current range selection (default 2Y)
     const active = document.querySelector('.ch-rbtn.active');
