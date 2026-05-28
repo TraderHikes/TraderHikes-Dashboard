@@ -659,14 +659,14 @@ canvas.tc{display:block;width:100%;height:100%}
 .sf-search{background:var(--card2);border:1px solid var(--bdr);color:var(--text);font-family:var(--fm);font-size:11px;padding:5px 12px;border-radius:6px;outline:none;width:160px}
 .sf-search:focus{border-color:var(--blue-lt)}
 .sf-table-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
-.sf-table{width:100%;border-collapse:collapse;font-size:12px}
-.sf-table th{padding:8px 12px;text-align:left;font-size:9px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:600;border-bottom:1px solid var(--bdr);cursor:pointer;user-select:none;white-space:nowrap;font-family:var(--f)}
-.sf-table th:hover{color:var(--blue-lt)}
-.sf-table th.sf-srt{color:var(--blue-lt)}
-.sf-table td{padding:9px 12px;border-bottom:1px solid rgba(255,255,255,.03);font-family:var(--fm);vertical-align:middle;white-space:nowrap}
-.sf-table tr:hover td{background:rgba(92,111,251,.04)}
-.sf-sym-cell{font-weight:700;font-family:var(--f);color:var(--white)}
-.sf-buy-badge{display:inline-block;padding:2px 7px;border-radius:4px;font-size:8px;font-weight:700;letter-spacing:.05em;background:rgba(46,216,160,.15);color:#2ed8a0;border:1px solid rgba(46,216,160,.2)}
+.sf-table{width:100%;border-collapse:collapse;font-size:13px}
+.sf-table th{padding:9px 14px;text-align:left;font-size:10px;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);font-weight:600;border-bottom:1px solid var(--bdr);cursor:pointer;user-select:none;white-space:nowrap;font-family:var(--f)}
+.sf-table th:hover{color:var(--text2)}
+.sf-table th.sf-srt{color:var(--white)}
+.sf-table td{padding:10px 14px;border-bottom:1px solid rgba(255,255,255,.04);font-family:var(--f);vertical-align:middle;white-space:nowrap;color:var(--text2)}
+.sf-table tr:hover td{background:rgba(255,255,255,.025);color:var(--white)}
+.sf-sym-cell{font-weight:700;font-family:var(--f);color:var(--white);letter-spacing:.01em}
+.sf-buy-badge{display:inline-block;padding:2px 7px;border-radius:4px;font-size:8px;font-weight:600;letter-spacing:.04em;background:rgba(255,255,255,.07);color:var(--text2);border:1px solid rgba(255,255,255,.12)}
 .sf-loading{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:60px;gap:14px;color:var(--muted)}
 .sf-spinner{width:28px;height:28px;border:3px solid var(--bdr);border-top-color:var(--blue);border-radius:50%;animation:spin .8s linear infinite}
 .sf-empty{text-align:center;padding:48px;color:var(--muted);font-size:13px}
@@ -1412,6 +1412,7 @@ canvas.tc{display:block;width:100%;height:100%}
         <thead><tr>
           <th onclick="sfSortFocused('symbol')">Symbol</th>
           <th onclick="sfSortFocused('company_name')">Company</th>
+          <th onclick="sfSortFocused('cur_price')">CMP ₹</th>
           <th onclick="sfSortFocused('rs_rating')" class="sf-srt">RS ↕</th>
           <th onclick="sfSortFocused('pct_from_21ema')">vs 21 EMA ↕</th>
           <th onclick="sfSortFocused('pct_from_10wema')">vs 10W EMA ↕</th>
@@ -1442,6 +1443,8 @@ canvas.tc{display:block;width:100%;height:100%}
         <thead><tr>
           <th onclick="sfSort('symbol')">Symbol</th>
           <th onclick="sfSort('company_name')">Company</th>
+          <th onclick="sfSort('cur_price')" class="sf-srt">CMP ₹</th>
+          <th onclick="sfSort('price_chg_pct')">Change %</th>
           <th onclick="sfSort('rs_rating')">RS</th>
           <th onclick="sfSort('sector_name')">Sector</th>
           <th onclick="sfSort('sector_score')">Sector Score</th>
@@ -4231,12 +4234,12 @@ function sfRenderFocused() {
 
   tbody.innerHTML = focused.map(s => {
     return `<tr>
-      <td class="sf-sym-cell" style="color:var(--white)">${s.symbol}</td>
-      <td style="color:var(--white);max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${s.company_name||'—'}</td>
-      <td style="color:var(--white);font-weight:700">${s.rs_rating||'—'}</td>
-      <td style="color:var(--white);font-weight:600">${sfPct(s.pct_from_21ema)}</td>
-      <td style="color:var(--white);font-weight:600">${sfPct(s.pct_from_10wema)}</td>
-      <td style="color:var(--white);font-weight:600">${sfPct(s.pct_from_200ema)}</td>
+      <td class="sf-sym-cell">${s.symbol}</td>
+      <td style="max-width:220px;overflow:hidden;text-overflow:ellipsis">${s.company_name||'—'}</td>
+      <td style="color:var(--white);font-weight:600">${s.rs_rating||'—'}</td>
+      <td>${sfPct(s.pct_from_21ema)}</td>
+      <td>${sfPct(s.pct_from_10wema)}</td>
+      <td>${sfPct(s.pct_from_200ema)}</td>
     </tr>`;
   }).join('');
 
@@ -4286,18 +4289,17 @@ function sfRenderTable() {
   }
 
   tbody.innerHTML = rows.map(s => {
-    const chgCol = (s.price_chg_pct||0)>=0?'var(--green)':'var(--red)';
-    const secCol  = sfScoreCol(s.sector_score||0);
+    const stage2 = s.pct_from_200ema != null && s.pct_from_200ema >= 0;
     return `<tr>
       <td class="sf-sym-cell">${s.symbol}</td>
-      <td style="color:var(--text2);max-width:200px;overflow:hidden;text-overflow:ellipsis">${s.company_name||'—'}</td>
-      <td><span style="background:rgba(92,111,251,.15);color:var(--blue-lt);padding:2px 7px;border-radius:4px;font-weight:700">${s.rs_rating||'—'}</span></td>
-      <td style="color:var(--text2)">${s.sector_name||'—'}</td>
-      <td><span style="color:${secCol};font-weight:700">${s.sector_score||'—'}</span> <span style="font-size:9px;color:var(--muted)">${s.sector_label||''}</span></td>
-      <td style="color:${sfEmaCol(s.pct_from_21ema)};font-weight:700">${sfPct(s.pct_from_21ema)}</td>
-      <td style="color:${sfEmaCol(s.pct_from_10wema)};font-weight:700">${sfPct(s.pct_from_10wema)}</td>
-      <td style="color:${sfEmaCol(s.pct_from_200ema)};font-weight:700">${sfPct(s.pct_from_200ema)}</td>
-      <td>${s.pct_from_200ema!=null&&s.pct_from_200ema>=0?'<span style="color:var(--green);font-size:10px">▲ Stage 2</span>':'<span style="color:var(--red);font-size:10px">▼ Below 200</span>'}</td>
+      <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis">${s.company_name||'—'}</td>
+      <td style="color:var(--white);font-weight:600">${s.rs_rating||'—'}</td>
+      <td>${s.sector_name||'—'}</td>
+      <td>${s.sector_score ? Math.round(s.sector_score) : '—'}</td>
+      <td>${sfPct(s.pct_from_21ema)}</td>
+      <td>${sfPct(s.pct_from_10wema)}</td>
+      <td>${sfPct(s.pct_from_200ema)}</td>
+      <td style="color:${stage2?'var(--text2)':'rgba(255,255,255,.25)'};font-size:11px">${stage2?'Stage 2':'—'}</td>
     </tr>`;
   }).join('');
 }
