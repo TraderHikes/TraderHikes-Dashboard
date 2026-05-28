@@ -4167,157 +4167,39 @@ async function loadStockFilter() {
   if (ftbody) ftbody.innerHTML = '<tr><td colspan="6" class="sf-empty">Loading…</td></tr>';
   if (tbody)  tbody.innerHTML  = '<tr><td colspan="9" class="sf-empty">Loading…</td></tr>';
 
-  // PRIMARY: watchlist table — Symbol, Company, CMP, RS from CSV (authoritative)
-  // SECONDARY: watchlist_enriched — EMA distances from pipeline
-  const [rawRes, enrichedRes] = await Promise.all([
-    sb.from('watchlist').select('symbol,company_name,rs_rating')
-      .order('rs_rating', { ascending: false }),
-    sb.from('watchlist_enriched')
-      .select('symbol,pct_from_21ema,pct_from_10wema,pct_from_200ema,in_buy_range,sector_name,sector_score,sector_label,ema_21,ema_50,ema_200'),
-  ]);
-
-  if (!rawRes.data || !rawRes.data.length) {
-    if (ftbody) ftbody.innerHTML = '<tr><td colspan="7" class="sf-empty">No watchlist yet — upload CSV from Admin Panel.</td></tr>';
-    if (tbody)  tbody.innerHTML  = '<tr><td colspan="9" class="sf-empty">No watchlist yet — upload CSV from Admin Panel.</td></tr>';
+  // Fetch watchlist (CSV data) — no server-side ordering to avoid schema errors
+  const rawRes = await sb.from('watchlist').select('symbol,company_name,rs_rating');
+  if (rawRes.error) {
+    console.error('watchlist error:', rawRes.error.message);
+    if (ftbody) ftbody.innerHTML = '<tr><td colspan="6" class="sf-empty">Error loading watchlist: ' + rawRes.error.message + '</td></tr>';
     return;
   }
 
-  // Build enriched lookup by symbol
+  const raw = rawRes.data || [];
+  if (!raw.length) {
+    const msg = '<tr><td colspan="6" class="sf-empty">No watchlist yet — upload CSV from Admin Panel.</td></tr>';
+    if (ftbody) ftbody.innerHTML = msg;
+    if (tbody)  tbody.innerHTML  = msg.replace('colspan="6"', 'colspan="9"');
+    return;
+  }
+
+  // Fetch enriched EMA data (may be empty before pipeline runs — that's OK)
+  const enrichedRes = await sb.from('watchlist_enriched')
+    .select('symbol,pct_from_21ema,pct_from_10wema,pct_from_200ema,in_buy_range,sector_name,sector_score,sector_label');
+
   const enrichedMap = {};
   (enrichedRes.data||[]).forEach(r => { enrichedMap[r.symbol] = r; });
 
-  // Merge — CSV fields always win for Symbol/Company/CMP/RS
-  _sfData = rawRes.data.map(r => ({
-    // From CSV (always present after upload)
-    symbol:        r.symbol,
-    company_name:  r.company_name,
-    rs_rating:     r.rs_rating,
-    // From pipeline (null until pipeline runs)
-    ...(enrichedMap[r.symbol] || {}),
-  }));
+  // Merge + sort by RS descending client-side (safe, no schema dependency)
+  _sfData = raw
+    .map(r => ({
+      symbol:       r.symbol,
+      company_name: r.company_name || null,
+      rs_rating:    r.rs_rating    || null,
+      ...(enrichedMap[r.symbol]   || {}),
+    }))
+    .sort((a,b) => (b.rs_rating||0) - (a.rs_rating||0));
 
   sfRenderFocused();
   sfRenderTable();
 }
-
-// ── Focused Cards (in_buy_range = true) ──────────────────────────
-function sfRenderCards() { sfRenderFocused(); } // alias for boot call
-
-let _sfFocusedSortKey = 'rs_rating';
-let _sfFocusedSortDir = -1;
-
-function sfRenderFocused() {
-  const tbody = document.getElementById('sf-focused-tbody');
-  if (!tbody) return;
-  let focused = _sfData.filter(s => s.in_buy_range);
-
-  if (!focused.length) {
-    tbody.innerHTML = '<tr><td colspan="6" class="sf-empty" style="padding:28px">No stocks in focus range today. Check back after pipeline runs.</td></tr>';
-    return;
-  }
-
-  // Sort
-  focused.sort((a,b) => {
-    const av=a[_sfFocusedSortKey], bv=b[_sfFocusedSortKey];
-    if(av==null) return 1; if(bv==null) return -1;
-    return typeof av==='string' ? av.localeCompare(bv)*_sfFocusedSortDir : (av-bv)*_sfFocusedSortDir;
-  });
-
-  tbody.innerHTML = focused.map(s => {
-    return `<tr>
-      <td class="sf-sym-cell" style="color:var(--white)">${s.symbol}</td>
-      <td style="color:var(--white);max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${s.company_name||'—'}</td>
-      <td style="color:var(--white);font-weight:700">${s.rs_rating||'—'}</td>
-      <td style="color:var(--white);font-weight:600">${sfPct(s.pct_from_21ema)}</td>
-      <td style="color:var(--white);font-weight:600">${sfPct(s.pct_from_10wema)}</td>
-      <td style="color:var(--white);font-weight:600">${sfPct(s.pct_from_200ema)}</td>
-    </tr>`;
-  }).join('');
-
-  // Update header sort indicators
-  document.querySelectorAll('#sf-focused-table th').forEach(th => {
-    th.classList.toggle('sf-srt', th.getAttribute('onclick') === `sfSortFocused('${_sfFocusedSortKey}')`);
-  });
-}
-
-function sfSortFocused(key) {
-  if (_sfFocusedSortKey===key) _sfFocusedSortDir *= -1;
-  else { _sfFocusedSortKey=key; _sfFocusedSortDir=-1; }
-  sfRenderFocused();
-}
-
-// ── Full Table ────────────────────────────────────────────────────
-function sfRenderTable() {
-  const tbody  = document.getElementById('sf-tbody');
-  const countEl= document.getElementById('sf-count');
-  if (!tbody) return;
-
-  const q = (document.getElementById('sf-search')?.value || '').toLowerCase();
-
-  let rows = _sfData.filter(s => {
-    if (q && !s.symbol?.toLowerCase().includes(q) && !s.company_name?.toLowerCase().includes(q)) return false;
-    switch (_sfFilter) {
-      case 'buy':       return s.in_buy_range;
-      case 'above_21':  return (s.pct_from_21ema||0) >= 0;
-      case 'above_200': return (s.pct_from_200ema||0) >= 0;
-      case 'bull_sector': return (s.sector_score||0) >= 60;
-      default: return true;
-    }
-  });
-
-  // Sort
-  rows.sort((a,b) => {
-    const av = a[_sfSortKey], bv = b[_sfSortKey];
-    if (av == null) return 1; if (bv == null) return -1;
-    return typeof av === 'string' ? av.localeCompare(bv) * _sfSortDir : (av - bv) * _sfSortDir;
-  });
-
-  if (countEl) countEl.textContent = `${rows.length} stocks`;
-
-  if (!rows.length) {
-    tbody.innerHTML = '<tr><td colspan="9" class="sf-empty">No stocks match filter</td></tr>';
-    return;
-  }
-
-  tbody.innerHTML = rows.map(s => {
-    const chgCol = (s.price_chg_pct||0)>=0?'var(--green)':'var(--red)';
-    const secCol  = sfScoreCol(s.sector_score||0);
-    return `<tr>
-      <td class="sf-sym-cell">${s.symbol}</td>
-      <td style="color:var(--text2);max-width:200px;overflow:hidden;text-overflow:ellipsis">${s.company_name||'—'}</td>
-      <td><span style="background:rgba(92,111,251,.15);color:var(--blue-lt);padding:2px 7px;border-radius:4px;font-weight:700">${s.rs_rating||'—'}</span></td>
-      <td style="color:var(--text2)">${s.sector_name||'—'}</td>
-      <td><span style="color:${secCol};font-weight:700">${s.sector_score||'—'}</span> <span style="font-size:9px;color:var(--muted)">${s.sector_label||''}</span></td>
-      <td style="color:${sfEmaCol(s.pct_from_21ema)};font-weight:700">${sfPct(s.pct_from_21ema)}</td>
-      <td style="color:${sfEmaCol(s.pct_from_10wema)};font-weight:700">${sfPct(s.pct_from_10wema)}</td>
-      <td style="color:${sfEmaCol(s.pct_from_200ema)};font-weight:700">${sfPct(s.pct_from_200ema)}</td>
-      <td>${s.pct_from_200ema!=null&&s.pct_from_200ema>=0?'<span style="color:var(--green);font-size:10px">▲ Stage 2</span>':'<span style="color:var(--red);font-size:10px">▼ Below 200</span>'}</td>
-    </tr>`;
-  }).join('');
-}
-
-function sfSort(key) {
-  if (_sfSortKey === key) _sfSortDir *= -1;
-  else { _sfSortKey = key; _sfSortDir = -1; }
-  // Update header
-  document.querySelectorAll('.sf-table th').forEach(th => th.classList.remove('sf-srt'));
-  document.querySelectorAll('.sf-table th').forEach(th => {
-    if (th.getAttribute('onclick') === `sfSort('${key}')`) th.classList.add('sf-srt');
-  });
-  sfRenderTable();
-}
-
-
-// ── Filter chips ──────────────────────────────────────────────────
-document.querySelectorAll('.sf-filter-chip').forEach(btn => {
-  btn.addEventListener('click', () => {
-    document.querySelectorAll('.sf-filter-chip').forEach(b => b.classList.remove('on'));
-    btn.classList.add('on');
-    _sfFilter = btn.dataset.sf;
-    sfRenderTable();
-  });
-});
-
-</script>
-</body>
-</html>
