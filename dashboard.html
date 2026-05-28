@@ -1398,13 +1398,14 @@ canvas.tc{display:block;width:100%;height:100%}
 <div class="pane" id="pane-filter">
   <div class="sf-wrap">
 
-    <!-- Upload Bar -->
-    <div class="sf-upload-bar">
-      <span class="sf-upload-label">📥 Upload Watchlist CSV</span>
-      <input type="file" id="sf-csv-input" class="sf-file-input" accept=".csv">
-      <button class="sf-upload-btn" onclick="sfUploadCSV()">Upload & Refresh</button>
-      <span class="sf-upload-status" id="sf-upload-status"></span>
-      <span class="sf-upload-meta" id="sf-upload-meta"></span>
+    <!-- Info bar (read-only — upload is in Admin Panel) -->
+    <div class="sf-upload-bar" style="justify-content:space-between">
+      <div style="display:flex;align-items:center;gap:8px">
+        <span style="font-size:13px">📋</span>
+        <span class="sf-upload-label" style="color:var(--text)">MarketSmith Watchlist</span>
+        <span class="sf-upload-meta" id="sf-upload-meta">Loading…</span>
+      </div>
+      <span style="font-size:10px;color:var(--muted)">Upload via Admin Panel to refresh</span>
     </div>
 
     <!-- Section 1: Focused Watchlist -->
@@ -4291,66 +4292,6 @@ function sfSort(key) {
   sfRenderTable();
 }
 
-// ── CSV Upload ────────────────────────────────────────────────────
-async function sfUploadCSV() {
-  const fileInput = document.getElementById('sf-csv-input');
-  const statusEl  = document.getElementById('sf-upload-status');
-  const metaEl    = document.getElementById('sf-upload-meta');
-  if (!fileInput?.files[0]) { if(statusEl) statusEl.textContent = '⚠ Select a CSV file first'; return; }
-
-  const file = fileInput.files[0];
-  if (statusEl) { statusEl.textContent = '⏳ Parsing…'; statusEl.style.color = 'var(--amber)'; }
-
-  const text = await file.text();
-  const lines = text.trim().split('\n');
-  const headers = lines[0].split(',').map(h => h.replace(/"/g,'').trim().toLowerCase());
-
-  // Map column names flexibly
-  const colIdx = {
-    symbol:    headers.findIndex(h => h.includes('symbol')),
-    company:   headers.findIndex(h => h.includes('company') || h.includes('name')),
-    price:     headers.findIndex(h => h.includes('cur_price') || h.includes('price') && !h.includes('chg') && !h.includes('pct')),
-    change:    headers.findIndex(h => h.includes('price_change') || h === 'change'),
-    chg_pct:   headers.findIndex(h => h.includes('pct') || h.includes('percentage')),
-    rs:        headers.findIndex(h => h.includes('rs_rating') || h === 'rs'),
-  };
-
-  const rows = [];
-  for (let i = 1; i < lines.length; i++) {
-    const cols = lines[i].split(',').map(c => c.replace(/"/g,'').trim());
-    const sym  = colIdx.symbol >= 0 ? cols[colIdx.symbol] : null;
-    if (!sym || sym.toLowerCase() === 'symbol') continue;
-    rows.push({
-      symbol:       sym.toUpperCase(),
-      company_name: colIdx.company >= 0  ? cols[colIdx.company]  : null,
-      cur_price:    colIdx.price >= 0    ? parseFloat(cols[colIdx.price])||null   : null,
-      price_change: colIdx.change >= 0   ? parseFloat(cols[colIdx.change])||null  : null,
-      price_chg_pct:colIdx.chg_pct >= 0 ? parseFloat(cols[colIdx.chg_pct])||null : null,
-      rs_rating:    colIdx.rs >= 0       ? parseInt(cols[colIdx.rs])||null         : null,
-      uploaded_at:  new Date().toISOString(),
-    });
-  }
-
-  if (!rows.length) {
-    if(statusEl){ statusEl.textContent = '❌ No valid rows found'; statusEl.style.color='var(--red)'; }
-    return;
-  }
-
-  if (statusEl) statusEl.textContent = `⏳ Uploading ${rows.length} stocks…`;
-
-  // Clear existing + insert new
-  await sb.from('watchlist').delete().neq('id', 0); // delete all
-  for (let i = 0; i < rows.length; i += 50) {
-    const { error } = await sb.from('watchlist').upsert(rows.slice(i, i+50), { on_conflict: 'symbol' });
-    if (error) { if(statusEl){ statusEl.textContent='❌ Upload error: '+error.message; statusEl.style.color='var(--red)'; } return; }
-  }
-
-  if (statusEl) { statusEl.textContent = `✓ ${rows.length} stocks uploaded`; statusEl.style.color = 'var(--green)'; }
-  if (metaEl)   metaEl.textContent = `Last upload: ${new Date().toLocaleTimeString('en-IN')} · Pipeline will enrich tonight`;
-
-  // Reload table (enriched data may lag until pipeline runs)
-  await loadStockFilter();
-}
 
 // ── Filter chips ──────────────────────────────────────────────────
 document.querySelectorAll('.sf-filter-chip').forEach(btn => {
