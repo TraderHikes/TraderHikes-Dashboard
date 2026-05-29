@@ -315,14 +315,14 @@
   <!-- Tabs -->
   <div class="tabs">
     <button class="tab-btn active" onclick="openTab('tab-open',this)">Open Trades</button>
-    <button class="tab-btn" onclick="openTab('tab-pyramid',this)">Add Entry (Pyramid)</button>
+    <button class="tab-btn" onclick="openTab('tab-pyramid',this)">Pyramid Buy</button>
     <button class="tab-btn" onclick="openTab('tab-partial',this)">Partial Exit</button>
     <button class="tab-btn" onclick="openTab('tab-close',this)">Final Exit</button>
-    <button class="tab-btn" onclick="openTab('tab-students',this)">Students</button>
-    <button class="tab-btn" onclick="openTab('tab-breadth',this)">Market Breadth</button>
-    <button class="tab-btn" onclick="openTab('tab-snapshot',this)">Portfolio Snapshot</button>
     <button class="tab-btn" onclick="openTab('tab-closed-edit',this);loadClosedTradesForEdit()">Closed Trades</button>
+    <button class="tab-btn" onclick="openTab('tab-snapshot',this)">Portfolio Snapshot</button>
+    <button class="tab-btn" onclick="openTab('tab-breadth',this)">Market Breadth</button>
     <button class="tab-btn" onclick="openTab('tab-watchlist',this);loadWatchlistAdmin()">Watchlist</button>
+    <button class="tab-btn" onclick="openTab('tab-students',this)">Students</button>
   </div>
 
   <!-- ════ TAB 1: ADD / VIEW OPEN TRADES ════ -->
@@ -1878,7 +1878,7 @@ async function loadEditEntries(tradeId) {
         The initial buy is recorded automatically on the trade itself
         (<strong style="color:#e8f0f8">${(_et.quantity||'—')} @ ₹${_et.entry_price||'—'}</strong>)
         and isn't listed here. This section shows <strong style="color:#e8f0f8">pyramid (add-on) legs</strong> only.
-        To add to the position, use the <strong style="color:#e8f0f8">Add Entry (Pyramid)</strong> tab.
+        To add to the position, use the <strong style="color:#e8f0f8">Pyramid Buy</strong> tab.
       </div>
     </div>`;
 
