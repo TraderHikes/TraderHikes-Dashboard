@@ -1,35 +1,37 @@
 -- ============================================================
 -- MARKET BASECAMP (TraderHikes) — AUTHORITATIVE DATABASE SCHEMA
 -- ============================================================
--- Generated 2026-05-29 from the LIVE Supabase database by
--- introspecting information_schema, pg_policies and pg_proc.
--- Every table, column, type, default, RLS policy and function
--- below mirrors the real production database — nothing inferred
--- from application code or memory.
+-- Generated from the LIVE Supabase database. Last updated 2026-05-29,
+-- AFTER the full RLS hardening pass (all writes locked to is_admin();
+-- all sensitive reads scoped to authenticated).
+-- Mirrors the real production database — nothing inferred from code.
 --
---   16 tables (15 live + 1 legacy) · 34 RLS policies · 1 function
+--   16 tables (15 live + 1 legacy) · 52 RLS policies · 1 function
+--
+-- SECURITY MODEL (verified):
+--   • approved_students : student reads OWN row; admin reads all; admin writes.
+--   • shared data tables: authenticated read; is_admin() writes. Pipeline
+--     writes via the service_role key, which bypasses RLS.
+--   • sector_stocks / sector_breadth / watchlist_candles: read-only refs.
+--   • NO write policy is open to the public role anywhere.
 --
 -- ⚠️  PURPOSE: DOCUMENTATION & DISASTER-RECOVERY RECORD ONLY.
---     • This is the repo's source of truth for the schema.
---     • RUN IT ONLY against a FRESH, EMPTY Supabase project when
---       rebuilding from scratch.
---     • DO NOT run it against the live database. It is not a
---       migration. The CREATE/ALTER guards make it largely inert,
---       but its job is to RECORD the schema, not mutate a live one.
---     • It does NOT include row data, the service_role key, or any
---       secret — safe to commit to the repo.
+--     • Repo source of truth for the schema.
+--     • RUN ONLY against a FRESH, EMPTY Supabase project when rebuilding.
+--     • DO NOT run against the live database — it is not a migration.
+--     • Contains no row data and no secrets — safe to commit.
 --
--- REBUILD ORDER (already arranged below):
---   1) function  2) tables  3) enable RLS  4) policies
---   Before running on a fresh project, set is_admin()'s email.
+-- REBUILD ORDER (already arranged): function -> tables -> enable RLS -> policies.
+-- Before running on a fresh project, set is_admin()'s email.
 -- ============================================================
 
 
--- ╔══════════════════════════════════════════════════════════╗
--- ║  SECTION 1 · FUNCTIONS  (create first — policies need it) ║
--- ╚══════════════════════════════════════════════════════════╝
+-- ============================================================
+-- SECTION 1 · FUNCTIONS  (create first — policies depend on it)
+-- ============================================================
 -- is_admin() returns TRUE only for the admin, matched by email.
--- ⚠️ Email is baked in; update it here if your admin address changes.
+-- The whole write-security model rests on this one function.
+-- UPDATE the email here if your admin address ever changes.
 
 CREATE OR REPLACE FUNCTION public.is_admin()
 RETURNS BOOLEAN AS $$
@@ -41,11 +43,11 @@ END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 
--- ╔══════════════════════════════════════════════════════════╗
--- ║  SECTION 2 · TABLES                                       ║
--- ╚══════════════════════════════════════════════════════════╝
+-- ============================================================
+-- SECTION 2 · TABLES
+-- ============================================================
 
--- ── approved_students ───────────────────────────────
+-- ---- approved_students ----
 -- Paid students who may log in. Privacy-critical: each student reads only their own row; admin reads all (is_admin()).
 CREATE TABLE IF NOT EXISTS public.approved_students (
   email TEXT NOT NULL,
@@ -56,8 +58,8 @@ CREATE TABLE IF NOT EXISTS public.approved_students (
   notes TEXT
 );
 
--- ── students ────────────────────────────────────────
--- LEGACY / UNUSED — original table from first setup. The live app uses approved_students. Safe to drop once confirmed unused.
+-- ---- students ----
+-- LEGACY / UNUSED — original table. Live app uses approved_students. Safe to drop once confirmed unused.
 CREATE TABLE IF NOT EXISTS public.students (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   email TEXT NOT NULL,
@@ -68,8 +70,8 @@ CREATE TABLE IF NOT EXISTS public.students (
   notes TEXT
 );
 
--- ── open_trades ─────────────────────────────────────
--- Active positions. Read-only to students; pipeline updates cmp/status.
+-- ---- open_trades ----
+-- Active positions. Students read; admin + pipeline write.
 CREATE TABLE IF NOT EXISTS public.open_trades (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   created_at TIMESTAMPTZ DEFAULT now(),
@@ -88,8 +90,8 @@ CREATE TABLE IF NOT EXISTS public.open_trades (
   chart_pattern TEXT
 );
 
--- ── trade_entries ───────────────────────────────────
--- Pyramid entries — multiple adds per open_trade (links via open_trade_id).
+-- ---- trade_entries ----
+-- Pyramid entries — multiple adds per open_trade (open_trade_id).
 CREATE TABLE IF NOT EXISTS public.trade_entries (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   open_trade_id UUID NOT NULL,
@@ -102,7 +104,7 @@ CREATE TABLE IF NOT EXISTS public.trade_entries (
   position_size_pct NUMERIC
 );
 
--- ── partial_exits ───────────────────────────────────
+-- ---- partial_exits ----
 -- Partial profit bookings against an open trade.
 CREATE TABLE IF NOT EXISTS public.partial_exits (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -120,7 +122,7 @@ CREATE TABLE IF NOT EXISTS public.partial_exits (
   position_size_pct NUMERIC
 );
 
--- ── closed_trades ───────────────────────────────────
+-- ---- closed_trades ----
 -- Completed trades with full journey + realised P&L.
 CREATE TABLE IF NOT EXISTS public.closed_trades (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -148,7 +150,7 @@ CREATE TABLE IF NOT EXISTS public.closed_trades (
   position_size_pct NUMERIC
 );
 
--- ── trade_candles ───────────────────────────────────
+-- ---- trade_candles ----
 -- Daily OHLCV for OPEN-trade symbols (mini charts).
 CREATE TABLE IF NOT EXISTS public.trade_candles (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -161,7 +163,7 @@ CREATE TABLE IF NOT EXISTS public.trade_candles (
   volume BIGINT
 );
 
--- ── watchlist ───────────────────────────────────────
+-- ---- watchlist ----
 -- MarketSmith CSV upload — current watchlist universe.
 CREATE TABLE IF NOT EXISTS public.watchlist (
   id SERIAL PRIMARY KEY,
@@ -187,8 +189,8 @@ CREATE TABLE IF NOT EXISTS public.watchlist (
   uploaded_at TIMESTAMPTZ DEFAULT now()
 );
 
--- ── watchlist_enriched ──────────────────────────────
--- Pipeline-computed EMAs + distances + buy-range flag per watchlist stock. Feeds Stock Filter & Charts tabs. (id is a serial sequence, not UUID.)
+-- ---- watchlist_enriched ----
+-- Pipeline EMAs + distances + buy-range flag. Feeds Stock Filter & Charts. (id = serial, not UUID.)
 CREATE TABLE IF NOT EXISTS public.watchlist_enriched (
   id SERIAL PRIMARY KEY,
   symbol TEXT NOT NULL,
@@ -213,7 +215,7 @@ CREATE TABLE IF NOT EXISTS public.watchlist_enriched (
   updated_at TIMESTAMPTZ DEFAULT now()
 );
 
--- ── watchlist_candles ───────────────────────────────
+-- ---- watchlist_candles ----
 -- 24-month daily OHLCV for ALL watchlist stocks (Charts tab).
 CREATE TABLE IF NOT EXISTS public.watchlist_candles (
   symbol TEXT NOT NULL,
@@ -226,7 +228,7 @@ CREATE TABLE IF NOT EXISTS public.watchlist_candles (
   PRIMARY KEY (symbol, date)
 );
 
--- ── market_breadth ──────────────────────────────────
+-- ---- market_breadth ----
 -- Daily NSE breadth snapshot (% above EMAs, A/D, 52w highs).
 CREATE TABLE IF NOT EXISTS public.market_breadth (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -249,7 +251,7 @@ CREATE TABLE IF NOT EXISTS public.market_breadth (
   fii_flow_cr NUMERIC
 );
 
--- ── sector_stocks ───────────────────────────────────
+-- ---- sector_stocks ----
 -- NSE sector constituents, refreshed nightly.
 CREATE TABLE IF NOT EXISTS public.sector_stocks (
   id SERIAL PRIMARY KEY,
@@ -262,7 +264,7 @@ CREATE TABLE IF NOT EXISTS public.sector_stocks (
   PRIMARY KEY (symbol, sector_key)
 );
 
--- ── sector_breadth ──────────────────────────────────
+-- ---- sector_breadth ----
 -- Per-sector regime score (0-100) and label.
 CREATE TABLE IF NOT EXISTS public.sector_breadth (
   id SERIAL PRIMARY KEY,
@@ -290,7 +292,7 @@ CREATE TABLE IF NOT EXISTS public.sector_breadth (
   updated_at TIMESTAMPTZ DEFAULT now()
 );
 
--- ── index_levels ────────────────────────────────────
+-- ---- index_levels ----
 -- Daily close of Nifty50/Sensex + ~24 sectoral indices.
 CREATE TABLE IF NOT EXISTS public.index_levels (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -322,7 +324,7 @@ CREATE TABLE IF NOT EXISTS public.index_levels (
   updated_at TIMESTAMPTZ DEFAULT now()
 );
 
--- ── fii_dii_activity ────────────────────────────────
+-- ---- fii_dii_activity ----
 -- Daily FII/DII net cash flow.
 CREATE TABLE IF NOT EXISTS public.fii_dii_activity (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -338,7 +340,7 @@ CREATE TABLE IF NOT EXISTS public.fii_dii_activity (
   updated_at TIMESTAMPTZ DEFAULT now()
 );
 
--- ── portfolio_snapshots ─────────────────────────────
+-- ---- portfolio_snapshots ----
 -- Daily portfolio value for the equity curve.
 CREATE TABLE IF NOT EXISTS public.portfolio_snapshots (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -352,9 +354,9 @@ CREATE TABLE IF NOT EXISTS public.portfolio_snapshots (
 );
 
 
--- ╔══════════════════════════════════════════════════════════╗
--- ║  SECTION 3 · ENABLE ROW LEVEL SECURITY                    ║
--- ╚══════════════════════════════════════════════════════════╝
+-- ============================================================
+-- SECTION 3 · ENABLE ROW LEVEL SECURITY
+-- ============================================================
 
 ALTER TABLE public.approved_students ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.students ENABLE ROW LEVEL SECURITY;
@@ -374,11 +376,12 @@ ALTER TABLE public.fii_dii_activity ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.portfolio_snapshots ENABLE ROW LEVEL SECURITY;
 
 
--- ╔══════════════════════════════════════════════════════════╗
--- ║  SECTION 4 · RLS POLICIES  (additive / OR-ed per table)   ║
--- ╚══════════════════════════════════════════════════════════╝
+-- ============================================================
+-- SECTION 4 · RLS POLICIES  (additive / OR-ed per table)
+-- ============================================================
 
--- ── approved_students ───────────────────────────────
+-- ---- approved_students ----
+-- Two SELECT policies coexist intentionally (additive): students read own row, admin reads all.
 CREATE POLICY "Admin can insert students" ON public.approved_students FOR INSERT TO authenticated
   WITH CHECK (is_admin());
 CREATE POLICY "Admin can read all students" ON public.approved_students FOR SELECT TO authenticated
@@ -388,110 +391,136 @@ CREATE POLICY "Students can read own row only" ON public.approved_students FOR S
 CREATE POLICY "Admin can update students" ON public.approved_students FOR UPDATE TO authenticated
   USING (is_admin());
 
--- ── students ────────────────────────────────────────
--- Policy for the LEGACY students table (unused by live app).
+-- ---- students ----
+-- LEGACY table (unused by live app).
 CREATE POLICY "Students can read own profile" ON public.students FOR SELECT TO public
   USING ((auth.uid() = id));
 
--- ── open_trades ─────────────────────────────────────
-CREATE POLICY "Allow all writes on open trades" ON public.open_trades FOR ALL TO public
-  USING (true)
-  WITH CHECK (true);
-CREATE POLICY "Authenticated users can read open trades" ON public.open_trades FOR SELECT TO authenticated
+-- ---- open_trades ----
+CREATE POLICY "Admin can delete open_trades" ON public.open_trades FOR DELETE TO authenticated
+  USING (is_admin());
+CREATE POLICY "Admin can insert open_trades" ON public.open_trades FOR INSERT TO authenticated
+  WITH CHECK (is_admin());
+CREATE POLICY "Authenticated can read open_trades" ON public.open_trades FOR SELECT TO authenticated
   USING (true);
+CREATE POLICY "Admin can update open_trades" ON public.open_trades FOR UPDATE TO authenticated
+  USING (is_admin());
 
--- ── trade_entries ───────────────────────────────────
-CREATE POLICY "Allow all on trade_entries" ON public.trade_entries FOR ALL TO public
-  USING (true)
-  WITH CHECK (true);
+-- ---- trade_entries ----
+CREATE POLICY "Admin can delete trade_entries" ON public.trade_entries FOR DELETE TO authenticated
+  USING (is_admin());
+CREATE POLICY "Admin can insert trade_entries" ON public.trade_entries FOR INSERT TO authenticated
+  WITH CHECK (is_admin());
+CREATE POLICY "Authenticated can read trade_entries" ON public.trade_entries FOR SELECT TO authenticated
+  USING (true);
+CREATE POLICY "Admin can update trade_entries" ON public.trade_entries FOR UPDATE TO authenticated
+  USING (is_admin());
 
--- ── partial_exits ───────────────────────────────────
-CREATE POLICY "Allow all on partial_exits" ON public.partial_exits FOR ALL TO public
-  USING (true)
-  WITH CHECK (true);
+-- ---- partial_exits ----
+CREATE POLICY "Admin can delete partial_exits" ON public.partial_exits FOR DELETE TO authenticated
+  USING (is_admin());
+CREATE POLICY "Admin can insert partial_exits" ON public.partial_exits FOR INSERT TO authenticated
+  WITH CHECK (is_admin());
+CREATE POLICY "Authenticated can read partial_exits" ON public.partial_exits FOR SELECT TO authenticated
+  USING (true);
+CREATE POLICY "Admin can update partial_exits" ON public.partial_exits FOR UPDATE TO authenticated
+  USING (is_admin());
 
--- ── closed_trades ───────────────────────────────────
-CREATE POLICY "Allow all writes on closed trades" ON public.closed_trades FOR ALL TO public
-  USING (true)
-  WITH CHECK (true);
-CREATE POLICY "Authenticated users can read closed trades" ON public.closed_trades FOR SELECT TO authenticated
+-- ---- closed_trades ----
+CREATE POLICY "Admin can delete closed_trades" ON public.closed_trades FOR DELETE TO authenticated
+  USING (is_admin());
+CREATE POLICY "Admin can insert closed_trades" ON public.closed_trades FOR INSERT TO authenticated
+  WITH CHECK (is_admin());
+CREATE POLICY "Authenticated can read closed_trades" ON public.closed_trades FOR SELECT TO authenticated
   USING (true);
+CREATE POLICY "Admin can update closed_trades" ON public.closed_trades FOR UPDATE TO authenticated
+  USING (is_admin());
 
--- ── trade_candles ───────────────────────────────────
-CREATE POLICY "Allow all writes on candles" ON public.trade_candles FOR ALL TO public
-  USING (true)
-  WITH CHECK (true);
-CREATE POLICY "Allow all reads on trade_candles" ON public.trade_candles FOR SELECT TO public
+-- ---- trade_candles ----
+CREATE POLICY "Admin can delete trade_candles" ON public.trade_candles FOR DELETE TO authenticated
+  USING (is_admin());
+CREATE POLICY "Admin can insert trade_candles" ON public.trade_candles FOR INSERT TO authenticated
+  WITH CHECK (is_admin());
+CREATE POLICY "Authenticated can read trade_candles" ON public.trade_candles FOR SELECT TO authenticated
   USING (true);
+CREATE POLICY "Admin can update trade_candles" ON public.trade_candles FOR UPDATE TO authenticated
+  USING (is_admin());
 
--- ── watchlist ───────────────────────────────────────
--- SECURITY NOTE: these policies let ANYONE with the public key (no login) INSERT/UPDATE/DELETE the watchlist. Only the pipeline (service key) & admin panel write. Recommend tightening writes to is_admin() and reads to authenticated.
-CREATE POLICY "Allow all delete watchlist" ON public.watchlist FOR DELETE TO public
+-- ---- watchlist ----
+CREATE POLICY "Admin can delete watchlist" ON public.watchlist FOR DELETE TO authenticated
+  USING (is_admin());
+CREATE POLICY "Admin can insert watchlist" ON public.watchlist FOR INSERT TO authenticated
+  WITH CHECK (is_admin());
+CREATE POLICY "Authenticated can read watchlist" ON public.watchlist FOR SELECT TO authenticated
   USING (true);
-CREATE POLICY "Allow all insert watchlist" ON public.watchlist FOR INSERT TO public
-  WITH CHECK (true);
-CREATE POLICY "Allow all read watchlist" ON public.watchlist FOR SELECT TO public
-  USING (true);
-CREATE POLICY "Public read watchlist" ON public.watchlist FOR SELECT TO public
-  USING (true);
-CREATE POLICY "Allow all update watchlist" ON public.watchlist FOR UPDATE TO public
-  USING (true);
+CREATE POLICY "Admin can update watchlist" ON public.watchlist FOR UPDATE TO authenticated
+  USING (is_admin());
 
--- ── watchlist_enriched ──────────────────────────────
--- SECURITY NOTE: same broad public write access as watchlist. Pipeline uses the service key; recommend admin-only writes.
-CREATE POLICY "Allow all delete watchlist_enriched" ON public.watchlist_enriched FOR DELETE TO public
+-- ---- watchlist_enriched ----
+CREATE POLICY "Admin can delete watchlist_enriched" ON public.watchlist_enriched FOR DELETE TO authenticated
+  USING (is_admin());
+CREATE POLICY "Admin can insert watchlist_enriched" ON public.watchlist_enriched FOR INSERT TO authenticated
+  WITH CHECK (is_admin());
+CREATE POLICY "Authenticated can read watchlist_enriched" ON public.watchlist_enriched FOR SELECT TO authenticated
   USING (true);
-CREATE POLICY "Allow all insert watchlist_enriched" ON public.watchlist_enriched FOR INSERT TO public
-  WITH CHECK (true);
-CREATE POLICY "Allow all read watchlist_enriched" ON public.watchlist_enriched FOR SELECT TO public
-  USING (true);
-CREATE POLICY "Public read watchlist_enriched" ON public.watchlist_enriched FOR SELECT TO public
-  USING (true);
-CREATE POLICY "Allow all update watchlist_enriched" ON public.watchlist_enriched FOR UPDATE TO public
-  USING (true);
+CREATE POLICY "Admin can update watchlist_enriched" ON public.watchlist_enriched FOR UPDATE TO authenticated
+  USING (is_admin());
 
--- ── watchlist_candles ───────────────────────────────
+-- ---- watchlist_candles ----
 CREATE POLICY "Authenticated users can read watchlist candles" ON public.watchlist_candles FOR SELECT TO authenticated
   USING (true);
 
--- ── market_breadth ──────────────────────────────────
-CREATE POLICY "Allow all writes on market breadth" ON public.market_breadth FOR ALL TO public
-  USING (true)
-  WITH CHECK (true);
-CREATE POLICY "Authenticated users can read market breadth" ON public.market_breadth FOR SELECT TO authenticated
+-- ---- market_breadth ----
+CREATE POLICY "Admin can delete market_breadth" ON public.market_breadth FOR DELETE TO authenticated
+  USING (is_admin());
+CREATE POLICY "Admin can insert market_breadth" ON public.market_breadth FOR INSERT TO authenticated
+  WITH CHECK (is_admin());
+CREATE POLICY "Authenticated can read market_breadth" ON public.market_breadth FOR SELECT TO authenticated
   USING (true);
+CREATE POLICY "Admin can update market_breadth" ON public.market_breadth FOR UPDATE TO authenticated
+  USING (is_admin());
 
--- ── sector_stocks ───────────────────────────────────
+-- ---- sector_stocks ----
+-- Public SELECT (reference data, no write policy — no tampering risk).
 CREATE POLICY "Public read sector_stocks" ON public.sector_stocks FOR SELECT TO public
   USING (true);
 
--- ── sector_breadth ──────────────────────────────────
+-- ---- sector_breadth ----
+-- Public SELECT (reference data, no write policy — no tampering risk).
 CREATE POLICY "Public read sector_breadth" ON public.sector_breadth FOR SELECT TO public
   USING (true);
 
--- ── index_levels ────────────────────────────────────
-CREATE POLICY "Allow all writes on index levels" ON public.index_levels FOR ALL TO public
-  USING (true)
-  WITH CHECK (true);
-CREATE POLICY "Authenticated users can read index levels" ON public.index_levels FOR SELECT TO authenticated
+-- ---- index_levels ----
+CREATE POLICY "Admin can delete index_levels" ON public.index_levels FOR DELETE TO authenticated
+  USING (is_admin());
+CREATE POLICY "Admin can insert index_levels" ON public.index_levels FOR INSERT TO authenticated
+  WITH CHECK (is_admin());
+CREATE POLICY "Authenticated can read index_levels" ON public.index_levels FOR SELECT TO authenticated
   USING (true);
+CREATE POLICY "Admin can update index_levels" ON public.index_levels FOR UPDATE TO authenticated
+  USING (is_admin());
 
--- ── fii_dii_activity ────────────────────────────────
-CREATE POLICY "Allow all writes on fii_dii" ON public.fii_dii_activity FOR ALL TO public
-  USING (true)
-  WITH CHECK (true);
-CREATE POLICY "Authenticated users can read fii_dii" ON public.fii_dii_activity FOR SELECT TO authenticated
+-- ---- fii_dii_activity ----
+CREATE POLICY "Admin can delete fii_dii_activity" ON public.fii_dii_activity FOR DELETE TO authenticated
+  USING (is_admin());
+CREATE POLICY "Admin can insert fii_dii_activity" ON public.fii_dii_activity FOR INSERT TO authenticated
+  WITH CHECK (is_admin());
+CREATE POLICY "Authenticated can read fii_dii_activity" ON public.fii_dii_activity FOR SELECT TO authenticated
   USING (true);
+CREATE POLICY "Admin can update fii_dii_activity" ON public.fii_dii_activity FOR UPDATE TO authenticated
+  USING (is_admin());
 
--- ── portfolio_snapshots ─────────────────────────────
-CREATE POLICY "Allow all writes on portfolio snapshots" ON public.portfolio_snapshots FOR ALL TO public
-  USING (true)
-  WITH CHECK (true);
-CREATE POLICY "Authenticated users can read portfolio snapshots" ON public.portfolio_snapshots FOR SELECT TO authenticated
+-- ---- portfolio_snapshots ----
+CREATE POLICY "Admin can delete portfolio_snapshots" ON public.portfolio_snapshots FOR DELETE TO authenticated
+  USING (is_admin());
+CREATE POLICY "Admin can insert portfolio_snapshots" ON public.portfolio_snapshots FOR INSERT TO authenticated
+  WITH CHECK (is_admin());
+CREATE POLICY "Authenticated can read portfolio_snapshots" ON public.portfolio_snapshots FOR SELECT TO authenticated
   USING (true);
+CREATE POLICY "Admin can update portfolio_snapshots" ON public.portfolio_snapshots FOR UPDATE TO authenticated
+  USING (is_admin());
 
 
 -- ============================================================
--- END — see SECURITY NOTEs on watchlist / watchlist_enriched
--- and the LEGACY note on students for recommended follow-ups.
+-- END. Legacy 'students' table may be dropped once confirmed unused.
 -- ============================================================
