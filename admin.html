@@ -437,6 +437,7 @@
         </form>
       </div>
     </div>
+    </div><!-- /form-tab-wrap : table below spans full width -->
     <div class="card">
       <div class="card-hdr" style="flex-wrap:wrap;gap:10px">
         <span class="card-title">Current Open Trades</span>
@@ -472,7 +473,7 @@
         </table>
       </div>
     </div>
-  </div></div>
+  </div>
 
   <!-- ════ TAB 2: ADD ENTRY (PYRAMID) ════ -->
   <div class="tab-pane" id="tab-pyramid"><div class="form-tab-wrap">
@@ -683,6 +684,32 @@
             <button type="submit" class="btn btn-success" id="partial-btn">Book Partial Exit</button>
           </div>
         </form>
+      </div>
+    </div>
+
+    <!-- All Partial Exits + Locked Gains -->
+    <div class="card">
+      <div class="card-hdr" style="flex-wrap:wrap;gap:10px">
+        <span class="card-title">All Partial Exits — Locked Gains</span>
+        <div style="display:flex;align-items:center;gap:14px;margin-left:auto">
+          <div style="text-align:right">
+            <div style="font-size:9px;color:var(--muted);letter-spacing:.06em;text-transform:uppercase">Total Locked</div>
+            <div id="pe-total-locked" class="mono" style="font-size:15px;font-weight:700;color:var(--green)">—</div>
+          </div>
+          <button class="btn btn-ghost btn-sm" onclick="loadAllPartialExits()">↻ Refresh</button>
+        </div>
+      </div>
+      <div style="overflow-x:auto">
+        <table class="data-table">
+          <thead><tr>
+            <th>Symbol</th><th>Company</th><th>Exit Date</th>
+            <th>Exit Price ₹</th><th>Qty Sold</th><th>Avg Entry ₹</th>
+            <th>Realised P&L ₹</th><th>Return %</th><th>Notes</th>
+          </tr></thead>
+          <tbody id="all-partial-exits-tbody">
+            <tr><td colspan="9" style="text-align:center;color:var(--muted);padding:20px">Loading…</td></tr>
+          </tbody>
+        </table>
       </div>
     </div>
   </div></div>
@@ -1018,6 +1045,7 @@ function openTab(id, btn) {
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
   document.getElementById(id).classList.add('active');
   btn.classList.add('active');
+  if (id === 'tab-partial') loadAllPartialExits();
 }
 
 function toast(msg, type = 'success') {
@@ -1927,14 +1955,20 @@ async function saveEntryLeg(entryId, tradeId) {
 
   if (error) { showEditAlert('Error: ' + error.message,'error'); return; }
 
-  // Recalculate weighted avg entry on open_trades
+  // Recalculate weighted avg + totals on open_trades from all legs
   const { data: allEntries } = await sb.from('trade_entries')
     .select('entry_price,quantity').eq('open_trade_id', tradeId);
   if (allEntries && allEntries.length) {
     const totalQty = allEntries.reduce((s,e)=>s+e.quantity,0);
     const wavg = allEntries.reduce((s,e)=>s+(e.entry_price*e.quantity),0) / totalQty;
+    const { data: exits } = await sb.from('partial_exits')
+      .select('quantity').eq('open_trade_id', tradeId);
+    const soldQty = (exits||[]).reduce((s,e)=>s+(e.quantity||0),0);
     await sb.from('open_trades').update({
       avg_entry_price: Math.round(wavg*100)/100,
+      total_quantity:  totalQty,
+      remaining_qty:   Math.max(0, totalQty - soldQty),
+      has_pyramid:     allEntries.length > 1,
       updated_at: new Date().toISOString(),
     }).eq('id', tradeId);
   }
@@ -1945,13 +1979,111 @@ async function saveEntryLeg(entryId, tradeId) {
   await loadEditEntries(tradeId);
 }
 
+// ── All Partial Exits table (Partial Exit tab) ────────
+async function loadAllPartialExits() {
+  const tbody = document.getElementById('all-partial-exits-tbody');
+  const totEl = document.getElementById('pe-total-locked');
+  if (!tbody) return;
+  tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--muted);padding:20px">Loading…</td></tr>';
+
+  const { data: exits, error } = await sb.from('partial_exits')
+    .select('*').order('exit_date', { ascending: false });
+  if (error) { tbody.innerHTML = `<tr><td colspan="9" style="color:var(--red);padding:16px">${error.message}</td></tr>`; return; }
+  if (!exits || exits.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--muted);padding:20px">No partial exits booked yet.</td></tr>';
+    if (totEl) { totEl.textContent = '₹0'; totEl.style.color = 'var(--muted)'; }
+    return;
+  }
+
+  // Join company + avg entry from the parent open trades (for context + return %)
+  const ids = [...new Set(exits.map(e => e.open_trade_id).filter(Boolean))];
+  let parents = {};
+  if (ids.length) {
+    const { data: ots } = await sb.from('open_trades')
+      .select('id,company_name,avg_entry_price,entry_price').in('id', ids);
+    (ots||[]).forEach(o => { parents[o.id] = o; });
+  }
+
+  const fmt = (n) => '₹' + Math.abs(n).toLocaleString('en-IN', { maximumFractionDigits: 0 });
+  let totalLocked = 0;
+
+  tbody.innerHTML = exits.map(e => {
+    const p        = parents[e.open_trade_id] || {};
+    const avgEntry = p.avg_entry_price || p.entry_price || null;
+    const pnl      = e.realised_pnl || 0;
+    totalLocked   += pnl;
+    const pnlStr   = `<span style="color:${pnl>=0?'var(--green)':'var(--red)'}">${pnl>=0?'+':''}${fmt(pnl)}</span>`;
+    const retPct   = (avgEntry && e.exit_price) ? ((e.exit_price - avgEntry) / avgEntry * 100) : null;
+    const retStr   = retPct !== null
+      ? `<span style="color:${retPct>=0?'var(--green)':'var(--red)'};font-weight:700">${retPct>=0?'+':''}${retPct.toFixed(2)}%</span>`
+      : '<span style="color:var(--muted)">—</span>';
+    return `<tr>
+      <td class="mono" style="font-weight:700;color:var(--white)">${e.symbol||'—'}</td>
+      <td style="color:var(--text2)">${p.company_name||'—'}</td>
+      <td class="mono">${e.exit_date||'—'}</td>
+      <td class="mono">${e.exit_price?'\u20b9'+Number(e.exit_price).toLocaleString('en-IN'):'—'}</td>
+      <td class="mono">${e.quantity||'—'}</td>
+      <td class="mono">${avgEntry?'\u20b9'+Number(avgEntry).toLocaleString('en-IN'):'<span style="color:var(--muted)">—</span>'}</td>
+      <td>${pnlStr}</td>
+      <td>${retStr}</td>
+      <td style="color:var(--muted);font-size:11px">${e.notes||''}</td>
+    </tr>`;
+  }).join('');
+
+  if (totEl) {
+    totEl.textContent = (totalLocked>=0?'+':'') + fmt(totalLocked);
+    totEl.style.color = totalLocked > 0 ? 'var(--green)' : totalLocked < 0 ? 'var(--red)' : 'var(--muted)';
+  }
+}
+
 async function deleteEntryLeg(entryId, tradeId) {
-  if (!confirm('Delete this entry leg? This cannot be undone.')) return;
+  if (!confirm('Delete this entry leg? The position quantity, average price, and pyramid badge will be recalculated from the remaining legs. This cannot be undone.')) return;
+
   const { error } = await sb.from('trade_entries').delete().eq('id', entryId);
   if (error) { showEditAlert('Error: ' + error.message,'error'); return; }
-  showEditAlert('✓ Entry leg deleted.','success');
-  toast('Entry leg deleted');
+
+  // Recompute the parent position from whatever entry legs remain.
+  const { data: remaining } = await sb.from('trade_entries')
+    .select('entry_price,quantity').eq('open_trade_id', tradeId).order('entry_date');
+
+  if (!remaining || remaining.length === 0) {
+    // No recorded legs left. Don't blindly zero the position — warn the admin.
+    await sb.from('open_trades').update({
+      has_pyramid: false,
+      updated_at: new Date().toISOString(),
+    }).eq('id', tradeId);
+    showEditAlert('⚠ Entry leg deleted. No entry legs remain for this trade — please verify/seed the initial entry; quantity was left unchanged.','error');
+    toast('Entry leg deleted — verify position');
+    await loadOpenTrades();
+    await loadOpenTradesForSelect();
+    await loadEditEntries(tradeId);
+    return;
+  }
+
+  // Total bought across remaining legs + weighted-average entry
+  const totalBought = remaining.reduce((s,e)=>s + (e.quantity||0), 0);
+  const wavg = totalBought > 0
+    ? remaining.reduce((s,e)=>s + (e.entry_price*e.quantity), 0) / totalBought
+    : 0;
+
+  // Subtract any quantity already sold via partial exits → true remaining_qty
+  const { data: exits } = await sb.from('partial_exits')
+    .select('quantity').eq('open_trade_id', tradeId);
+  const soldQty = (exits||[]).reduce((s,e)=>s + (e.quantity||0), 0);
+  const remainingQty = Math.max(0, totalBought - soldQty);
+
+  await sb.from('open_trades').update({
+    avg_entry_price: Math.round(wavg*100)/100,
+    total_quantity:  totalBought,
+    remaining_qty:   remainingQty,
+    has_pyramid:     remaining.length > 1,   // ← clears the "P" badge when only the base leg is left
+    updated_at:      new Date().toISOString(),
+  }).eq('id', tradeId);
+
+  showEditAlert(`✓ Entry leg deleted. Position recalculated: avg ₹${(Math.round(wavg*100)/100).toLocaleString('en-IN')} · total qty ${totalBought}${soldQty?` · rem ${remainingQty}`:''}.`,'success');
+  toast('Entry leg deleted — position updated');
   await loadOpenTrades();
+  await loadOpenTradesForSelect();
   await loadEditEntries(tradeId);
 }
 
