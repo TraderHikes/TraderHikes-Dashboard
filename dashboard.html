@@ -722,6 +722,8 @@ canvas.tc{display:block;width:100%;height:100%}
 .ch-rbtn{background:var(--card2);border:1px solid var(--bdr);color:var(--muted);font-family:var(--fm);font-size:11px;padding:4px 11px;border-radius:7px;cursor:pointer;transition:all .15s}
 .ch-rbtn:hover{color:var(--text2)}
 .ch-rbtn.active{background:var(--blue);border-color:var(--blue);color:#fff}
+.ch-tf-sep{width:1px;align-self:stretch;background:var(--bdr);margin:0 4px}
+.ch-rbtn.ch-tf.active{background:var(--green-dim,#15a87a);border-color:var(--green,#2ed8a0);color:#fff}
 .ch-legend{display:flex;gap:12px;flex-wrap:wrap}
 .ch-leg{display:flex;align-items:center;gap:5px;font-family:var(--fm);font-size:11px;color:var(--text2);cursor:pointer;user-select:none;transition:opacity .15s}
 .ch-leg.off{opacity:.35}
@@ -1711,6 +1713,9 @@ canvas.tc{display:block;width:100%;height:100%}
           <button class="ch-rbtn" data-r="252" onclick="setChartRange(252,this)">1Y</button>
           <button class="ch-rbtn active" data-r="504" onclick="setChartRange(504,this)">2Y</button>
           <button class="ch-rbtn" data-r="all" onclick="setChartRange('all',this)">All</button>
+          <span class="ch-tf-sep"></span>
+          <button class="ch-rbtn ch-tf active" data-tf="daily"  onclick="setTimeframe('daily',this)">Daily</button>
+          <button class="ch-rbtn ch-tf" data-tf="weekly" onclick="setTimeframe('weekly',this)">Weekly</button>
         </div>
         <div class="ch-legend">
           <span class="ch-leg" data-ema="10"  onclick="toggleEma('10',this)"><i style="background:#ffffff"></i>EMA 10</span>
@@ -4494,6 +4499,38 @@ let _lwCandles    = [];     // current symbol's candle array (for range buttons)
 let _emaSeries    = {};     // {21:series, 50:series, 200:series}
 let _emaVisible   = { '10': true, '20': true, '50': true, '200': true };
 let _timeIndex    = new Map();  // 'YYYY-MM-DD' → index, for crosshair lookups
+let _chartTf      = 'daily';    // 'daily' | 'weekly'
+let _lwDaily      = [];         // raw daily candles for the current symbol (source for aggregation)
+
+/* Aggregate daily candles into weekly OHLC.
+   Week = ISO week (Mon–Fri); the week's candle is dated to its LAST trading day,
+   open = first day's open, close = last day's close, high/low = week extremes. */
+function toWeekly(daily){
+  if(!daily.length) return [];
+  const weeks = [];
+  let cur = null, curKey = null;
+  for(const c of daily){
+    const d = new Date(c.time + 'T00:00:00');
+    // ISO week key: year + week number
+    const tmp = new Date(d);
+    tmp.setDate(tmp.getDate() + 4 - (tmp.getDay() || 7)); // nearest Thursday
+    const yearStart = new Date(tmp.getFullYear(), 0, 1);
+    const week = Math.ceil((((tmp - yearStart) / 86400000) + 1) / 7);
+    const key = tmp.getFullYear() + '-W' + week;
+    if(key !== curKey){
+      if(cur) weeks.push(cur);
+      cur = { time: c.time, open: c.open, high: c.high, low: c.low, close: c.close };
+      curKey = key;
+    } else {
+      cur.high  = Math.max(cur.high, c.high);
+      cur.low   = Math.min(cur.low,  c.low);
+      cur.close = c.close;     // last day's close
+      cur.time  = c.time;      // date the week to its last trading day
+    }
+  }
+  if(cur) weeks.push(cur);
+  return weeks;
+}
 
 /* Lightweight Charts crosshair time can come back as a BusinessDay object
    or a string; normalise both to 'YYYY-MM-DD' */
@@ -4555,8 +4592,7 @@ async function loadCharts(){
   try{
     const [rawRes, enrRes] = await Promise.all([
       sb.from('watchlist').select('symbol,company_name,rs_rating'),
-      sb.from('watchlist_enriched')
-        .select('symbol,company_name,cur_price,pct_from_21ema,pct_from_50ema,pct_from_200ema,in_buy_range,sector_name,enriched_date'),
+      sb.from('watchlist_enriched').select('*'),
     ]);
     const rawMap = {}; (rawRes.data || []).forEach(r => rawMap[r.symbol] = r);
     const enrMap = {}; (enrRes.data || []).forEach(r => enrMap[r.symbol] = r);
@@ -4567,14 +4603,15 @@ async function loadCharts(){
     _chartsData = [...syms].map(s => {
       const r = rawMap[s] || {}, e = enrMap[s] || {};
       return {
+        ...e,                       // carry ALL enriched fields (incl. in_buy_range) verbatim
         symbol:       s,
         company_name: r.company_name || e.company_name || null,
-        rs_rating:    r.rs_rating != null ? r.rs_rating : null,
+        rs_rating:    r.rs_rating != null ? r.rs_rating : (e.rs_rating != null ? e.rs_rating : null),
         cur_price:    e.cur_price != null ? e.cur_price : null,
         pct21:        e.pct_from_21ema  != null ? e.pct_from_21ema  : null,
         pct50:        e.pct_from_50ema  != null ? e.pct_from_50ema  : null,
         pct200:       e.pct_from_200ema != null ? e.pct_from_200ema : null,
-        in_buy_range: !!e.in_buy_range,
+        in_buy_range: e.in_buy_range === true || e.in_buy_range === 'true',
         sector_name:  e.sector_name || null,
       };
     }).sort((a,b) => (b.rs_rating || 0) - (a.rs_rating || 0));
@@ -4600,7 +4637,13 @@ function renderChartsList(rows){
   const listEl = document.getElementById('ch-list');
   document.getElementById('ch-count').textContent =
     rows.length + ' stock' + (rows.length === 1 ? '' : 's');
-  if(!rows.length){ listEl.innerHTML = '<div class="ch-empty">No matches.</div>'; return; }
+  if(!rows.length){
+    const msg = _watchMode === 'focused'
+      ? 'No stocks in buy range right now.<br>Switch to Full Watchlist to see all stocks.'
+      : 'No matches.';
+    listEl.innerHTML = '<div class="ch-empty">' + msg + '</div>';
+    return;
+  }
   listEl.innerHTML = rows.map(r => {
     const rs   = r.rs_rating != null ? '<span class="ch-rs">RS ' + r.rs_rating + '</span>' : '';
     const buy  = r.in_buy_range ? '<span class="ch-pill buy">Buy Range</span>' : '';
@@ -4663,7 +4706,7 @@ function selectChart(symbol){
   document.getElementById('ch-title').textContent =
     symbol + (r.company_name ? '  ·  ' + r.company_name : '');
   document.getElementById('ch-asof').textContent =
-    _chartsAsOf ? ('Daily candles · stats as of ' + _chartsAsOf) : 'Daily candles';
+    _chartsAsOf ? ((_chartTf==='weekly'?'Weekly':'Daily') + ' candles · stats as of ' + _chartsAsOf) : ((_chartTf==='weekly'?'Weekly':'Daily') + ' candles');
 
   // Lightweight fallback; renderChart fills in EOD price + 10/20/50/200 EMA
   // distances computed from the actual chart data once candles load.
@@ -4696,13 +4739,15 @@ async function renderChart(symbol){
       return;
     }
 
-    const candles = data.map(r => ({
+    const daily = data.map(r => ({
       time:  r.date,
       open:  +r.open,
       high:  +r.high,
       low:   +r.low,
       close: +r.close,
     }));
+    _lwDaily = daily;
+    const candles = (_chartTf === 'weekly') ? toWeekly(daily) : daily;
     _lwCandles = candles;
     _timeIndex = new Map();
     candles.forEach((c, i) => _timeIndex.set(c.time, i));
@@ -4802,16 +4847,27 @@ async function renderChart(symbol){
 function applyRange(r){
   if(!_lwChart || !_lwCandles.length) return;
   if(r === 'all'){ _lwChart.timeScale().fitContent(); return; }
-  const bars = parseInt(r, 10);
+  let bars = parseInt(r, 10);                 // r is in trading DAYS (126/252/504)
+  if(_chartTf === 'weekly') bars = Math.ceil(bars / 5);  // ~5 trading days per week
   const from = _lwCandles[Math.max(0, _lwCandles.length - bars)].time;
   const to   = _lwCandles[_lwCandles.length - 1].time;
   _lwChart.timeScale().setVisibleRange({ from, to });
 }
 
 function setChartRange(r, el){
-  document.querySelectorAll('.ch-rbtn').forEach(b => b.classList.remove('active'));
+  // Only clear active on RANGE buttons (not the timeframe Daily/Weekly buttons)
+  document.querySelectorAll('.ch-rbtn:not(.ch-tf)').forEach(b => b.classList.remove('active'));
   if(el) el.classList.add('active');
   applyRange(r);
+}
+
+function setTimeframe(tf, el){
+  if(_chartTf === tf) return;
+  _chartTf = tf;
+  document.querySelectorAll('.ch-rbtn.ch-tf').forEach(b => b.classList.remove('active'));
+  if(el) el.classList.add('active');
+  // Rebuild the chart for the active symbol in the new timeframe
+  if(_chartsActiveSym) renderChart(_chartsActiveSym);
 }
 
 function toggleEma(p, el){
