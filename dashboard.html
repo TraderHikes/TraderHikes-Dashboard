@@ -719,7 +719,7 @@ canvas.tc{display:block;width:100%;height:100%}
   display:inline-block;position:relative;
   font-family:'Plus Jakarta Sans',sans-serif;font-size:16px;font-weight:800;letter-spacing:1px;
   color:#d6fff0;
-  background:linear-gradient(135deg,#1d6b52 0%,#15a87a 45%,#2ed8a0 100%);
+  background:linear-gradient(135deg,#124a38 0%,#0f7d5a 45%,#1ba87a 100%);
   padding:5px 16px;border-radius:10px;
   border:1.5px solid rgba(46,216,160,.55);
   box-shadow:
@@ -757,7 +757,7 @@ canvas.tc{display:block;width:100%;height:100%}
 .ch-mode-btn:hover{border-color:var(--bdr3)}
 .ch-mode-btn.active .ch-mode-t,.ch-mode-btn.active .ch-mode-n{color:#fff}
 #ch-mode-full.active{border-color:transparent;background:linear-gradient(135deg,#5c6ffb,#3a4bd6);box-shadow:0 4px 16px rgba(92,111,251,.35)}
-#ch-mode-focused.active{border-color:transparent;background:linear-gradient(135deg,#2ed8a0,#15a87a);box-shadow:0 4px 16px rgba(46,216,160,.35)}
+#ch-mode-focused.active{border-color:transparent;background:linear-gradient(135deg,#5c6ffb,#3a4bd6);box-shadow:0 4px 16px rgba(92,111,251,.35)}
 #ch-mode-focused.active .ch-mode-n{color:rgba(255,255,255,.85)}
 .ch-ohlc .oh-k{color:var(--muted);margin-left:9px;margin-right:3px;font-weight:600}
 .ch-ohlc .oh-k:first-child{margin-left:0}
@@ -4719,16 +4719,10 @@ function renderChartsList(rows){
   }
   listEl.innerHTML = rows.map(r => {
     const rs   = r.rs_rating != null ? '<span class="ch-rs">RS ' + r.rs_rating + '</span>' : '';
-    const buy  = r.in_buy_range ? '<span class="ch-pill buy">Buy Range</span>' : '';
-    const p21  = r.pct21 != null
-      ? '<span class="ch-21 ' + (r.pct21 >= 0 ? 'pos' : 'neg') + '">' +
-        (r.pct21 >= 0 ? '+' : '') + r.pct21.toFixed(1) + '% 21E</span>'
-      : '';
     const safe = String(r.symbol).replace(/'/g, "\\'");
     return '<div class="ch-item" data-sym="' + r.symbol + '" onclick="selectChart(\'' + safe + '\')">' +
       '<div class="ch-item-top"><span class="ch-sym">' + r.symbol + '</span>' + rs + '</div>' +
       '<div class="ch-item-name">' + (r.company_name || '') + '</div>' +
-      ((buy || p21) ? '<div class="ch-item-meta">' + buy + p21 + '</div>' : '') +
     '</div>';
   }).join('');
   // keep active highlight after a filter re-render
@@ -4801,7 +4795,7 @@ function renderFundamentals(r){
   const rows = [
     ['Market Cap', fmtMktCap(r.market_cap)],
     ['PE Ratio',   r.pe_ratio != null ? Number(r.pe_ratio).toFixed(2) : '—'],
-    ['5-Yr PE Range', '—'],   // not yet sourced
+    ['PB Ratio',   r.pb_ratio != null ? Number(r.pb_ratio).toFixed(2) : '—'],
     ['ROE',        r.roe != null ? Number(r.roe).toFixed(1) + '%' : '—'],
   ];
   const tb = document.querySelector('#ch-fund-tbl tbody');
