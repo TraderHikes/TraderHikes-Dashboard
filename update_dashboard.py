@@ -516,6 +516,35 @@ def fetch_sector_breadth(sector_map):
 # Enriches with 21/50/200 EMA, % distances, buy range flag,
 # sector name + regime score. Upserts to watchlist_enriched.
 # ════════════════════════════════════════════════════════════
+def fetch_fundamentals(sym_ns):
+    """Fetch Market Cap, trailing PE, ROE for one NSE symbol via yfinance.
+    Returns a dict with None for any field that's unavailable. Never raises."""
+    out = {"market_cap": None, "pe_ratio": None, "roe": None}
+    try:
+        info = yf.Ticker(sym_ns).info or {}
+        mc = info.get("marketCap")
+        if mc is not None:
+            out["market_cap"] = round(float(mc), 2)
+        pe = info.get("trailingPE")
+        if pe is not None:
+            try:
+                pe = float(pe)
+                if pe > 0 and pe < 100000:      # guard against absurd/negative
+                    out["pe_ratio"] = round(pe, 2)
+            except (TypeError, ValueError):
+                pass
+        roe = info.get("returnOnEquity")
+        if roe is not None:
+            try:
+                # yfinance returns ROE as a fraction (0.185) → store as % (18.50)
+                out["roe"] = round(float(roe) * 100, 2)
+            except (TypeError, ValueError):
+                pass
+    except Exception as e:
+        print(f"      (fundamentals unavailable for {sym_ns}: {e})")
+    return out
+
+
 def enrich_watchlist():
     print("📋 Enriching watchlist...")
     try:
@@ -608,6 +637,9 @@ def enrich_watchlist():
                     sec_nm  = sec.get("name")
                     scores  = score_map.get(sec_key, {}) if sec_key else {}
 
+                    # Fundamentals (Market Cap / PE / ROE) via yfinance .info
+                    fund = fetch_fundamentals(sym_ns)
+
                     results.append({
                         "symbol":          sym_clean,
                         "company_name":    stock.get("company_name"),
@@ -627,6 +659,9 @@ def enrich_watchlist():
                         "sector_name":     sec_nm,
                         "sector_score":    scores.get("score"),
                         "sector_label":    scores.get("label"),
+                        "market_cap":      fund["market_cap"],
+                        "pe_ratio":        fund["pe_ratio"],
+                        "roe":             fund["roe"],
                         "enriched_date":   TODAY,
                     })
 
