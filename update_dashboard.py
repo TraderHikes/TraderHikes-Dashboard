@@ -2,7 +2,7 @@
 # MARKET BASECAMP — Data Pipeline  (update_dashboard.py)
 # ════════════════════════════════════════════════════════════
 
-import os, sys, requests
+import os, sys, requests, time
 import yfinance as yf
 import pandas as pd
 import numpy as np
@@ -289,7 +289,7 @@ def calculate_market_breadth(symbols, nifty50_close=None):
     for i in range(0, len(symbols), BATCH):
         batch = symbols[i:i+BATCH]
         try:
-            raw = yf.download(batch, period="1y", progress=False,
+            raw = yf.download(batch, period="2y", progress=False,
                               group_by="ticker", auto_adjust=True)
             for sym in batch:
                 try:
@@ -310,8 +310,13 @@ def calculate_market_breadth(symbols, nifty50_close=None):
                     if cur > float(compute_ema(cl,21).iloc[-1]):  a21  += 1
                     if cur > float(compute_ema(cl,50).iloc[-1]):  a50  += 1
                     if cur > float(compute_ema(cl,200).iloc[-1]): a200 += 1
-                    hi52 = float(cl.rolling(252).max().iloc[-1])
-                    lo52 = float(cl.rolling(252).min().iloc[-1])
+                    # 52-week high/low over up to 252 trading days.
+                    # Use a window no larger than the data we actually have,
+                    # so stocks with <252 bars still get a valid (shorter) range
+                    # instead of NaN (which silently zeroed all breakouts before).
+                    win  = min(252, len(cl))
+                    hi52 = float(cl.rolling(win).max().iloc[-1])
+                    lo52 = float(cl.rolling(win).min().iloc[-1])
                     if cur >= hi52*0.97: h52 += 1
                     if cur <= lo52*1.03: l52 += 1
                 except: continue
@@ -346,29 +351,73 @@ def calculate_market_breadth(symbols, nifty50_close=None):
 # ════════════════════════════════════════════════════════════
 def fetch_fii_dii():
     print("🏦 Fetching FII/DII data...")
+    data = None
+    last_err = None
+    # NSE's unofficial endpoint is flaky from automated IPs. Try a few times,
+    # warming cookies each attempt. If all fail, we SKIP the write rather than
+    # overwriting good history with zeros.
+    for attempt in range(3):
+        try:
+            sess = requests.Session()
+            hdrs = {
+                "User-Agent": ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                               "AppleWebKit/537.36 (KHTML, like Gecko) "
+                               "Chrome/120.0 Safari/537.36"),
+                "Accept": "application/json, text/plain, */*",
+                "Accept-Language": "en-US,en;q=0.9",
+            }
+            # Warm cookies on the homepage + the FII/DII report page
+            sess.get("https://www.nseindia.com", headers=hdrs, timeout=12)
+            sess.get("https://www.nseindia.com/reports-indices-historical-fii-dii",
+                     headers=hdrs, timeout=12)
+            r = sess.get("https://www.nseindia.com/api/fiidiiTradeReact",
+                         headers={**hdrs, "Referer": "https://www.nseindia.com/"},
+                         timeout=15)
+            r.raise_for_status()
+            j = r.json()
+            if isinstance(j, list) and len(j) > 0:
+                data = j
+                break
+            last_err = "empty response"
+        except Exception as e:
+            last_err = str(e)
+        time.sleep(3)  # backoff between attempts
+
+    if not data:
+        # CRITICAL: do NOT upsert zeros — that would overwrite good history.
+        print(f"   ⚠️  FII/DII unavailable ({last_err}) — skipping write (keeping existing data)\n")
+        return
+
+    fii_net = dii_net = None
+    for row in data:
+        cat = str(row.get("category", "")).upper()
+        # netPurchases can be a number or string; netSales is the fallback key
+        raw_val = row.get("netPurchases", row.get("netSales", None))
+        try:
+            val = float(str(raw_val).replace(",", "")) if raw_val not in (None, "", "-") else None
+        except (TypeError, ValueError):
+            val = None
+        if val is None:
+            continue
+        if "FII" in cat or "FPI" in cat:
+            fii_net = val
+        elif "DII" in cat:
+            dii_net = val
+
+    if fii_net is None and dii_net is None:
+        print("   ⚠️  FII/DII parsed but no FII/DII rows found — skipping write\n")
+        return
+
     try:
-        sess = requests.Session()
-        sess.get("https://www.nseindia.com", headers={"User-Agent":"Mozilla/5.0"}, timeout=10)
-        r = sess.get("https://www.nseindia.com/api/fiidiiTradeReact",
-                     headers={"User-Agent":"Mozilla/5.0",
-                               "Referer":"https://www.nseindia.com/"}, timeout=15)
-        r.raise_for_status()
-        fii_net = dii_net = 0.0
-        for row in r.json():
-            cat = str(row.get("category","")).upper()
-            if "FII" in cat or "FPI" in cat:
-                fii_net = float(row.get("netPurchases", row.get("netSales",0)) or 0)
-            if "DII" in cat:
-                dii_net = float(row.get("netPurchases", row.get("netSales",0)) or 0)
         sb.table("fii_dii_activity").upsert({
             "activity_date": TODAY,
-            "fii_cash_net":  fii_net,
-            "dii_cash_net":  dii_net,
-            "source":        "NSE"
+            "fii_cash_net":  fii_net if fii_net is not None else 0.0,
+            "dii_cash_net":  dii_net if dii_net is not None else 0.0,
+            "source":        "NSE",
         }, on_conflict="activity_date").execute()
-        print(f"   ✓ FII: ₹{fii_net:,.2f}Cr | DII: ₹{dii_net:,.2f}Cr\n")
+        print(f"   ✓ FII: ₹{(fii_net or 0):,.2f}Cr | DII: ₹{(dii_net or 0):,.2f}Cr\n")
     except Exception as e:
-        print(f"   ⚠️  FII/DII failed: {e}\n")
+        print(f"   ⚠️  FII/DII DB write failed: {e}\n")
 
 
 # ════════════════════════════════════════════════════════════
